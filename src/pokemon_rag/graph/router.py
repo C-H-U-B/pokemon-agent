@@ -53,13 +53,14 @@ réellement plusieurs besoins informationnels indépendants.
 La source STRUCTURED est pokemon.db. Elle contient les données du tableur ET
 les données PokéAPI intégrées.
 
-Elle sait notamment répondre de manière déterministe à :
-- nom, numéro, forme, types, statistiques, talents et particularités du tableur ;
-- évolutions et conditions d'évolution ;
-- capacités apprises par montée de niveau, avec niveau et groupe de versions ;
-- capacités apprises par machine (CT/CS), avec groupe de versions ;
-- méthodes d'apprentissage d'une capacité présentes dans PokéAPI
-  (level-up, machine, egg, tutor, etc.).
+Le moteur de requêtes expose UNIQUEMENT quatre opérations :
+- get_evolutions : évolutions et conditions d'évolution d'un Pokémon ;
+- get_level_up_moves : capacités apprises par montée de niveau,
+  avec filtres de niveau et de groupe de versions ;
+- get_machine_moves : capacités apprises par machine (CT/CS),
+  avec filtre de groupe de versions ;
+- get_move_learning_methods : méthodes d'apprentissage d'une capacité précise
+  par un Pokémon (level-up, machine, egg, tutor, etc.).
 
 Donc les questions suivantes utilisent STRUCTURED :
 - "Comment Pikachu évolue-t-il ?"
@@ -70,7 +71,17 @@ Donc les questions suivantes utilisent STRUCTURED :
 
 IMPORTANT :
 - STRUCTURED ne doit restituer que les informations réellement présentes dans
-  pokemon.db.
+  pokemon.db ET accessibles par l'une de ces quatre opérations.
+- La présence d'une colonne dans la base ne signifie pas qu'une opération
+  permet de l'interroger.
+- Les questions ciblées sur les types, statistiques, talents, noms, numéros,
+  capacités signature et les classements, comparaisons ou comptages généraux
+  utilisent RAG + DOCUMENT_SEARCH : aucune opération dédiée n'est disponible.
+- Exemples : "Quels sont les types de Pikachu ?", "Quels sont les talents de
+  Dracaufeu ?" et "Quelles sont les statistiques de Caratroc ?" utilisent RAG.
+- Exception : une présentation générale utilise PROFILE + HYBRID. Ce chemin
+  dispose d'un accès spécifique au profil du tableur, indépendant des quatre
+  opérations du moteur de requêtes.
 - Une explication documentaire détaillée sur le fonctionnement, l'histoire,
   la biologie ou une condition absente de pokemon.db reste du ressort du RAG.
 
@@ -83,14 +94,15 @@ capacités apprises et niveaux, descriptions, explications, formes,
 === ROUTES ===
 
 STRUCTURED :
-le tableur suffit à répondre de manière déterministe.
+l'une des quatre opérations disponibles suffit à répondre à la question.
 
 RAG :
-la réponse dépend du corpus documentaire et le tableur n'apporte pas
-d'information structurée utile indispensable.
+la question nécessite le corpus documentaire, ou aucune opération structurée
+disponible ne permet d'y répondre.
 
 HYBRID :
-les données structurées ET les documents sont utiles.
+les documents complètent une opération structurée disponible, ou la demande
+est une présentation générale PROFILE utilisant le profil du tableur.
 
 === INTENTS ===
 
@@ -101,8 +113,8 @@ unique, spécial ou intéressant.
 Un PROFILE utilise HYBRID.
 
 STRUCTURED_QUERY :
-filtre, comparaison, classement, comptage, minimum, maximum ou recherche
-portant sur les colonnes réellement présentes dans STRUCTURED.
+demande correspondant à l'une des quatre opérations disponibles, avec leurs
+filtres éventuels (Pokémon, forme, version, capacité, bornes de niveau).
 
 DOCUMENT_SEARCH :
 recherche ou explication documentaire précise.
@@ -115,9 +127,10 @@ Règles :
   méthode d'apprentissage disponible dans pokemon.db est STRUCTURED_QUERY + STRUCTURED.
 - Une question sur une évolution ou ses conditions disponibles dans pokemon.db
   est STRUCTURED_QUERY + STRUCTURED.
-- "Capacité signature" est également une donnée STRUCTURED.
-- Si une question documentaire précise porte aussi sur une forme ou une
-  particularité présente dans le tableur, HYBRID est possible.
+- Une question ciblée sur une capacité signature utilise RAG + DOCUMENT_SEARCH.
+- Hors PROFILE, HYBRID nécessite une opération structurée disponible utile
+  à la question. La seule mention d'une forme ou d'une particularité du tableur
+  ne justifie pas HYBRID.
 - Si un nom de forme est explicitement écrit par l'utilisateur, conserve
   le nom COMPLET de cette forme. Ne le réduis jamais au Pokémon de base.
 - N'invente aucune colonne ni aucune donnée.
@@ -272,7 +285,6 @@ _FAST_STRUCTURED_PATTERNS = [
     re.compile(r"\b(?:apres|avant|au[- ]dessus|en[- ]dessous)\b.*\b(?:niveau|level)\b", re.IGNORECASE),
     re.compile(r"\b(?:evolue|evoluer|evolution|evolutions)\b", re.IGNORECASE),
     re.compile(r"\b(?:apprendre|apprend|apprise|apprises|appris)\b", re.IGNORECASE),
-    re.compile(r"\b(?:statistique|statistiques|stats|type|types|talent|talents)\b", re.IGNORECASE),
 ]
 
 _FAST_DOCUMENTARY_PATTERNS = [

@@ -14,8 +14,6 @@ from pokemon_rag.graph.router import _fast_route_question, route_question
         ("Quelles CT Pikachu apprend-il dans EV ?", "Pikachu"),
         ("Quelles capacités Roitiflam apprend-il après le niveau 40 ?", "Roitiflam"),
         ("Comment Tutafeh de Galar évolue-t-il ?", "Tutafeh"),
-        ("Quels sont les talents de Dracaufeu ?", "Dracaufeu"),
-        ("Quelles sont les statistiques de Caratroc ?", "Caratroc"),
     ],
 )
 def test_fast_router_structured(question: str, pokemon: str) -> None:
@@ -28,6 +26,25 @@ def test_fast_router_structured(question: str, pokemon: str) -> None:
     assert result["pokemon_validated"] is True
     assert result["single_question"] is True
     assert result["router_mode"] == "FAST"
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Quels sont les types de Pikachu ?",
+        "Quels sont les talents de Dracaufeu ?",
+        "Quelles sont les statistiques de Caratroc ?",
+    ],
+    ids=["types", "talents", "statistiques"],
+)
+def test_fast_router_defers_unsupported_structured_questions(question: str) -> None:
+    # Ces informations ne disposent pas encore d'une opération structurée.
+    # Même avec un Pokémon reconnu, le routeur rapide doit s'abstenir.
+    with patch(
+        "pokemon_rag.graph.router._extract_unique_pokemon_from_question",
+        return_value="Pokémon reconnu",
+    ):
+        assert _fast_route_question(question) is None
 
 
 @pytest.mark.parametrize(
