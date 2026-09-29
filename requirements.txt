@@ -9,3 +9,5 @@ requests
 langchain-text-splitters
 pandas
 openpyxl
+mcp
+pytest
