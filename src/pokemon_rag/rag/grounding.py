@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 
 from openai import OpenAI
+from pokemon_rag.config import LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES
+
+logger = logging.getLogger(__name__)
 
 
 LM_STUDIO_URL = "http://localhost:1234/v1"
@@ -14,6 +18,8 @@ GROUNDING_MODEL = "qwen/qwen3-vl-8b"
 client = OpenAI(
     base_url=LM_STUDIO_URL,
     api_key="lm-studio",
+    timeout=LLM_TIMEOUT_SECONDS,
+    max_retries=LLM_MAX_RETRIES,
 )
 
 
@@ -215,6 +221,7 @@ def check_grounding(
     start = time.perf_counter()
 
     usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    error_type = None
 
     user_prompt = f"""
 QUESTION UTILISATEUR
@@ -312,9 +319,11 @@ RÉPONSE À VÉRIFIER
             reason = "Aucune justification fournie."
 
     except Exception as exc:
+        logger.exception("Échec du contrôle de fidélité")
         # Fail-closed :
         # une erreur du checker ne doit jamais devenir PASS.
-        decision = "INSUFFICIENT"
+        decision = "ERROR"
+        error_type = type(exc).__name__
         reason = f"Échec du grounding checker : {exc}"
 
     elapsed = time.perf_counter() - start
@@ -323,6 +332,7 @@ RÉPONSE À VÉRIFIER
 
     return {
         "decision": decision,
+        "error_type": error_type,
         "grounded": decision == "PASS",
         "reason": reason,
         "time": elapsed,

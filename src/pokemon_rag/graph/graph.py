@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
 import time
+from collections.abc import Callable
 from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
+
+logger = logging.getLogger(__name__)
 
 from pokemon_rag.graph.nodes import (
     build_context,
@@ -76,11 +80,15 @@ class PokemonState(TypedDict, total=False):
     retry_llm_total_tokens: int
     retry_llm_tokens_per_second: float
     trace: dict[str, Any]
+    execution_status: str
+    failed_step: str
+    error_type: str
+    failed_step_time: float
 
 
 def initialize_trace(state: PokemonState) -> dict:
     """Crée une trace au début de chaque exécution du graphe."""
-    return {"trace": create_trace(state["question"])}
+    return {"trace": create_trace(state["question"]), "execution_status": "RUNNING"}
 
 
 def finalize_observability(state: PokemonState) -> dict:
@@ -88,6 +96,12 @@ def finalize_observability(state: PokemonState) -> dict:
     trace = state.get("trace")
     if trace is None:
         trace = create_trace(state["question"])
+
+    status = "ERROR" if state.get("execution_status") == "ERROR" else "COMPLETED"
+    set_trace_value(trace, "execution_status", status)
+    for key in ("failed_step", "error_type", "failed_step_time"):
+        if key in state:
+            set_trace_value(trace, key, state[key])
 
     set_trace_value(trace, "route", state.get("route"))
     set_trace_value(trace, "intent", state.get("intent"))
@@ -167,7 +181,66 @@ def finalize_observability(state: PokemonState) -> dict:
     finalize_trace(trace)
     save_trace(trace)
 
-    return {"trace": trace}
+    return {"trace": trace, "execution_status": status}
+
+
+def processing_error(state: PokemonState) -> dict:
+    """Ne restitue jamais une réponse partielle après une panne technique."""
+    return {
+        "answer": (
+            "Une erreur technique m'empêche de terminer cette recherche. "
+            "Merci de réessayer plus tard."
+        ),
+        "execution_status": "ERROR",
+        "grounding_decision": "ERROR",
+        "grounding_reason": "Le traitement a été interrompu par une erreur technique.",
+    }
+
+
+def protect_node(name: str, node: Callable) -> Callable:
+    """Conserve l'état acquis et transforme une exception en transition d'erreur."""
+    def protected(state: PokemonState) -> dict:
+        start = time.perf_counter()
+        try:
+            result = node(state)
+            structured = result.get("structured_result") or {}
+            if structured.get("error"):
+                result.update({
+                    "execution_status": "ERROR",
+                    "failed_step": name,
+                    "error_type": structured.get("error_type") or "StructuredQueryError",
+                    "failed_step_time": time.perf_counter() - start,
+                })
+            return result
+        except Exception as exc:
+            logger.exception("Échec de l'étape %s", name)
+            return {
+                "execution_status": "ERROR",
+                "failed_step": name,
+                "error_type": type(exc).__name__,
+                "failed_step_time": time.perf_counter() - start,
+            }
+    return protected
+
+
+def route_or_error(selector: Callable) -> Callable:
+    def select(state: PokemonState) -> str:
+        if state.get("execution_status") == "ERROR":
+            return "error"
+        return selector(state)
+    return select
+
+
+class TraceFinalizationError(RuntimeError):
+    """Erreur de finalisation distincte d'une panne de traitement."""
+
+
+def finalize_node(state: PokemonState) -> dict:
+    try:
+        return finalize_observability(state)
+    except Exception as exc:
+        # Ne pas relancer une sauvegarde qui a pu écrire avant d'échouer.
+        raise TraceFinalizationError("Échec de la finalisation de la trace") from exc
 
 
 def route_after_router(state: PokemonState) -> str:
@@ -226,84 +299,122 @@ def mark_generation_retry(state: PokemonState) -> dict:
 
 builder = StateGraph(PokemonState)
 
-builder.add_node("initialize_trace", initialize_trace)
-builder.add_node("router", route_query)
-builder.add_node("reject_multi_question", reject_multi_question)
-builder.add_node("retrieve_documents", retrieve_documents)
-builder.add_node("retrieve_structured_data", retrieve_structured_data)
-builder.add_node("build_context", build_context)
-builder.add_node("build_hybrid_context", build_hybrid_context)
-builder.add_node("format_structured_answer", format_structured_answer)
-builder.add_node("main_llm", call_main_llm)
-builder.add_node("grounding_check", grounding_check)
-builder.add_node("mark_generation_retry", mark_generation_retry)
-builder.add_node("retry_answer", retry_answer)
-builder.add_node("retry_retrieval", retry_retrieval)
-builder.add_node("abstain", abstain_after_grounding_failure)
-builder.add_node("finalize_observability", finalize_observability)
+for name, node in {
+    "initialize_trace": initialize_trace,
+    "router": route_query,
+    "reject_multi_question": reject_multi_question,
+    "retrieve_documents": retrieve_documents,
+    "retrieve_structured_data": retrieve_structured_data,
+    "build_context": build_context,
+    "build_hybrid_context": build_hybrid_context,
+    "format_structured_answer": format_structured_answer,
+    "main_llm": call_main_llm,
+    "grounding_check": grounding_check,
+    "mark_generation_retry": mark_generation_retry,
+    "retry_answer": retry_answer,
+    "retry_retrieval": retry_retrieval,
+    "abstain": abstain_after_grounding_failure,
+}.items():
+    builder.add_node(name, protect_node(name, node))
+builder.add_node("processing_error", processing_error)
+builder.add_node("finalize_observability", finalize_node)
+
+
+def add_next(source: str, target: str) -> None:
+    builder.add_conditional_edges(
+        source,
+        route_or_error(lambda state: "next"),
+        {"next": target, "error": "processing_error"},
+    )
 
 builder.add_edge(START, "initialize_trace")
-builder.add_edge("initialize_trace", "router")
+add_next("initialize_trace", "router")
 builder.add_conditional_edges(
     "router",
-    route_after_router,
+    route_or_error(route_after_router),
     {
+        "error": "processing_error",
         "reject": "reject_multi_question",
         "rag": "retrieve_documents",
         "structured": "retrieve_structured_data",
         "hybrid": "retrieve_structured_data",
     },
 )
-builder.add_edge("reject_multi_question", "finalize_observability")
+add_next("reject_multi_question", "finalize_observability")
 
 builder.add_conditional_edges(
     "retrieve_structured_data",
-    route_after_structured,
+    route_or_error(route_after_structured),
     {
+        "error": "processing_error",
         "documents": "retrieve_documents",
         "fast_path": "format_structured_answer",
     },
 )
-builder.add_edge("format_structured_answer", "finalize_observability")
+add_next("format_structured_answer", "finalize_observability")
 
 builder.add_conditional_edges(
     "retrieve_documents",
-    route_after_documents,
+    route_or_error(route_after_documents),
     {
+        "error": "processing_error",
         "rag": "build_context",
         "hybrid": "build_hybrid_context",
     },
 )
 
-builder.add_edge("build_context", "main_llm")
-builder.add_edge("build_hybrid_context", "main_llm")
+add_next("build_context", "main_llm")
+add_next("build_hybrid_context", "main_llm")
 
 builder.add_conditional_edges(
     "retry_retrieval",
-    route_after_retry_retrieval,
+    route_or_error(route_after_retry_retrieval),
     {
+        "error": "processing_error",
         "rag": "build_context",
         "hybrid": "build_hybrid_context",
     },
 )
 
-builder.add_edge("main_llm", "grounding_check")
+add_next("main_llm", "grounding_check")
 builder.add_conditional_edges(
     "grounding_check",
-    route_after_grounding,
+    route_or_error(route_after_grounding),
     {
+        "error": "processing_error",
         "pass": "finalize_observability",
         "retry_answer": "mark_generation_retry",
         "retry_retrieval": "retry_retrieval",
         "fail": "abstain",
     },
 )
-builder.add_edge("mark_generation_retry", "retry_answer")
-builder.add_edge("retry_answer", "grounding_check")
-builder.add_edge("abstain", "finalize_observability")
+add_next("mark_generation_retry", "retry_answer")
+add_next("retry_answer", "grounding_check")
+add_next("abstain", "finalize_observability")
+builder.add_edge("processing_error", "finalize_observability")
 builder.add_edge("finalize_observability", END)
 
 graph = builder.compile()
+
+
+def run_graph(initial_state: PokemonState, *, config=None) -> PokemonState:
+    """Exécute le graphe en conservant le dernier état en cas d'erreur du moteur."""
+    state = dict(initial_state)
+    state["trace"] = create_trace(state["question"])
+    try:
+        for snapshot in graph.stream(initial_state, config=config, stream_mode="values"):
+            state.update(snapshot)
+    except TraceFinalizationError:
+        raise
+    except Exception as exc:
+        logger.exception("Échec de l'exécution LangGraph")
+        state.update({
+            "failed_step": "graph",
+            "error_type": type(exc).__name__,
+        })
+        state.update(processing_error(state))
+        state.update(finalize_node(state))
+    return state
 
 
 def print_answer(result: PokemonState, total_time: float) -> None:
@@ -386,7 +497,7 @@ def main() -> None:
             continue
 
         start = time.perf_counter()
-        result = graph.invoke(
+        result = run_graph(
             {
                 "question": question,
                 "verbose": verbose,

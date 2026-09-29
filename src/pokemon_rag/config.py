@@ -2,6 +2,10 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+# Délai réseau par appel et reprises de transport du client LLM.
+LLM_TIMEOUT_SECONDS = 120.0
+LLM_MAX_RETRIES = 0
+
 DATA_DIR = PROJECT_ROOT / "data"
 CHROMA_PATH = PROJECT_ROOT / "chroma_db"
 
