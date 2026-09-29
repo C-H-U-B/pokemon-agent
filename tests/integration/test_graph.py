@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pokemon_rag.graph.graph import graph
+from pokemon_rag.graph.graph import graph, print_answer
 from pokemon_rag.graph import nodes
 
 
@@ -80,6 +80,7 @@ def test_pass_stops_without_any_retry():
         result = _invoke()
 
     assert result["grounding_decision"] == "PASS"
+    assert result["answer"] == "Réponse correcte."
     assert result.get("retrieval_retry_count", 0) == 0
     assert result.get("generation_retry_count", 0) == 0
     assert retrieve.call_count == 1
@@ -164,7 +165,8 @@ def test_generation_failure_retries_answer_without_retrieval(first_decision):
     assert grounding.call_count == 2
 
 
-def test_second_grounding_failure_stops_instead_of_looping():
+@pytest.mark.parametrize("final_decision", ["UNSUPPORTED", "CONTRADICTION", "INCOMPLETE"])
+def test_second_grounding_failure_stops_instead_of_looping(final_decision, capsys):
     first = _chunk("Contexte suffisant.", "Section A")
 
     client = MagicMock()
@@ -182,14 +184,22 @@ def test_second_grounding_failure_stops_instead_of_looping():
             "check_grounding",
             side_effect=[
                 _grounding("UNSUPPORTED", "Premier échec."),
-                _grounding("CONTRADICTION", "Deuxième échec."),
+                _grounding(final_decision, "Deuxième échec."),
             ],
         ) as grounding,
         patch.object(nodes, "llm_client", client),
     ):
         result = _invoke()
 
-    assert result["grounding_decision"] == "CONTRADICTION"
+    assert result["grounding_decision"] == final_decision
+    assert result["grounding_reason"] == "Deuxième échec."
+    assert result["trace"]["grounding_decision"] == final_decision
+    assert "m'abstenir" in result["answer"]
+    assert "Deuxième réponse toujours incorrecte." not in result["answer"]
+    print_answer(result, total_time=0.0)
+    output = capsys.readouterr().out
+    assert "m'abstenir" in output
+    assert "Deuxième réponse toujours incorrecte." not in output
     assert result.get("retrieval_retry_count", 0) == 0
     assert result["generation_retry_count"] == 1
     assert client.chat.completions.create.call_count == 2
@@ -224,6 +234,9 @@ def test_insufficient_retry_that_is_still_insufficient_stops_after_one_retry():
         result = _invoke()
 
     assert result["grounding_decision"] == "INSUFFICIENT"
+    assert "m'abstenir" in result["answer"]
+    assert "Deuxième réponse." not in result["answer"]
+    assert result["trace"]["grounding_decision"] == "INSUFFICIENT"
     assert result["retrieval_retry_count"] == 1
     assert result.get("generation_retry_count", 0) == 0
     assert retry_retrieval.call_count == 1
