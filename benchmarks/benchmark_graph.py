@@ -8,7 +8,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from pokemon_rag.graph.graph import graph
+from pokemon_rag.graph.graph import run_graph
 
 
 DATASET_PATH = Path(__file__).resolve().parent / "data" / "graph_cases.json"
@@ -32,7 +32,7 @@ def main() -> None:
 
     for case in tqdm(cases, desc="Benchmark graph", unit="question", dynamic_ncols=True):
         start = time.perf_counter()
-        result = graph.invoke({
+        result = run_graph({
             "question": case["question"],
             "verbose": False,
             "retrieval_retry_count": 0,

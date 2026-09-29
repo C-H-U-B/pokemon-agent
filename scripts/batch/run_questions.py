@@ -7,7 +7,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from pokemon_rag.config import PROJECT_ROOT
-from pokemon_rag.graph.graph import graph
+from pokemon_rag.graph.graph import run_graph
 
 
 DEFAULT_QUESTIONS_FILE = PROJECT_ROOT / "scripts" / "batch" / "questions.txt"
@@ -32,7 +32,7 @@ def load_questions(path: Path) -> list[str]:
 
 def run_question(question: str, *, verbose: bool = False) -> dict:
     """Exécute une question à travers le vrai graphe end-to-end."""
-    return graph.invoke(
+    return run_graph(
         {
             "question": question,
             "verbose": verbose,
@@ -115,7 +115,10 @@ def main() -> None:
             )
             continue
 
-        completed += 1
+        if result.get("execution_status") == "ERROR":
+            failures += 1
+        else:
+            completed += 1
         elapsed = time.perf_counter() - start
 
         route = str(result.get("route") or "N/A")

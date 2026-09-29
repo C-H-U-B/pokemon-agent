@@ -10,11 +10,14 @@ from typing import Any
 from openai import OpenAI
 
 
-from pokemon_rag.config import DB_PATH
+from pokemon_rag.config import DB_PATH, LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES
 LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
 QUERY_MODEL = "qwen/qwen3-vl-8b"
 
-llm_client = OpenAI(base_url=LM_STUDIO_BASE_URL, api_key="lm-studio")
+llm_client = OpenAI(
+    base_url=LM_STUDIO_BASE_URL, api_key="lm-studio",
+    timeout=LLM_TIMEOUT_SECONDS, max_retries=LLM_MAX_RETRIES,
+)
 
 VALID_OPERATIONS = {
     "get_evolutions",
@@ -1109,5 +1112,5 @@ def query_structured_data(question: str) -> dict[str, Any]:
             "execution_time": None,
             "total_time": time.perf_counter() - total_start,
             "error": f"{type(exc).__name__}: {exc}",
+            "error_type": type(exc).__name__,
         }
-

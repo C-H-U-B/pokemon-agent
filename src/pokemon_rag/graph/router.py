@@ -8,7 +8,7 @@ import unicodedata
 from typing import Any
 
 from openai import OpenAI
-from pokemon_rag.config import DB_PATH
+from pokemon_rag.config import DB_PATH, LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES
 
 
 LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
@@ -18,7 +18,10 @@ ROUTER_MODEL = "qwen/qwen3-vl-8b"
 VALID_ROUTES = {"RAG", "STRUCTURED", "HYBRID"}
 VALID_INTENTS = {"PROFILE", "STRUCTURED_QUERY", "DOCUMENT_SEARCH"}
 
-llm_client = OpenAI(base_url=LM_STUDIO_BASE_URL, api_key="lm-studio")
+llm_client = OpenAI(
+    base_url=LM_STUDIO_BASE_URL, api_key="lm-studio",
+    timeout=LLM_TIMEOUT_SECONDS, max_retries=LLM_MAX_RETRIES,
+)
 
 
 ROUTER_SYSTEM_PROMPT = """

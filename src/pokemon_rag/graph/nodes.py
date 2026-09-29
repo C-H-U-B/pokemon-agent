@@ -7,7 +7,7 @@ from pokemon_rag.rag.grounding import check_grounding
 from pokemon_rag.rag.retrieval import retrieve, retrieve_retry_context
 from pokemon_rag.graph.router import route_question
 from pokemon_rag.structured.query_engine import query_structured_data
-from pokemon_rag.config import DB_PATH
+from pokemon_rag.config import DB_PATH, LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES
 
 LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
 MAIN_MODEL = "qwen/qwen3-vl-8b"
@@ -16,7 +16,10 @@ RETRY_MAX_TOKENS = 300
 TOP_K = 5
 
 
-llm_client = OpenAI(base_url=LM_STUDIO_BASE_URL, api_key="lm-studio")
+llm_client = OpenAI(
+    base_url=LM_STUDIO_BASE_URL, api_key="lm-studio",
+    timeout=LLM_TIMEOUT_SECONDS, max_retries=LLM_MAX_RETRIES,
+)
 
 def vlog(state: dict, *args) -> None:
     if state.get("verbose", False):
@@ -344,6 +347,19 @@ def grounding_check(state: dict) -> dict:
         context=context,
         answer=answer,
     )
+
+    if result["decision"] == "ERROR":
+        return {
+            "execution_status": "ERROR",
+            "failed_step": "grounding_check",
+            "error_type": result.get("error_type") or "GroundingError",
+            "failed_step_time": result["time"],
+            "grounding_time": result["time"],
+            "grounding_prompt_tokens": result.get("prompt_tokens", 0),
+            "grounding_completion_tokens": result.get("completion_tokens", 0),
+            "grounding_total_tokens": result.get("total_tokens", 0),
+            "grounding_tokens_per_second": result.get("tokens_per_second", 0.0),
+        }
 
     if state.get("verbose", False):
         print()

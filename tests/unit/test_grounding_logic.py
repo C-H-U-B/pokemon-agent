@@ -135,7 +135,8 @@ def test_check_grounding_fails_closed_on_invalid_output(
 
     result = grounding.check_grounding("Q", "C", "R")
 
-    assert result["decision"] == "INSUFFICIENT"
+    assert result["decision"] == "ERROR"
+    assert result["error_type"] is not None
     assert result["grounded"] is False
     assert result["reason"].startswith("Échec du grounding checker :")
 
@@ -152,7 +153,8 @@ def test_check_grounding_fails_closed_on_client_error(monkeypatch) -> None:
 
     result = grounding.check_grounding("Q", "C", "R")
 
-    assert result["decision"] == "INSUFFICIENT"
+    assert result["decision"] == "ERROR"
+    assert result["error_type"] == "RuntimeError"
     assert result["grounded"] is False
     assert "LLM unavailable" in result["reason"]
 
