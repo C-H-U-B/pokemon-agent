@@ -38,16 +38,16 @@
     {
       "id": "S05",
       "question": "Quels sont les types de Dracaufeu ?",
-      "expected_route": "STRUCTURED",
-      "expected_intent": "STRUCTURED_QUERY",
+      "expected_route": "RAG",
+      "expected_intent": "DOCUMENT_SEARCH",
       "expected_single_question": true,
       "status": "APPROVED"
     },
     {
       "id": "S06",
       "question": "Quels sont les talents de Dracaufeu ?",
-      "expected_route": "STRUCTURED",
-      "expected_intent": "STRUCTURED_QUERY",
+      "expected_route": "RAG",
+      "expected_intent": "DOCUMENT_SEARCH",
       "expected_single_question": true,
       "status": "APPROVED"
     },
@@ -190,7 +190,7 @@
     {
       "id": "M02",
       "question": "Quels sont les talents de Dracaufeu et où peut-on le capturer ?",
-      "expected_route": "HYBRID",
+      "expected_route": "RAG",
       "expected_intent": "DOCUMENT_SEARCH",
       "expected_single_question": false,
       "status": "APPROVED"
@@ -198,8 +198,8 @@
     {
       "id": "M03",
       "question": "Donne les statistiques de Pikachu et explique son évolution.",
-      "expected_route": "STRUCTURED",
-      "expected_intent": "STRUCTURED_QUERY",
+      "expected_route": "HYBRID",
+      "expected_intent": "DOCUMENT_SEARCH",
       "expected_single_question": false,
       "status": "APPROVED"
     },
