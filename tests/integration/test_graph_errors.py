@@ -110,13 +110,73 @@ def test_success_still_saves_once(pipeline):
     assert result["execution_status"] == "COMPLETED"
     assert result["answer"] == "Réponse provisoire."
     assert "failed_step" not in result["trace"]
+    assert result["trace_saved"] is True
+    assert result["trace_save_error"] is None
     save.assert_called_once()
 
 
-def test_trace_failure_is_not_retried_as_processing_failure(pipeline):
+@pytest.mark.parametrize("failure", [
+    PermissionError("Trace inaccessible"),
+    OSError("Disque plein"),
+    TypeError("Trace non sérialisable"),
+])
+def test_trace_failure_preserves_answer_and_logs_once(pipeline, caplog, failure):
     *_, save = pipeline
+    save.side_effect = failure
+    result = graph_module.run_graph({"question": "Question sur Pikachu"})
+    assert result["answer"] == "Réponse provisoire."
+    assert result["execution_status"] == "COMPLETED"
+    assert result["grounding_decision"] == "PASS"
+    assert result["trace_saved"] is False
+    assert result["trace_save_error"] == type(failure).__name__
+    assert result["trace"]["total_time"] >= 0
+    assert "started_at" not in result["trace"]
+    assert "failed_step" not in result
+    assert result["trace"]["trace_id"] in caplog.text
+    assert len(caplog.records) == 1
+    assert caplog.records[0].exc_info is not None
+    save.assert_called_once_with(result["trace"])
+
+
+@pytest.mark.parametrize("stage", ["main_llm", "graph"])
+def test_trace_failure_preserves_original_processing_error(pipeline, stage):
+    _, _, generation, _, save = pipeline
     save.side_effect = PermissionError("Trace inaccessible")
-    with pytest.raises(graph_module.TraceFinalizationError):
+    config = None
+    if stage == "main_llm":
+        generation.side_effect = RuntimeError("Génération indisponible")
+        expected_error = "RuntimeError"
+    else:
+        config = {"recursion_limit": 2}
+        expected_error = "GraphRecursionError"
+    result = graph_module.run_graph({"question": "Question sur Pikachu"}, config=config)
+    assert result["execution_status"] == "ERROR"
+    assert result["failed_step"] == stage
+    assert result["error_type"] == expected_error
+    assert result["trace"]["error_type"] == expected_error
+    assert result["trace_saved"] is False
+    assert result["trace_save_error"] == "PermissionError"
+    assert "erreur technique" in result["answer"]
+    assert result["trace"]["total_time"] >= 0
+    save.assert_called_once()
+
+
+def test_trace_save_recovers_on_next_request(pipeline):
+    *_, save = pipeline
+    save.side_effect = [PermissionError("Trace inaccessible"), None]
+    first = graph_module.run_graph({"question": "Première question"})
+    second = graph_module.run_graph({"question": "Deuxième question"})
+    assert first["trace_saved"] is False
+    assert second["trace_saved"] is True
+    assert second["trace_save_error"] is None
+    assert second["execution_status"] == "COMPLETED"
+    assert save.call_count == 2
+
+
+def test_trace_save_does_not_swallow_keyboard_interrupt(pipeline):
+    *_, save = pipeline
+    save.side_effect = KeyboardInterrupt()
+    with pytest.raises(KeyboardInterrupt):
         graph_module.run_graph({"question": "Question sur Pikachu"})
     save.assert_called_once()
 

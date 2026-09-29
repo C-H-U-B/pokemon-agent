@@ -80,6 +80,8 @@ class PokemonState(TypedDict, total=False):
     retry_llm_total_tokens: int
     retry_llm_tokens_per_second: float
     trace: dict[str, Any]
+    trace_saved: bool
+    trace_save_error: str | None
     execution_status: str
     failed_step: str
     error_type: str
@@ -92,7 +94,7 @@ def initialize_trace(state: PokemonState) -> dict:
 
 
 def finalize_observability(state: PokemonState) -> dict:
-    """Construit et persiste la trace finale à partir de l'état du graphe."""
+    """Finalise la trace ; un échec de persistance ne bloque pas la réponse."""
     trace = state.get("trace")
     if trace is None:
         trace = create_trace(state["question"])
@@ -179,9 +181,23 @@ def finalize_observability(state: PokemonState) -> dict:
         )
 
     finalize_trace(trace)
-    save_trace(trace)
+    trace_saved = False
+    trace_save_error = None
+    try:
+        save_trace(trace)
+        trace_saved = True
+    except Exception as exc:
+        # Frontière de persistance uniquement : erreurs d'I/O ou de sérialisation.
+        # Pas de reprise automatique, car une écriture partielle est possible.
+        trace_save_error = type(exc).__name__
+        logger.exception("Impossible de sauvegarder la trace %s", trace["trace_id"])
 
-    return {"trace": trace, "execution_status": status}
+    return {
+        "trace": trace,
+        "execution_status": status,
+        "trace_saved": trace_saved,
+        "trace_save_error": trace_save_error,
+    }
 
 
 def processing_error(state: PokemonState) -> dict:
