@@ -207,6 +207,17 @@ def route_after_grounding(state: PokemonState) -> str:
     return "fail"
 
 
+def abstain_after_grounding_failure(state: PokemonState) -> dict:
+    """Remplace la réponse rejetée tout en conservant le diagnostic du contrôle."""
+    return {
+        "answer": (
+            "Je ne peux pas fournir de réponse suffisamment fiable à partir "
+            "des sources disponibles. Je préfère m'abstenir plutôt que de "
+            "présenter une réponse non validée."
+        ),
+    }
+
+
 def mark_generation_retry(state: PokemonState) -> dict:
     return {
         "generation_retry_count": state.get("generation_retry_count", 0) + 1
@@ -228,6 +239,7 @@ builder.add_node("grounding_check", grounding_check)
 builder.add_node("mark_generation_retry", mark_generation_retry)
 builder.add_node("retry_answer", retry_answer)
 builder.add_node("retry_retrieval", retry_retrieval)
+builder.add_node("abstain", abstain_after_grounding_failure)
 builder.add_node("finalize_observability", finalize_observability)
 
 builder.add_edge(START, "initialize_trace")
@@ -283,11 +295,12 @@ builder.add_conditional_edges(
         "pass": "finalize_observability",
         "retry_answer": "mark_generation_retry",
         "retry_retrieval": "retry_retrieval",
-        "fail": "finalize_observability",
+        "fail": "abstain",
     },
 )
 builder.add_edge("mark_generation_retry", "retry_answer")
 builder.add_edge("retry_answer", "grounding_check")
+builder.add_edge("abstain", "finalize_observability")
 builder.add_edge("finalize_observability", END)
 
 graph = builder.compile()

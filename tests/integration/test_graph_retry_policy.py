@@ -218,6 +218,9 @@ def test_unknown_grounding_decision_fails_closed_without_retry():
         result = _invoke()
 
     assert result["grounding_decision"] == "UNKNOWN_DECISION"
+    assert "m'abstenir" in result["answer"]
+    assert result["answer"] != "Réponse."
+    assert result["trace"]["grounding_decision"] == "UNKNOWN_DECISION"
     assert retrieve.call_count == 1
     retry_retrieval.assert_not_called()
     assert client.chat.completions.create.call_count == 1
