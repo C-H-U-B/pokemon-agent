@@ -224,13 +224,15 @@ def format_trace(trace: dict[str, Any]) -> str:
     for label, metrics in llm_metrics:
         if not metrics:
             continue
+        throughput = metrics.get("tokens_per_second")
+        throughput_text = f"{throughput:.2f} tok/s" if throughput is not None else "inconnu"
         lines.extend(
             [
                 label,
-                f"Prompt tokens      : {metrics.get('prompt_tokens', 0)}",
-                f"Completion tokens  : {metrics.get('completion_tokens', 0)}",
-                f"Total tokens       : {metrics.get('total_tokens', 0)}",
-                f"Débit              : {metrics.get('tokens_per_second', 0.0):.2f} tok/s",
+                f"Prompt tokens      : {metrics.get('prompt_tokens') if metrics.get('prompt_tokens') is not None else 'inconnu'}",
+                f"Completion tokens  : {metrics.get('completion_tokens') if metrics.get('completion_tokens') is not None else 'inconnu'}",
+                f"Total tokens       : {metrics.get('total_tokens') if metrics.get('total_tokens') is not None else 'inconnu'}",
+                f"Débit              : {throughput_text}",
                 "",
             ]
         )

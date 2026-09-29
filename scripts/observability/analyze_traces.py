@@ -224,10 +224,14 @@ def print_llm_summary(
 ) -> None:
     """Résume les volumes de tokens et le débit des traces instrumentées."""
     measured = []
+    incomplete = 0
 
     for trace in traces:
         metrics = get_llm_metrics(trace, name)
         if metrics is None:
+            continue
+        if metrics.get("usage_complete") is False:
+            incomplete += 1
             continue
 
         completion_tokens = int(metrics.get("completion_tokens") or 0)
@@ -242,6 +246,7 @@ def print_llm_summary(
 
     print(title)
     print(f"  traces mesurées      : {len(measured)}/{len(traces)}")
+    print(f"  usage incomplet      : {incomplete}/{len(traces)}")
 
     if not measured:
         print("  aucune métrique de tokens exploitable")
