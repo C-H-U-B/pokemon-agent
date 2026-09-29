@@ -65,6 +65,11 @@ def test_processing_failure_preserves_state_and_saves_once(pipeline, stage):
     save.assert_called_once_with(result["trace"])
     assert result["trace"]["execution_status"] == "ERROR"
     assert result["trace"]["failed_step"] == stage
+    attempts = [item for item in result["trace"]["attempts"] if item["step"] == stage]
+    assert attempts[-1]["status"] == "ERROR"
+    assert attempts[-1]["duration_seconds"] >= 0
+    if "llm" in attempts[-1]:
+        assert attempts[-1]["llm"]["total_tokens"] is None
     assert "router" in result["trace"]["timings"]
     retry.assert_not_called()
     if stage == "retrieve_documents":
@@ -204,3 +209,65 @@ def test_next_request_succeeds_after_generation_failure(pipeline):
     assert "failed_step" not in succeeded
     assert failed["trace"]["trace_id"] != succeeded["trace"]["trace_id"]
     assert save.call_count == 2
+
+
+def test_retrieval_retry_accumulates_generation_and_grounding_metrics(pipeline):
+    _, retry, generation, checker, save = pipeline
+    generated = response("Réponse vérifiée.")
+    generated.usage = SimpleNamespace(prompt_tokens=100, completion_tokens=20, total_tokens=120)
+    generation.return_value = generated
+    retry.return_value = [{"document": "Autre contexte", "metadata": {}}]
+    checks = []
+    for decision in ("INSUFFICIENT", "PASS"):
+        checked = response('{"decision":"' + decision + '","reason":"test",'
+                           '"context_sufficient":true,"unsupported_claims":[]}')
+        checked.usage = SimpleNamespace(prompt_tokens=50, completion_tokens=10, total_tokens=60)
+        checks.append(checked)
+    checker.side_effect = checks
+    result = graph_module.run_graph({"question": "Question sur Pikachu"})
+    trace = result["trace"]
+    assert result["grounding_decision"] == "PASS"
+    assert result["llm_total_tokens"] == trace["llm"]["total_tokens"] == 240
+    assert result["grounding_total_tokens"] == trace["grounding"]["total_tokens"] == 120
+    for step, timing, prefix in (("main_llm", "main_llm", "llm"),
+                                  ("grounding_check", "grounding", "grounding")):
+        attempts = [item for item in trace["attempts"] if item["step"] == step]
+        assert [item["attempt"] for item in attempts] == [1, 2]
+        duration = sum(item["duration_seconds"] for item in attempts)
+        assert trace["timings"][timing] == pytest.approx(duration)
+        assert trace[prefix]["tokens_per_second"] == pytest.approx(
+            trace[prefix]["completion_tokens"] / duration
+        )
+    assert trace["steps"]["build_context"]["calls"] == 2
+    save.assert_called_once()
+
+
+def test_generation_retry_metrics_and_trace_analysis(pipeline, capsys):
+    from pathlib import Path
+    import runpy
+
+    _, _, generation, checker, _ = pipeline
+    generated = response("Réponse vérifiée.")
+    generated.usage = SimpleNamespace(prompt_tokens=100, completion_tokens=20, total_tokens=120)
+    generation.return_value = generated
+    checker.side_effect = [
+        response('{"decision":"UNSUPPORTED","reason":"test",'
+                 '"context_sufficient":true,"unsupported_claims":["fait"]}'),
+        response('{"decision":"PASS","reason":"test",'
+                 '"context_sufficient":true,"unsupported_claims":[]}'),
+    ]
+    result = graph_module.run_graph({"question": "Question sur Pikachu"})
+    trace = result["trace"]
+    assert trace["llm"]["total_tokens"] == 120
+    assert trace["retry_llm"]["total_tokens"] == 120
+    assert trace["grounding"]["calls"] == 2
+    assert trace["grounding"]["total_tokens"] is None
+    assert trace["grounding"]["unknown_usage_calls"] == 2
+    analyzer = runpy.run_path(str(Path(__file__).resolve().parents[2] /
+                                  "scripts/observability/analyze_traces.py"))
+    legacy = {"grounding": {"prompt_tokens": 10, "completion_tokens": 5,
+                            "total_tokens": 15, "tokens_per_second": 2.0}}
+    analyzer["print_llm_summary"]("Grounding", [trace, legacy], "grounding")
+    output = capsys.readouterr().out
+    assert "traces mesurées      : 1/2" in output
+    assert "usage incomplet      : 1/2" in output

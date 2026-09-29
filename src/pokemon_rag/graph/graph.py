@@ -33,6 +33,7 @@ from pokemon_rag.observability.tracing import (
     set_timing,
     set_trace_value,
 )
+from pokemon_rag.observability.metrics import TIMING_FIELDS, record_attempt, aggregate_attempts
 
 
 class PokemonState(TypedDict, total=False):
@@ -61,25 +62,26 @@ class PokemonState(TypedDict, total=False):
     structured_format_time: float
     context_time: float
     llm_time: float
-    llm_prompt_tokens: int
-    llm_completion_tokens: int
-    llm_total_tokens: int
-    llm_tokens_per_second: float
+    llm_prompt_tokens: int | None
+    llm_completion_tokens: int | None
+    llm_total_tokens: int | None
+    llm_tokens_per_second: float | None
     grounding_decision: str
     grounding_reason: str
     grounding_time: float
-    grounding_prompt_tokens: int
-    grounding_completion_tokens: int
-    grounding_total_tokens: int
-    grounding_tokens_per_second: float
+    grounding_prompt_tokens: int | None
+    grounding_completion_tokens: int | None
+    grounding_total_tokens: int | None
+    grounding_tokens_per_second: float | None
     retrieval_retry_count: int
     generation_retry_count: int
     retry_llm_time: float
-    retry_llm_prompt_tokens: int
-    retry_llm_completion_tokens: int
-    retry_llm_total_tokens: int
-    retry_llm_tokens_per_second: float
+    retry_llm_prompt_tokens: int | None
+    retry_llm_completion_tokens: int | None
+    retry_llm_total_tokens: int | None
+    retry_llm_tokens_per_second: float | None
     trace: dict[str, Any]
+    attempts: list[dict[str, Any]]
     trace_saved: bool
     trace_save_error: str | None
     execution_status: str
@@ -90,7 +92,7 @@ class PokemonState(TypedDict, total=False):
 
 def initialize_trace(state: PokemonState) -> dict:
     """Crée une trace au début de chaque exécution du graphe."""
-    return {"trace": create_trace(state["question"]), "execution_status": "RUNNING"}
+    return {"trace": create_trace(state["question"]), "execution_status": "RUNNING", "attempts": []}
 
 
 def finalize_observability(state: PokemonState) -> dict:
@@ -180,6 +182,18 @@ def finalize_observability(state: PokemonState) -> dict:
             tokens_per_second=state.get("retry_llm_tokens_per_second", 0.0),
         )
 
+    cumulative = {}
+    if state.get("attempts"):
+        timings, steps, llms = aggregate_attempts(state["attempts"])
+        trace["attempts"] = state["attempts"]
+        trace["steps"] = steps
+        trace["timings"].update(timings)
+        trace.update(llms)
+        cumulative.update({TIMING_FIELDS[name]: value for name, value in timings.items()})
+        for prefix, metrics in llms.items():
+            for field in ("prompt_tokens", "completion_tokens", "total_tokens", "tokens_per_second"):
+                cumulative[f"{prefix}_{field}"] = metrics[field]
+
     finalize_trace(trace)
     trace_saved = False
     trace_save_error = None
@@ -193,6 +207,7 @@ def finalize_observability(state: PokemonState) -> dict:
         logger.exception("Impossible de sauvegarder la trace %s", trace["trace_id"])
 
     return {
+        **cumulative,
         "trace": trace,
         "execution_status": status,
         "trace_saved": trace_saved,
@@ -227,15 +242,17 @@ def protect_node(name: str, node: Callable) -> Callable:
                     "error_type": structured.get("error_type") or "StructuredQueryError",
                     "failed_step_time": time.perf_counter() - start,
                 })
-            return result
         except Exception as exc:
             logger.exception("Échec de l'étape %s", name)
-            return {
+            result = {
                 "execution_status": "ERROR",
                 "failed_step": name,
                 "error_type": type(exc).__name__,
                 "failed_step_time": time.perf_counter() - start,
             }
+        if name != "initialize_trace":
+            result["attempts"] = record_attempt(name, state, result, time.perf_counter() - start)
+        return result
     return protected
 
 

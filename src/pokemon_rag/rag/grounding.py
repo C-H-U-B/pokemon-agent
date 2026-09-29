@@ -222,6 +222,7 @@ def check_grounding(
 
     usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     error_type = None
+    usage_known = False
 
     user_prompt = f"""
 QUESTION UTILISATEUR
@@ -255,6 +256,8 @@ RÉPONSE À VÉRIFIER
 
         response_usage = getattr(response, "usage", None)
         if response_usage is not None:
+            usage_known = all(getattr(response_usage, key, None) is not None for key in
+                              ("prompt_tokens", "completion_tokens", "total_tokens"))
             usage = {
                 "prompt_tokens": int(getattr(response_usage, "prompt_tokens", 0) or 0),
                 "completion_tokens": int(getattr(response_usage, "completion_tokens", 0) or 0),
@@ -333,6 +336,7 @@ RÉPONSE À VÉRIFIER
     return {
         "decision": decision,
         "error_type": error_type,
+        "usage_known": usage_known,
         "grounded": decision == "PASS",
         "reason": reason,
         "time": elapsed,
