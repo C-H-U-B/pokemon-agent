@@ -125,7 +125,9 @@ They cover the PokéAPI database, mappings, evolutions, move queries and the str
 
 ## Documentation
 
-A separate document will describe the design decisions, development process, experiments and benchmark results.
+See [the architecture map](ARCHITECTURE.md) for current entry points and module
+boundaries. [The French development history](DEVELOPMENT_FR.md) records past changes;
+the older [English history](DEVELOPMENT.md) is not a synchronized translation.
 ## Contributor guides
 
 See [documentation navigation](docs/README.md) and [test prerequisites](tests/README.md). These contributor guides are maintained in French.

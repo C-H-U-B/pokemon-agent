@@ -1,0 +1,60 @@
+# Performance : faits et méthode de mesure
+
+## Comportements confirmés dans le code
+
+| Composant | Coût et portée actuels |
+| --- | --- |
+| Routeur et parseur | Chemin rapide déterministe, puis LLM si le cas n'est pas reconnu ; une requête structurée ne garantit pas zéro appel LLM |
+| Retrieval | Initialisation différée, une fois après succès par processus : deux modèles, corpus chargé par lots de 500, index de sections et BM25 en mémoire |
+| Recherche vectorielle | Embeddings des documents calculés à l'ingestion ; embedding de la question à chaque recherche |
+| BM25 | Scores calculés sur le corpus complet avant filtrage des indices du Pokémon ; le scope limite les résultats, pas ce calcul initial |
+| Sections et reranking | Plusieurs évaluations CrossEncoder possibles ; désactiver le reranking principal ne supprime pas le sélecteur de section |
+| Client MCP | Un nouveau serveur et une découverte des outils par `ask`, puis deux appels LLM en cas de succès ; les ressources RAG ne survivent pas au sous-processus |
+| Ingestion | Relit et découpe les documents, recalcule leurs embeddings, remplace la collection Chroma ; pas une mise à jour incrémentale |
+
+La configuration, les points d'entrée et les frontières sont dans
+[ARCHITECTURE.md](../ARCHITECTURE.md). Ces observations n'établissent pas à elles
+seules quel composant domine la latence sur une machine donnée.
+
+## Règles à préserver
+
+Ne pas initialiser la recherche à l'import d'un module. Ne pas reconstruire une
+base ou un index pour accélérer un test applicatif. Garder la représentation
+d'embedding cohérente entre ingestion et recherche avant de modifier le modèle.
+Préserver les limites de reprise, les scopes et les validations lors d'une optimisation.
+
+Les tentatives instrumentées sont cumulées dans `observability/metrics.py`.
+Les tokens concernent la génération, le grounding et la régénération ; ce n'est
+pas une comptabilité complète des tokens du routeur ou du parseur. Une consommation
+inconnue reste inconnue. Le débit est calculé sur la durée totale des appels,
+traitement du prompt compris ; les débits individuels ne s'additionnent pas.
+
+## Mesurer avant de conclure
+
+Comparer avant/après sur les mêmes questions, données, modèles et paramètres.
+Distinguer premier appel à froid, appels suivants dans le même processus et appels
+MCP redémarrant un serveur. Relever latence, mémoire, nombre de reprises, volumes
+de contexte et exactitude ; un gain obtenu en perdant une contrainte n'est pas valide.
+
+L'analyse de traces existantes est sans inférence :
+
+```powershell
+conda run -n langgraph-agent python scripts/observability/analyze_traces.py traces/graph_traces.jsonl --top 5
+```
+
+Le graphe enregistre les traces dans `traces/graph_traces.jsonl`. Le client MCP
+n'émet pas ces traces. Leur absence n'autorise pas l'agent à lancer un benchmark
+LLM : fournir la commande à l'utilisateur et attendre ses résultats, conformément
+au [guide des tests](../tests/README.md).
+
+## Pistes à mesurer, non implémentées
+
+Une session MCP persistante pourrait amortir le démarrage et le chargement RAG.
+Un cache des catalogues de noms pourrait éviter certaines lectures SQL répétées
+du routeur et du parseur. Une recherche BM25 limitée en amont pourrait réduire le
+travail sur le corpus, mais changerait potentiellement ses statistiques et son classement.
+Mesurer ces pistes avant de les retenir ; aucune amélioration chiffrée n'est établie ici.
+
+Les scripts longs emploient déjà notamment `tqdm`. Conserver une progression
+compréhensible avec compteur et ETA lorsque pertinente ; dans un serveur MCP,
+les diagnostics doivent aller sur stderr, jamais sur le canal protocolaire stdout.

@@ -39,7 +39,7 @@ Les requêtes structurées prennent actuellement en charge :
 
 - les évolutions et leurs conditions ;
 - les capacités apprises par niveau ;
-- les capacités apprises par machine ;
+- les capacités apprises par CT ou CS ;
 - les méthodes d'apprentissage des capacités ;
 - les types, le numéro national et la génération d'introduction ;
 - les capacités signature et pseudo-signature.
@@ -152,13 +152,17 @@ Ils couvrent notamment :
 
 Consulter [le guide de navigation](docs/README.md) pour contribuer. Les [commandes de test](tests/README.md) distinguent les validations légères de celles nécessitant des ressources locales.
 
+La [carte d'architecture](ARCHITECTURE.md) décrit les flux actuels, les points
+d'entrée et les modules à modifier selon le comportement concerné.
+
 Le développement du projet, les choix d'architecture, les problèmes rencontrés et les différents tests sont détaillés dans :
 
 ```text
 DEVELOPMENT_FR.md
 ```
 
-La version anglaise correspondante est disponible dans :
+Un historique anglais plus ancien, non synchronisé avec la version française,
+est disponible dans :
 
 ```text
 DEVELOPMENT.md
