@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+pytestmark = pytest.mark.real_data
 
 from pokemon_rag.config import DB_PATH
 from pokemon_rag.structured.query_engine import (

@@ -4,7 +4,21 @@ from unittest.mock import patch
 
 import pytest
 
-from pokemon_rag.graph.router import _fast_route_question, route_question
+from pokemon_rag.graph.router import _fast_route_question, route_question, _validate_router_output
+
+
+@pytest.mark.parametrize("name, route, intent", [
+    ("Pikachu", "HYBRID", "PROFILE"),
+    ("PokémonInventé", "RAG", "DOCUMENT_SEARCH"),
+])
+def test_profile_only_uses_structured_data_for_validated_entity(name, route, intent):
+    result = _validate_router_output({
+        "route": "HYBRID", "intent": "PROFILE", "pokemon": name,
+        "single_question": True,
+    }, f"Présente-moi {name}")
+    assert result["route"] == route
+    assert result["intent"] == intent
+    assert result["pokemon_validated"] is (name == "Pikachu")
 
 
 @pytest.mark.parametrize(

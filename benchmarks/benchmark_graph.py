@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import argparse
 import statistics
 import time
 from collections import Counter
@@ -8,14 +9,21 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from pokemon_rag.graph.graph import run_graph
 
 
 DATASET_PATH = Path(__file__).resolve().parent / "data" / "graph_cases.json"
 
 
 def main() -> None:
+    from pokemon_rag.graph.graph import run_graph
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", type=Path, default=Path("traces/answer_review.json"))
+    args = parser.parse_args()
+    if args.output.exists():
+        raise FileExistsError(f"Rapport existant, choisissez un autre --output : {args.output}")
     cases = json.loads(DATASET_PATH.read_text(encoding="utf-8"))["cases"]
+    references = json.loads(DATASET_PATH.with_name("answer_references.json").read_text(encoding="utf-8"))
+    reviews = []
     unreviewed = [c["id"] for c in cases if c.get("status") != "APPROVED"]
     if unreviewed:
         raise RuntimeError(f"Cas non APPROVED : {', '.join(unreviewed)}")
@@ -39,6 +47,17 @@ def main() -> None:
             "generation_retry_count": 0,
         })
         elapsed = time.perf_counter() - start
+        if case["id"] in references:
+            reviews.append({
+                "id": case["id"], "question": case["question"],
+                "answer": result.get("answer", ""),
+                "structured_result": result.get("structured_result"),
+                "grounding_decision": result.get("grounding_decision"),
+                "reference": references[case["id"]],
+                "review": {"factually_correct": None, "complete": None,
+                           "unsupported_claims": None, "abstained": None,
+                           "abstention_appropriate": None, "reviewer": "", "notes": ""},
+            })
         timings.append(elapsed)
 
         got_route = result.get("route")
@@ -88,7 +107,8 @@ def main() -> None:
         print(f"Route accuracy    : {route_ok / route_total:.3f} ({route_ok}/{route_total})")
     print(f"Single accuracy   : {single_ok / n:.3f} ({single_ok}/{n})")
     print(f"Terminal accuracy : {terminal_ok / n:.3f} ({terminal_ok}/{n})")
-    print(f"Exact accuracy    : {exact_ok / n:.3f} ({exact_ok}/{n})")
+    print(f"Pipeline accuracy : {exact_ok / n:.3f} ({exact_ok}/{n})")
+    print(f"Réponses à relire : {len(reviews)} (aucun score factuel déduit du grounding)")
     print(f"Routes obtenues   : {dict(routes)}")
     print(f"Décisions finales : {dict(terminals)}")
     print(f"Retries retrieval : {retries['retrieval']}")
@@ -97,6 +117,13 @@ def main() -> None:
     print(f"Temps médian      : {statistics.median(timings):.2f} s")
     print(f"Temps min/max     : {min(timings):.2f} / {max(timings):.2f} s")
     print("=" * 72)
+
+    if args.output.exists():
+        raise FileExistsError(f"Rapport existant, choisissez un autre --output : {args.output}")
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with args.output.open("x", encoding="utf-8") as handle:
+        json.dump({"cases": reviews}, handle, ensure_ascii=False, indent=2)
+    print(f"Relecture factuelle : {args.output}")
 
     if failures:
         print("\nCAS À ANALYSER")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+pytestmark = pytest.mark.real_data
 
 from pokemon_rag.structured.query_engine import get_evolutions
 

@@ -102,6 +102,18 @@ def test_fast_parser_before_level_is_exclusive():
     assert plan["max_level"] == 39
 
 
+@pytest.mark.xfail(strict=True, reason="Bug connu : la deuxième borne est ignorée par le parseur rapide")
+def test_fast_parser_preserves_both_level_bounds():
+    plan = _fast_parse_query("Quelles capacités Pikachu apprend-il après le niveau 20 mais avant le niveau 40 ?")
+    assert plan is None or (plan["min_level"], plan["max_level"]) == (21, 39)
+
+
+@pytest.mark.xfail(strict=True, reason="Bug connu : une version inconnue devient une absence de filtre")
+def test_fast_parser_does_not_drop_unknown_game():
+    plan = _fast_parse_query("Quelles CT Pikachu apprend-il dans Pokémon JeuInexistant ?")
+    assert plan is None
+
+
 def test_fast_parser_rejects_unknown_pokemon():
     assert _fast_parse_query(
         "Comment PokémonQuiNExistePas évolue-t-il ?"

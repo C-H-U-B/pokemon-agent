@@ -14,5 +14,8 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
+    "real_data: nécessite les bases ou le corpus locaux du projet",
+    "llm: nécessite le serveur LLM local",
+    "models: charge les modèles d'embedding ou de reranking",
     "long: tests lents utilisant LLM, modèles locaux ou pipelines complets",
 ]

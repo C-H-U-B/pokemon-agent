@@ -5,7 +5,7 @@ import pytest
 import pokemon_rag.rag.retrieval as retrieval
 
 
-pytestmark = pytest.mark.long
+pytestmark = [pytest.mark.long, pytest.mark.real_data, pytest.mark.models]
 
 
 CASES = [
