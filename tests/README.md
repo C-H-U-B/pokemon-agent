@@ -16,10 +16,9 @@ ni corpus n'est téléchargé. Les tests de résolution sur la vraie base sont d
 `integration/test_name_resolution.py`. Les marqueurs `real_data`, `models` et `llm`
 décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 
-Un test `xfail(strict=True)` documente un défaut connu du parseur rapide :
-la perte d'un jeu inconnu. Il ne constitue pas une réussite. Après correction,
-son succès inattendu impose de retirer xfail. Les bornes de niveau sont couvertes
-par des tests ordinaires, y compris les intersections et les intervalles impossibles.
+Les jeux inconnus explicitement mentionnés sont rejetés avant le recours au LLM,
+sans supprimer le filtre demandé. Ce comportement et les bornes de niveau
+(intersections et intervalles impossibles compris) sont couverts par des tests ordinaires.
 
 # Évaluation factuelle
 

@@ -250,7 +250,17 @@ def _fast_version_group(question: str) -> tuple[str | None, bool]:
     }
     if len(direct) > 1:
         return None, True
-    return (next(iter(direct)), False) if direct else (None, False)
+    if direct:
+        return next(iter(direct)), False
+    return None, _has_explicit_game(question)
+
+
+def _has_explicit_game(question: str) -> bool:
+    """Détecte un filtre de jeu que l'on ne doit pas supprimer silencieusement."""
+    return bool(re.search(
+        r"(?:^|-)(?:dans|in|version|versions|jeu|jeux|(?:en|sur)-pokemon)(?:-|$)",
+        _normalize(question),
+    ))
 
 
 def _fast_level_bounds(question: str) -> tuple[int | None, int | None] | None:
@@ -401,6 +411,11 @@ def parse_query(question: str) -> dict[str, Any]:
             "parse_time": time.perf_counter() - start,
             "parser_mode": "FAST",
         }
+
+    if _has_explicit_game(question):
+        _, unresolved_version = _fast_version_group(question)
+        if unresolved_version:
+            raise ValueError("Jeu inconnu ou ambigu : précisez un groupe de versions reconnu.")
 
     response = llm_client.chat.completions.create(
         model=QUERY_MODEL,
