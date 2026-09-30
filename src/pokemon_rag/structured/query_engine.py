@@ -24,7 +24,12 @@ VALID_OPERATIONS = {
     "get_move_learning_methods",
     "get_level_up_moves",
     "get_machine_moves",
+    "get_pokemon_types",
+    "get_pokedex_identity",
+    "get_signature_moves",
 }
+
+POKEDEX_OPERATIONS = {"get_pokemon_types", "get_pokedex_identity", "get_signature_moves"}
 
 QUERY_SYSTEM_PROMPT = r"""
 Tu es le planificateur du moteur STRUCTURED d'un Pokédex.
@@ -60,6 +65,15 @@ Opérations disponibles :
 
 Utilise les identifiants PokéAPI pour version_group quand la version est précisée
 (ex. scarlet-violet, sword-shield, sun-moon).
+
+5. get_pokemon_types : types d'une entrée précise du Pokédex personnalisé.
+6. get_pokedex_identity : numéro national et génération d'introduction d'une entrée.
+7. get_signature_moves : capacités signature et pseudo-signature renseignées dans le tableur.
+Pour ces trois opérations : clés operation, pokemon, form, version_group.
+Conserve le nom COMPLET de la forme dans pokemon et utilise form=null si elle
+fait déjà partie du nom. Aucun filtre historique par jeu n'est disponible :
+ne supprime jamais une version explicitement demandée pour exécuter ces opérations.
+Les statistiques et la liste générale des talents ne sont pas disponibles.
 
 Exemples :
 Question : "Comment Pikachu évolue-t-il ?"
@@ -277,9 +291,36 @@ def _fast_level_bounds(question: str) -> tuple[int | None, int | None] | None:
     return minimum, maximum
 
 
+def parse_pokedex_query(question: str) -> dict[str, Any] | None:
+    """Reconnaît uniquement des demandes simples portant sur une entrée exacte."""
+    normalized = _normalize(question)
+    patterns = {
+        "get_pokemon_types": r"(?:quel-est-le-type|quels-sont-les-types|type|types)-(?:(?:de|du|d)-)?(.+)",
+        "get_pokedex_identity": r"(?:quel-est-le-numero(?:-national)?(?:-du-pokedex)?|numero(?:-national)?|quelle-est-la-generation(?:-d-introduction)?|generation-d-introduction)-(?:(?:de|du|d)-)?(.+)",
+        "get_signature_moves": r"(?:quelle-est-la-capacite-signature|quelles-sont-les-capacites-signature|capacite-signature|capacites-signature)-(?:(?:de|du|d)-)?(.+)",
+    }
+    for operation, pattern in patterns.items():
+        match = re.fullmatch(pattern, normalized)
+        if not match:
+            continue
+        conn = _connect()
+        try:
+            rows = conn.execute("SELECT DISTINCT name_fr, name_en FROM custom_pokedex").fetchall()
+        finally:
+            conn.close()
+        names = {row["name_fr"] or row["name_en"] for row in rows
+                 if match.group(1) in {_normalize(row["name_fr"]), _normalize(row["name_en"])}}
+        if len(names) == 1:
+            return {"operation": operation, "pokemon": names.pop(), "form": None, "version_group": None}
+    return None
+
+
 def _fast_parse_query(question: str) -> dict[str, Any] | None:
     """Construit un plan uniquement pour les formulations non ambiguës."""
     normalized = _normalize(question)
+    pokedex_plan = parse_pokedex_query(question)
+    if pokedex_plan is not None:
+        return validate_plan(pokedex_plan)
     pokemon = _fast_species(question)
     if pokemon is None:
         return None
@@ -371,6 +412,10 @@ def parse_query(question: str) -> dict[str, Any]:
     )
     raw = response.choices[0].message.content or ""
     plan = _extract_json(raw)
+    if plan.get("operation") in POKEDEX_OPERATIONS and re.search(
+        r"(?:^|-)(?:dans|en|in|version|versions|g\d+|generation-\d+)(?:-|$)", _normalize(question)
+    ):
+        raise ValueError("Les informations du Pokédex personnalisé ne sont pas filtrables par jeu ou époque.")
     return {
         "plan": validate_plan(plan),
         "raw_text": raw,
@@ -385,6 +430,8 @@ def validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(f"Opération non supportée : {operation!r}")
 
     schemas = {
+        **{operation: {"operation", "pokemon", "form", "version_group"}
+           for operation in POKEDEX_OPERATIONS},
         "get_evolutions": {"operation", "pokemon", "form", "version_group"},
         "get_move_learning_methods": {
             "operation", "pokemon", "form", "move", "version_group"
@@ -423,6 +470,9 @@ def validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
             version_group.strip() if isinstance(version_group, str) else None
         ),
     }
+
+    if operation in POKEDEX_OPERATIONS and version_group is not None:
+        raise ValueError("Le Pokédex personnalisé ne permet pas de filtrer ces informations par version.")
 
     if operation == "get_move_learning_methods":
         move = plan.get("move")
@@ -1067,9 +1117,67 @@ def get_machine_moves(
         conn.close()
 
 
+def _pokedex_entry(pokemon: str, form: str | None) -> dict[str, Any]:
+    if not isinstance(pokemon, str) or not _normalize(pokemon):
+        raise ValueError("pokemon doit être un nom non vide.")
+    if form is not None and (not isinstance(form, str) or not _normalize(form)):
+        raise ValueError("form doit être null ou un nom de forme non vide.")
+    conn = _connect()
+    try:
+        rows = [dict(row) for row in conn.execute("SELECT * FROM custom_pokedex")]
+    finally:
+        conn.close()
+    wanted = _normalize(pokemon)
+    matches = [row for row in rows if wanted in {
+        _normalize(row.get(key)) for key in ("name_fr", "name_en", "pokemon_identifier", "form_identifier")
+    }]
+    if form:
+        # Accepte une espèce de base + un libellé explicite de forme, sans fallback.
+        species = {row["species_id"] for row in matches}
+        target = _normalize(form)
+        candidates = rows if any(row.get("is_default") for row in matches) else matches
+        matches = [row for row in candidates if row["species_id"] in species and (target in {
+            _normalize(row.get(key)) for key in ("form_fr", "form_en", "form_identifier", "name_fr", "name_en")
+        } or (target in _REGION_FORMS and _normalize(row.get("form_identifier")).endswith("-" + target)))]
+    if len(matches) != 1:
+        raise ValueError("Entrée Pokédex introuvable ou ambiguë ; précisez le nom complet de la forme.")
+    return matches[0]
+
+
+def _pokedex_result(operation: str, pokemon: str, form: str | None) -> dict[str, Any]:
+    start = time.perf_counter()
+    row = _pokedex_entry(pokemon, form)
+    fields = {
+        "get_pokemon_types": ("type_1_fr", "type_2_fr"),
+        "get_pokedex_identity": ("national_number", "introduction_generation_fr"),
+        "get_signature_moves": ("signature_move_fr", "pseudo_signature_move_fr"),
+    }[operation]
+    entry = {"name_fr": row["name_fr"], **{key: row.get(key) for key in fields}}
+    return {"operation": operation, "pokemon": row["name_fr"], "form": row.get("form_fr"),
+            "source": "Pokédex personnalisé", "rows": [entry], "count": 1,
+            "execution_time": time.perf_counter() - start}
+
+
+def get_pokemon_types(pokemon: str, form: str | None = None) -> dict[str, Any]:
+    return _pokedex_result("get_pokemon_types", pokemon, form)
+
+
+def get_pokedex_identity(pokemon: str, form: str | None = None) -> dict[str, Any]:
+    return _pokedex_result("get_pokedex_identity", pokemon, form)
+
+
+def get_signature_moves(pokemon: str, form: str | None = None) -> dict[str, Any]:
+    return _pokedex_result("get_signature_moves", pokemon, form)
+
+
 def execute_plan(plan: dict[str, Any]) -> dict[str, Any]:
     plan = validate_plan(plan)
     operation = plan["operation"]
+    pokedex_functions = {"get_pokemon_types": get_pokemon_types,
+                         "get_pokedex_identity": get_pokedex_identity,
+                         "get_signature_moves": get_signature_moves}
+    if operation in pokedex_functions:
+        return pokedex_functions[operation](pokemon=plan["pokemon"], form=plan["form"])
 
     if operation == "get_evolutions":
         return get_evolutions(

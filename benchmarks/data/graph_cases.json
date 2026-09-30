@@ -1,8 +1,32 @@
 {
   "description": "Benchmark end-to-end compact du graphe Pokémon.",
-  "n_cases": 16,
+  "n_cases": 19,
   "status": "APPROVED",
   "cases": [
+    {
+      "id": "S05",
+      "question": "Quels sont les types de Dracaufeu ?",
+      "expected_route": "STRUCTURED",
+      "expected_single_question": true,
+      "expected_terminal": "DETERMINISTIC",
+      "status": "APPROVED"
+    },
+    {
+      "id": "S06",
+      "question": "Quel est le numéro national de Pikachu ?",
+      "expected_route": "STRUCTURED",
+      "expected_single_question": true,
+      "expected_terminal": "DETERMINISTIC",
+      "status": "APPROVED"
+    },
+    {
+      "id": "S07",
+      "question": "Quelle est la capacité signature de Pikachu ?",
+      "expected_route": "STRUCTURED",
+      "expected_single_question": true,
+      "expected_terminal": "DETERMINISTIC",
+      "status": "APPROVED"
+    },
     {
       "id": "S01",
       "question": "Comment Pikachu évolue-t-il ?",

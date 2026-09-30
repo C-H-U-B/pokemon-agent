@@ -29,7 +29,7 @@ conda run -n langgraph-agent python benchmarks/review_answers.py traces/review-0
 ```
 
 Le benchmark nécessite les vraies données et LM Studio. Il exporte les réponses
-complètes de dix cas avec une grille de référence dans `answer_references.json`.
+complètes des cas documentés avec une grille de référence dans `answer_references.json`.
 Les références proviennent du corpus local consulté et, pour S01, des lignes 17
 et 517 de pokemon_evolution. Elles ne sont pas générées à partir des réponses.
 Ce premier lot couvre un socle de faits ; ce n'est pas une garantie exhaustive
@@ -44,8 +44,8 @@ pas automatiquement comme une abstention appropriée.
 
 `review_answers.py` rapporte les nombres de réponses relues, correctes, complètes,
 avec affirmations non étayées et d'abstentions pertinentes. Les cas non relus
-restent explicitement en attente. Le contrôle structuré compare les champs de S01
-et la liste complète des évolutions, indépendamment du verdict du LLM. Le texte
+restent explicitement en attente. Le contrôle structuré compare les évolutions
+de S01 et les informations du Pokédex de S05 à S07, indépendamment du verdict du LLM. Le texte
 final reste à relire même si les données structurées sont correctes. Aucun second
 LLM n'est utilisé comme juge. Les autres cas du benchmark restent des contrôles
 de pipeline, sans note factuelle implicite.

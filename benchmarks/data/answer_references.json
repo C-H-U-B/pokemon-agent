@@ -1,4 +1,25 @@
 {
+  "S05": {
+    "source": "pokemon.db : custom_pokedex, entrée Dracaufeu ; data/pokepedia/cleaned/0006_dracaufeu.md:18-19",
+    "expected_facts": ["La forme de base de Dracaufeu est Feu et Vol"],
+    "forbidden_claims": ["La forme de base est de type Dragon"],
+    "structured": {"operation": "get_pokemon_types", "pokemon": "Dracaufeu", "count": 1,
+      "rows": [{"name_fr": "Dracaufeu", "type_1_fr": "Feu", "type_2_fr": "Vol"}]}
+  },
+  "S06": {
+    "source": "pokemon.db : custom_pokedex, entrée Pikachu ; data/pokepedia/cleaned/0025_pikachu.md:17",
+    "expected_facts": ["Le numéro national de Pikachu est 25"],
+    "forbidden_claims": ["Le numéro national de Pikachu est 26"],
+    "structured": {"operation": "get_pokedex_identity", "pokemon": "Pikachu", "count": 1,
+      "rows": [{"name_fr": "Pikachu", "national_number": 25, "introduction_generation_fr": "G1"}]}
+  },
+  "S07": {
+    "source": "pokemon.db : custom_pokedex, entrée Pikachu, colonnes signature_move_fr et pseudo_signature_move_fr",
+    "expected_facts": ["Le tableur renseigne Électacle comme capacité signature", "Tonnerre (G1) est distingué comme pseudo-signature"],
+    "forbidden_claims": ["Tonnerre est exclusivement appris par Pikachu dans tous les jeux"],
+    "structured": {"operation": "get_signature_moves", "pokemon": "Pikachu", "count": 1,
+      "rows": [{"name_fr": "Pikachu", "signature_move_fr": "Électacle", "pseudo_signature_move_fr": "Tonnerre (G1)"}]}
+  },
   "S01": {
     "source": "data/pokepedia/cleaned/0025_pikachu.md:58-60 ; pokemon_evolution IDs 17 et 517, trigger_item_id=83",
     "expected_facts": ["Pikachu évolue avec une Pierre Foudre", "Raichu et sa forme d'Alola sont distingués"],

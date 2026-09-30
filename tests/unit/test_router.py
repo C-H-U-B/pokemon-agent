@@ -28,6 +28,9 @@ def test_profile_only_uses_structured_data_for_validated_entity(name, route, int
         ("Quelles CT Pikachu apprend-il dans EV ?", "Pikachu"),
         ("Quelles capacités Roitiflam apprend-il après le niveau 40 ?", "Roitiflam"),
         ("Comment Tutafeh de Galar évolue-t-il ?", "Tutafeh"),
+        ("Quels sont les types de Pikachu ?", "Pikachu"),
+        ("Quel est le numéro national de Pikachu ?", "Pikachu"),
+        ("Quelle est la capacité signature de Pikachu ?", "Pikachu"),
     ],
 )
 def test_fast_router_structured(question: str, pokemon: str) -> None:
@@ -45,11 +48,10 @@ def test_fast_router_structured(question: str, pokemon: str) -> None:
 @pytest.mark.parametrize(
     "question",
     [
-        "Quels sont les types de Pikachu ?",
         "Quels sont les talents de Dracaufeu ?",
         "Quelles sont les statistiques de Caratroc ?",
     ],
-    ids=["types", "talents", "statistiques"],
+    ids=["talents", "statistiques"],
 )
 def test_fast_router_defers_unsupported_structured_questions(question: str) -> None:
     # Ces informations ne disposent pas encore d'une opération structurée.

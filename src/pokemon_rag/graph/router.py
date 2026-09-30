@@ -9,6 +9,7 @@ from typing import Any
 
 from openai import OpenAI
 from pokemon_rag.config import DB_PATH, LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES
+from pokemon_rag.structured.query_engine import parse_pokedex_query
 
 
 LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
@@ -56,7 +57,7 @@ réellement plusieurs besoins informationnels indépendants.
 La source STRUCTURED est pokemon.db. Elle contient les données du tableur ET
 les données PokéAPI intégrées.
 
-Le moteur de requêtes expose UNIQUEMENT quatre opérations :
+Le moteur de requêtes expose les opérations suivantes :
 - get_evolutions : évolutions et conditions d'évolution d'un Pokémon ;
 - get_level_up_moves : capacités apprises par montée de niveau,
   avec filtres de niveau et de groupe de versions ;
@@ -64,6 +65,12 @@ Le moteur de requêtes expose UNIQUEMENT quatre opérations :
   avec filtre de groupe de versions ;
 - get_move_learning_methods : méthodes d'apprentissage d'une capacité précise
   par un Pokémon (level-up, machine, egg, tutor, etc.).
+- get_pokemon_types : types d'une entrée précise du Pokédex personnalisé ;
+- get_pokedex_identity : numéro national et génération d'introduction ;
+- get_signature_moves : capacités signature et pseudo-signature renseignées
+  dans le Pokédex personnalisé, avec leurs annotations éventuelles.
+Ces trois opérations ne permettent pas de filtrer par jeu : toute question
+historique sur ces informations utilise RAG + DOCUMENT_SEARCH.
 
 Donc les questions suivantes utilisent STRUCTURED :
 - "Comment Pikachu évolue-t-il ?"
@@ -74,16 +81,17 @@ Donc les questions suivantes utilisent STRUCTURED :
 
 IMPORTANT :
 - STRUCTURED ne doit restituer que les informations réellement présentes dans
-  pokemon.db ET accessibles par l'une de ces quatre opérations.
+  pokemon.db ET accessibles par l'une de ces opérations.
 - La présence d'une colonne dans la base ne signifie pas qu'une opération
   permet de l'interroger.
-- Les questions ciblées sur les types, statistiques, talents, noms, numéros,
-  capacités signature et les classements, comparaisons ou comptages généraux
+- Les questions ciblées sur les statistiques, talents généraux,
+  classements, comparaisons ou comptages généraux
   utilisent RAG + DOCUMENT_SEARCH : aucune opération dédiée n'est disponible.
-- Exemples : "Quels sont les types de Pikachu ?", "Quels sont les talents de
-  Dracaufeu ?" et "Quelles sont les statistiques de Caratroc ?" utilisent RAG.
+- "Quels sont les types de Pikachu ?" utilise STRUCTURED.
+- "Quels sont les talents de Dracaufeu ?" et "Quelles sont les statistiques
+  de Caratroc ?" utilisent RAG.
 - Exception : une présentation générale utilise PROFILE + HYBRID. Ce chemin
-  dispose d'un accès spécifique au profil du tableur, indépendant des quatre
+  dispose d'un accès spécifique au profil du tableur, indépendant des
   opérations du moteur de requêtes.
 - Une explication documentaire détaillée sur le fonctionnement, l'histoire,
   la biologie ou une condition absente de pokemon.db reste du ressort du RAG.
@@ -97,7 +105,7 @@ capacités apprises et niveaux, descriptions, explications, formes,
 === ROUTES ===
 
 STRUCTURED :
-l'une des quatre opérations disponibles suffit à répondre à la question.
+l'une des opérations disponibles suffit à répondre à la question.
 
 RAG :
 la question nécessite le corpus documentaire, ou aucune opération structurée
@@ -116,7 +124,7 @@ unique, spécial ou intéressant.
 Un PROFILE utilise HYBRID.
 
 STRUCTURED_QUERY :
-demande correspondant à l'une des quatre opérations disponibles, avec leurs
+demande correspondant à l'une des opérations disponibles, avec leurs
 filtres éventuels (Pokémon, forme, version, capacité, bornes de niveau).
 
 DOCUMENT_SEARCH :
@@ -130,7 +138,8 @@ Règles :
   méthode d'apprentissage disponible dans pokemon.db est STRUCTURED_QUERY + STRUCTURED.
 - Une question sur une évolution ou ses conditions disponibles dans pokemon.db
   est STRUCTURED_QUERY + STRUCTURED.
-- Une question ciblée sur une capacité signature utilise RAG + DOCUMENT_SEARCH.
+- Une question sur les types, le numéro national, la génération d'introduction
+  ou les capacités signature utilise STRUCTURED_QUERY + STRUCTURED, sauf filtre par jeu.
 - Hors PROFILE, HYBRID nécessite une opération structurée disponible utile
   à la question. La seule mention d'une forme ou d'une particularité du tableur
   ne justifie pas HYBRID.
@@ -364,10 +373,11 @@ def _fast_route_question(question: str) -> dict[str, Any] | None:
     if re.search(r"\b(?:et|ainsi que)\b", normalized):
         return None
 
-    if not any(pattern.search(normalized) for pattern in _FAST_STRUCTURED_PATTERNS):
+    pokedex_plan = parse_pokedex_query(question)
+    if pokedex_plan is None and not any(pattern.search(normalized) for pattern in _FAST_STRUCTURED_PATTERNS):
         return None
 
-    pokemon = _extract_unique_pokemon_from_question(question)
+    pokemon = pokedex_plan["pokemon"] if pokedex_plan else _extract_unique_pokemon_from_question(question)
     if pokemon is None:
         return None
 
