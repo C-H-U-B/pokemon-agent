@@ -1043,3 +1043,11 @@ Le Fast Parser s'arrêtait à la première borne reconnue. Une demande « après
 Il collecte désormais les contraintes avant de calculer leur intersection : cette demande produit les bornes 21 à 39. Les limites inclusives sont également prises en charge, les intervalles impossibles sont rejetés et les formulations partiellement comprises sont laissées au parseur LLM.
 
 Les tests couvrent ces cas et le test des deux bornes n'est plus marqué comme échec attendu.
+
+## 38. Extension des requêtes structurées au Pokédex personnalisé
+
+Le moteur structuré a été étendu aux types, au numéro national, à la génération d'introduction et aux capacités signature. Ces informations disposent de colonnes dédiées dans le Pokédex personnalisé ; les statistiques complètes et la liste générale des talents restent traitées par le RAG.
+
+Trois fonctions ont été ajoutées : `get_pokemon_types`, `get_pokedex_identity` et `get_signature_moves`. Les formulations simples sont reconnues directement par le router et le parseur, puis formatées sans génération LLM. Les noms français et anglais ainsi que les formes explicitement nommées sont résolus dans le tableur.
+
+Les valeurs absentes sont signalées comme non renseignées et les annotations des capacités signature sont conservées. Ces opérations ne prennent pas en charge les filtres par jeu. Les tests et les benchmarks ont été adaptés aux nouvelles possibilités.

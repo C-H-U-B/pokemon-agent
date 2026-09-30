@@ -1,8 +1,24 @@
 {
   "description": "Jeu de référence manuel pour le benchmark du routeur.",
-  "n_cases": 30,
+  "n_cases": 32,
   "status": "APPROVED",
   "cases": [
+    {
+      "id": "S09",
+      "question": "Quel est le numéro national de Pikachu ?",
+      "expected_route": "STRUCTURED",
+      "expected_intent": "STRUCTURED_QUERY",
+      "expected_single_question": true,
+      "status": "APPROVED"
+    },
+    {
+      "id": "S10",
+      "question": "Quelle est la capacité signature de Pikachu ?",
+      "expected_route": "STRUCTURED",
+      "expected_intent": "STRUCTURED_QUERY",
+      "expected_single_question": true,
+      "status": "APPROVED"
+    },
     {
       "id": "S01",
       "question": "Comment Pikachu évolue-t-il ?",
@@ -38,8 +54,8 @@
     {
       "id": "S05",
       "question": "Quels sont les types de Dracaufeu ?",
-      "expected_route": "RAG",
-      "expected_intent": "DOCUMENT_SEARCH",
+      "expected_route": "STRUCTURED",
+      "expected_intent": "STRUCTURED_QUERY",
       "expected_single_question": true,
       "status": "APPROVED"
     },

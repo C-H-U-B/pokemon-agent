@@ -195,6 +195,23 @@ def format_structured_answer(state: dict) -> dict:
     elif result.get("mode") == "PROFILE":
         answer = state.get("structured_context", "").strip() or "Aucun profil trouvé."
 
+    elif operation in {"get_pokemon_types", "get_pokedex_identity", "get_signature_moves"}:
+        labels = {"type_1_fr": "Type principal", "type_2_fr": "Type secondaire",
+                  "national_number": "Numéro national", "introduction_generation_fr": "Génération d'introduction",
+                  "signature_move_fr": "Capacités signature (tableur)",
+                  "pseudo_signature_move_fr": "Capacités pseudo-signature (tableur)"}
+        rows = result.get("rows") or []
+        lines = []
+        for row in rows:
+            lines.append(str(row.get("name_fr") or result.get("pokemon")))
+            for key, label in labels.items():
+                if key in row:
+                    value = row[key]
+                    if key == "type_2_fr" and not value:
+                        continue
+                    lines.append(f"{label} : {value if value is not None else 'non renseigné'}")
+        answer = "\n".join(lines) if lines else "Aucune entrée trouvée dans le Pokédex personnalisé."
+
     elif operation == "get_level_up_moves":
         moves = result.get("moves") or []
         if not moves:
