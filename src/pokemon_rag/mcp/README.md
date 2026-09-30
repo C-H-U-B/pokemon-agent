@@ -48,7 +48,7 @@ les modalités de relecture sont décrits dans [tests/README.md](../../../tests/
 
 Garder stdout du serveur réservé au protocole ; envoyer les diagnostics sur stderr. La disponibilité du serveur dépend de la compatibilité de la version installée du SDK MCP avec ses imports. La recherche réelle nécessite également l'index et les modèles locaux.
 
-Le retrieval appelé par le serveur contient actuellement des `print` de diagnostic
-sur stdout. Cette frontière protocolaire reste à corriger dans le code ; elle
-n'est pas garantie par la présente consigne. Les coûts de chargement répétés
+Les diagnostics et barres de progression de l'initialisation RAG sont envoyés
+sur stderr pour préserver stdout MCP. Un test avec modèles et collection simulés
+vérifie cette séparation. Les coûts de chargement répétés
 sont détaillés dans [Performance](../../../docs/PERFORMANCE.md).

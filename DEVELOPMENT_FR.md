@@ -740,3 +740,13 @@ documentaire.
 
 L'intégration a été validée sur des questions mobilisant ces deux
 sources.
+
+## 37. [Bug fix] Séparation des diagnostics RAG du protocole MCP
+
+Au premier appel documentaire, l'initialisation RAG écrivait ses
+diagnostics sur stdout, également utilisé par les messages MCP.
+
+Ces diagnostics et les barres de progression sont désormais dirigés
+vers stderr. Un test de régression avec une collection et des modèles
+simulés vérifie que l'initialisation laisse stdout vide et conserve
+les informations de diagnostic.
