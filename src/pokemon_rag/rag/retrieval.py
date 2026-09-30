@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import sys
 import time
 from collections import defaultdict
 
@@ -65,7 +66,7 @@ bm25 = None
 
 
 def initialize_retrieval() -> None:
-    """Initialise une seule fois les ressources lourdes du moteur RAG."""
+    """Initialise les ressources une fois ; diagnostics sur stderr pour MCP stdio."""
     global _RETRIEVAL_INITIALIZED
     global client, collection, embedding_model, reranker_model
     global CORPUS_IDS, CORPUS_DOCUMENTS, CORPUS_METADATAS
@@ -74,33 +75,33 @@ def initialize_retrieval() -> None:
     if _RETRIEVAL_INITIALIZED:
         return
 
-    print("=" * 84)
-    print("INITIALISATION RAG POKÉMON — HYBRID + RERANKER")
-    print("=" * 84)
+    print("=" * 84, file=sys.stderr)
+    print("INITIALISATION RAG POKÉMON — HYBRID + RERANKER", file=sys.stderr)
+    print("=" * 84, file=sys.stderr)
 
     startup_start = time.perf_counter()
 
     client = chromadb.PersistentClient(path=str(CHROMA_PATH))
     collection = client.get_collection(COLLECTION_NAME)
 
-    print(f"Collection Chroma : {COLLECTION_NAME}")
-    print(f"Chunks Chroma     : {collection.count():,}")
+    print(f"Collection Chroma : {COLLECTION_NAME}", file=sys.stderr)
+    print(f"Chunks Chroma     : {collection.count():,}", file=sys.stderr)
 
     embedding_start = time.perf_counter()
     embedding_model = SentenceTransformer(EMBEDDING_MODEL)
     embedding_load_time = time.perf_counter() - embedding_start
 
-    print(f"Embedding model   : {EMBEDDING_MODEL}")
-    print(f"Embedding device  : {embedding_model.device}")
-    print(f"Chargement embed. : {embedding_load_time:.3f} s")
+    print(f"Embedding model   : {EMBEDDING_MODEL}", file=sys.stderr)
+    print(f"Embedding device  : {embedding_model.device}", file=sys.stderr)
+    print(f"Chargement embed. : {embedding_load_time:.3f} s", file=sys.stderr)
 
     reranker_start = time.perf_counter()
     reranker_model = CrossEncoder(RERANKER_MODEL)
     reranker_load_time = time.perf_counter() - reranker_start
 
-    print(f"Reranker          : {RERANKER_MODEL}")
-    print(f"Reranker device   : {reranker_model.device}")
-    print(f"Chargement rerank : {reranker_load_time:.3f} s")
+    print(f"Reranker          : {RERANKER_MODEL}", file=sys.stderr)
+    print(f"Reranker device   : {reranker_model.device}", file=sys.stderr)
+    print(f"Chargement rerank : {reranker_load_time:.3f} s", file=sys.stderr)
 
     load_start = time.perf_counter()
 
@@ -112,7 +113,7 @@ def initialize_retrieval() -> None:
     offset = 0
     total_chunks = collection.count()
 
-    with tqdm(total=total_chunks, desc="Chargement corpus", unit="chunk", dynamic_ncols=True) as pbar:
+    with tqdm(total=total_chunks, desc="Chargement corpus", unit="chunk", dynamic_ncols=True, file=sys.stderr) as pbar:
         while offset < total_chunks:
             batch = collection.get(
                 include=["documents", "metadatas"],
@@ -152,8 +153,8 @@ def initialize_retrieval() -> None:
             key=lambda idx: int((CORPUS_METADATAS[idx] or {}).get("section_chunk_number", 0))
         )
 
-    print(f"Sections indexées  : {len(SECTION_TO_INDICES):,}")
-    print(f"Chargement corpus : {time.perf_counter() - load_start:.3f} s")
+    print(f"Sections indexées  : {len(SECTION_TO_INDICES):,}", file=sys.stderr)
+    print(f"Chargement corpus : {time.perf_counter() - load_start:.3f} s", file=sys.stderr)
 
     bm25_start = time.perf_counter()
     tokenized_corpus = []
@@ -161,6 +162,7 @@ def initialize_retrieval() -> None:
     for document in tqdm(
         CORPUS_DOCUMENTS,
         desc="Construction BM25",
+        file=sys.stderr,
         unit="chunk",
         dynamic_ncols=True,
     ):
@@ -168,10 +170,10 @@ def initialize_retrieval() -> None:
 
     bm25 = BM25Okapi(tokenized_corpus)
 
-    print(f"Construction BM25 : {time.perf_counter() - bm25_start:.3f} s")
-    print(f"Startup total     : {time.perf_counter() - startup_start:.3f} s")
-    print("=" * 84)
-    print()
+    print(f"Construction BM25 : {time.perf_counter() - bm25_start:.3f} s", file=sys.stderr)
+    print(f"Startup total     : {time.perf_counter() - startup_start:.3f} s", file=sys.stderr)
+    print("=" * 84, file=sys.stderr)
+    print(file=sys.stderr)
 
     _RETRIEVAL_INITIALIZED = True
 

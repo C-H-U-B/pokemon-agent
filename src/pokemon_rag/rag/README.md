@@ -27,6 +27,8 @@ sections ; BM25 utilise les documents stockés, pas cette représentation enrich
 
 ## Invariants et limites
 
+- Les diagnostics et progressions d'initialisation vont sur stderr pour ne pas
+  polluer le protocole MCP. L'affichage du terminal manuel reste sur stdout.
 - `pokemon` attend le nom canonique des métadonnées. Le graphe valide ce nom en
   amont ; le serveur MCP transmet le filtre reçu sans résoudre les alias.
 - Un scope explicite filtre les résultats vectoriels et les candidats BM25.

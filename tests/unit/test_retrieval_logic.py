@@ -1,8 +1,54 @@
 from __future__ import annotations
 
+from collections import defaultdict
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 import pokemon_rag.rag.retrieval as retrieval
+
+# Conserver la fonction avant la protection autouse ; ses dépendances lourdes
+# sont toutes remplacées dans le test d'initialisation ci-dessous.
+initialize_retrieval = retrieval.initialize_retrieval
+
+
+def test_initialization_keeps_stdout_free_for_mcp(monkeypatch, capsys):
+    collection = SimpleNamespace(
+        count=lambda: 1,
+        get=lambda **kwargs: {
+            "ids": ["pika-1"],
+            "documents": ["Pikachu est un Pokémon."],
+            "metadatas": [{"pokemon": "Pikachu", "source_file": "Pikachu.md",
+                           "section_path": "Description", "section_chunk_number": 0}],
+        },
+    )
+    monkeypatch.setattr(retrieval.chromadb, "PersistentClient", lambda **kwargs: SimpleNamespace(
+        get_collection=lambda name: collection
+    ))
+    monkeypatch.setattr(retrieval, "SentenceTransformer", lambda name: SimpleNamespace(device="cpu"))
+    monkeypatch.setattr(retrieval, "CrossEncoder", lambda name: SimpleNamespace(device="cpu"))
+    monkeypatch.setattr(retrieval, "_RETRIEVAL_INITIALIZED", False)
+    for name in ("client", "collection", "embedding_model", "reranker_model", "bm25"):
+        monkeypatch.setattr(retrieval, name, None)
+    for name in ("CORPUS_IDS", "CORPUS_DOCUMENTS", "CORPUS_METADATAS"):
+        monkeypatch.setattr(retrieval, name, [])
+    for name in ("POKEMON_TO_INDICES", "SECTION_TO_INDICES"):
+        monkeypatch.setattr(retrieval, name, defaultdict(list))
+
+    initialize_retrieval()
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "INITIALISATION RAG" in captured.err
+    assert "Chargement corpus" in captured.err
+    assert "Construction BM25" in captured.err
+    assert "Startup total" in captured.err
+    assert retrieval._RETRIEVAL_INITIALIZED
+    assert retrieval.CORPUS_IDS == ["pika-1"]
+
+    initialize_retrieval()
+    captured = capsys.readouterr()
+    assert captured.out == captured.err == ""
 
 
 @pytest.fixture(autouse=True)
