@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+pytestmark = [pytest.mark.real_data, pytest.mark.models]
 
 import pokemon_rag.rag.retrieval as retrieval
 

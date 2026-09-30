@@ -5,7 +5,7 @@ import pytest
 from pokemon_rag.rag.grounding import check_grounding
 
 
-pytestmark = pytest.mark.long
+pytestmark = [pytest.mark.long, pytest.mark.llm]
 
 
 CASES = [
@@ -101,7 +101,8 @@ CASES = [
     ),
     pytest.param(
         "Comment X devient-il Y ?",
-        "X devient Y grâce à l'objet A.",
+        "X devient Y uniquement grâce à l'objet A. "
+        "La montée de niveau seule ne permet pas cette transformation.",
         "X devient Y automatiquement au niveau 30.",
         "CONTRADICTION",
         id="contradiction-method",
@@ -109,6 +110,13 @@ CASES = [
 
     # UNSUPPORTED — le contexte est suffisant pour répondre à la question,
     # mais la réponse ajoute un fait important que le contexte n'établit pas.
+    pytest.param(
+        "Comment X devient-il Y ?",
+        "X devient Y grâce à l'objet A.",
+        "X devient Y grâce à l'objet A, qui doit être utilisé à minuit.",
+        "UNSUPPORTED",
+        id="unsupported-extra-method-condition",
+    ),
     pytest.param(
         "Comment Pikachu évolue-t-il ?",
         "Pikachu évolue en Raichu lorsqu'une Pierre Foudre est utilisée sur lui.",

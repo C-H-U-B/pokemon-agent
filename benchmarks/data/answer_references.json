@@ -1,0 +1,60 @@
+{
+  "S01": {
+    "source": "data/pokepedia/cleaned/0025_pikachu.md:58-60 ; pokemon_evolution IDs 17 et 517, trigger_item_id=83",
+    "expected_facts": ["Pikachu évolue avec une Pierre Foudre", "Raichu et sa forme d'Alola sont distingués"],
+    "forbidden_claims": ["Une montée au niveau 30 suffit", "Le bonheur fait évoluer Pikachu en Raichu"],
+    "structured": {"operation": "get_evolutions", "pokemon": "Pikachu", "count": 2,
+      "evolutions": [{"evolution_id": 17, "to": {"identifier": "raichu"}, "version_group": "red-blue"},
+                     {"evolution_id": 517, "to": {"identifier": "raichu", "form": {"form_identifier": "alola"}}, "version_group": "sun-moon"}]}
+  },
+  "R01": {
+    "source": "data/pokepedia/cleaned/0006_dracaufeu.md:38",
+    "expected_facts": ["Dracaufeu est décrit comme noble et n'attaque pas les plus faibles", "Il recherche des adversaires plus forts"],
+    "forbidden_claims": ["Une motivation psychologique détaillée est prouvée par cette seule description"],
+    "review_note": "Le texte décrit un comportement, pas une cause précise : accepter une réserve explicite sur le pourquoi."
+  },
+  "R02": {
+    "source": "data/pokepedia/cleaned/0025_pikachu.md:42",
+    "expected_facts": ["Couinements", "Frottement des queues", "Messages électriques"],
+    "forbidden_claims": ["Communication exclusivement télépathique"]
+  },
+  "R03": {
+    "source": "data/pokepedia/cleaned/0152_germignon.md:36",
+    "expected_facts": ["La feuille détecte la température", "La feuille détecte l'humidité", "Elle émet un arôme"],
+    "forbidden_claims": ["Elle ne permet pas de détecter la température"]
+  },
+  "R04": {
+    "source": "data/pokepedia/cleaned/0798_katagami.md:62",
+    "expected_facts": ["Origine possible : katana et origami", "Autre origine possible : katagami, pochoir de papier pour les étoffes"],
+    "forbidden_claims": ["Ces étymologies sont présentées comme certaines ou officiellement confirmées"]
+  },
+  "R05": {
+    "source": "data/pokepedia/cleaned/0374_terhal.md:175-176",
+    "expected_facts": ["Taux de capture de 3", "Bélier inflige des dégâts de recul", "À partir de la huitième génération, Charge remplace Bélier"],
+    "forbidden_claims": ["Charge inflige ces dégâts de recul", "Le taux de capture vaut 255"]
+  },
+  "H01": {
+    "source": "data/pokepedia/cleaned/0025_pikachu.md:17-22,58",
+    "expected_facts": ["Pikachu est de type Électrik", "Il évolue avec une Pierre Foudre"],
+    "forbidden_claims": ["Pikachu est de type Feu", "Son évolution dépend seulement d'un niveau"],
+    "review_note": "Socle minimal de présentation ; vérifier également toute affirmation ajoutée."
+  },
+  "H02": {
+    "source": "data/pokepedia/cleaned/0150_mewtwo.md:18,31-34",
+    "expected_facts": ["Mewtwo est un Pokémon légendaire de type Psy", "Il est issu de Mew et modifié génétiquement"],
+    "forbidden_claims": ["Mewtwo est l'évolution naturelle de Mew"],
+    "review_note": "Socle minimal de présentation ; vérifier également toute affirmation ajoutée."
+  },
+  "H03": {
+    "source": "data/pokepedia/cleaned/0006_dracaufeu.md:18-19,38",
+    "expected_facts": ["La forme de base est Feu et Vol", "Son apparence évoque un dragon"],
+    "forbidden_claims": ["La forme de base est de type Dragon"],
+    "review_note": "Distinguer explicitement les formes alternatives si elles sont mentionnées."
+  },
+  "H04": {
+    "source": "data/pokepedia/cleaned/0103_noadkoko_d_alola.md:18-19,36",
+    "expected_facts": ["La forme d'Alola est Plante et Dragon", "Elle possède un long cou et une quatrième tête sur sa queue"],
+    "forbidden_claims": ["La forme d'Alola est Plante et Psy"],
+    "review_note": "Ne pas attribuer à cette forme les caractéristiques de la forme de base."
+  }
+}

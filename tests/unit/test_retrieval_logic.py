@@ -1,34 +1,13 @@
 from __future__ import annotations
 
-import sys
-from unittest.mock import patch
-
 import numpy as np
 import pytest
+import pokemon_rag.rag.retrieval as retrieval
 
-# retrieval.py charge Chroma et les modèles à l'import.
-# Les tests unitaires remplacent ces dépendances lourdes avant l'import du module.
-with patch("chromadb.PersistentClient") as client_cls, \
-     patch("sentence_transformers.SentenceTransformer"), \
-     patch("sentence_transformers.CrossEncoder"), \
-     patch("rank_bm25.BM25Okapi"):
-    collection = client_cls.return_value.get_collection.return_value
-    collection.count.return_value = 0
-    collection.get.return_value = {"ids": [], "documents": [], "metadatas": []}
 
-    import pokemon_rag.rag.retrieval as retrieval
-
-# Important : ce module a été importé avec Chroma et les modèles mockés.
-# On conserve cette référence locale pour les tests unitaires, mais on retire
-# immédiatement le faux module du cache d'import Python. Ainsi, les tests
-# d'intégration exécutés plus tard dans le même processus pytest réimporteront
-# retrieval.py normalement et chargeront le vrai corpus.
-sys.modules.pop("pokemon_rag.rag.retrieval", None)
-
-import pokemon_rag.rag as rag_package
-
-if getattr(rag_package, "retrieval", None) is retrieval:
-    delattr(rag_package, "retrieval")
+@pytest.fixture(autouse=True)
+def synthetic_retrieval(monkeypatch):
+    monkeypatch.setattr(retrieval, '_RETRIEVAL_INITIALIZED', True)
 
 
 def test_tokenize_normalizes_case_and_preserves_accents() -> None:
