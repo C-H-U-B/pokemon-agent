@@ -41,7 +41,10 @@ Les requêtes structurées prennent actuellement en charge :
 - les capacités apprises par niveau ;
 - les capacités apprises par machine ;
 - les méthodes d'apprentissage des capacités ;
-- les informations de profil des Pokémon.
+- les types, le numéro national et la génération d'introduction ;
+- les capacités signature et pseudo-signature.
+
+Les profils personnalisés alimentent également les présentations générales.
 
 Le pipeline RAG utilise une recherche hybride, une recherche tenant compte de la structure des sections et un reranking avant la génération de la réponse.
 
@@ -63,25 +66,13 @@ Le pipeline RAG utilise une recherche hybride, une recherche tenant compte de la
 
 ```text
 pokemon-rag/
-├── corpus/
-│   └── pokedex_particularites.xlsx
-├── pokeapi/
-│   ├── download_pokeapi.py
-│   ├── build_pokeapi_db.py
-│   └── build_pokemon_db.py
-├── tests/
-├── clean_pokepedia.py
-├── context_sufficiency.py
-├── download_pokepedia.py
-├── grounding_checker.py
-├── ingest_pokemon.py
-├── pokemon_graph.py
-├── pokemon_nodes.py
-├── pokemon_query_engine.py
-├── pokemon_router.py
-├── rag_pokemon.py
-├── README.md
-└── README_FR.md
+├── src/pokemon_rag/    # application Python
+├── scripts/            # préparation des données, batch et analyse
+├── tests/              # tests isolés et validations avec ressources locales
+├── benchmarks/         # évaluations et références factuelles
+├── docs/               # guides de contribution et de transmission
+├── data/               # ressources locales, hors versionnement
+└── DEVELOPMENT_FR.md   # historique de développement
 ```
 
 Les bases de données générées, les pages Poképédia téléchargées et les index vectoriels ne sont pas stockés dans le dépôt Git.
@@ -92,41 +83,44 @@ Créer et activer un environnement Python, puis installer les dépendances :
 
 ```bash
 pip install -r requirements.txt
+pip install -e .
 ```
 
 LM Studio doit être lancé localement avec les modèles attendus par l'application.
 
 ## Construction des données
 
+Ces commandes préparent ou reconstruisent les ressources locales ; elles ne sont pas nécessaires au lancement si les données existent déjà. Lire [scripts/README.md](scripts/README.md) avant de les exécuter.
+
 Télécharger les données PokéAPI :
 
 ```bash
-python pokeapi/download_pokeapi.py
+python scripts/pokeapi/download_pokeapi.py
 ```
 
 Construire la base PokéAPI :
 
 ```bash
-python pokeapi/build_pokeapi_db.py
+python scripts/pokeapi/build_pokeapi_db.py
 ```
 
 Construire la base Pokémon unifiée :
 
 ```bash
-python pokeapi/build_pokemon_db.py
+python scripts/pokeapi/build_pokemon_db.py
 ```
 
 Télécharger puis nettoyer le corpus Poképédia :
 
 ```bash
-python download_pokepedia.py
-python clean_pokepedia.py
+python scripts/pokepedia/download.py
+python scripts/pokepedia/clean.py
 ```
 
 Construire l'index RAG :
 
 ```bash
-python ingest_pokemon.py
+python scripts/pokepedia/ingest.py
 ```
 
 ## Lancement
@@ -134,7 +128,7 @@ python ingest_pokemon.py
 Lancer LM Studio, charger les modèles locaux nécessaires, puis exécuter :
 
 ```bash
-python pokemon_graph.py
+python -m pokemon_rag.graph.graph
 ```
 
 ## Tests
@@ -155,6 +149,8 @@ Ils couvrent notamment :
 - le moteur de requêtes structurées.
 
 ## Documentation
+
+Consulter [le guide de navigation](docs/README.md) pour contribuer. Les [commandes de test](tests/README.md) distinguent les validations légères de celles nécessitant des ressources locales.
 
 Le développement du projet, les choix d'architecture, les problèmes rencontrés et les différents tests sont détaillés dans :
 

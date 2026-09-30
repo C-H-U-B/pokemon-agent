@@ -1225,6 +1225,12 @@ def execute_plan(plan: dict[str, Any]) -> dict[str, Any]:
 
 
 def query_structured_data(question: str) -> dict[str, Any]:
+    """Interprète et exécute une question, en renvoyant les erreurs dans le résultat.
+
+    Vérifier ``error`` avant d'interpréter ``count`` : une erreur peut aussi
+    produire un compte nul. Les appels directs aux fonctions get_* ne passent
+    pas par cette enveloppe ni par les contrôles du parseur de questions.
+    """
     total_start = time.perf_counter()
     try:
         parsed = parse_query(question)

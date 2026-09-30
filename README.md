@@ -23,7 +23,10 @@ Structured queries currently support:
 - level-up moves
 - machine moves
 - move learning methods
-- Pokémon profile information
+- Pokémon types, national number and introduction generation
+- signature and pseudo-signature moves
+
+Custom profiles also support general presentations.
 
 The RAG pipeline uses hybrid retrieval, section-aware retrieval and reranking before generating an answer.
 
@@ -45,24 +48,13 @@ The RAG pipeline uses hybrid retrieval, section-aware retrieval and reranking be
 
 ```text
 pokemon-rag/
-├── corpus/
-│   └── pokedex_particularites.xlsx
-├── pokeapi/
-│   ├── download_pokeapi.py
-│   ├── build_pokeapi_db.py
-│   └── build_pokemon_db.py
-├── tests/
-├── clean_pokepedia.py
-├── context_sufficiency.py
-├── download_pokepedia.py
-├── grounding_checker.py
-├── ingest_pokemon.py
-├── pokemon_graph.py
-├── pokemon_nodes.py
-├── pokemon_query_engine.py
-├── pokemon_router.py
-├── rag_pokemon.py
-└── README.md
+├── src/pokemon_rag/    # application Python
+├── scripts/            # préparation des données, batch et analyse
+├── tests/              # tests isolés et validations avec ressources locales
+├── benchmarks/         # évaluations et références factuelles
+├── docs/               # guides de contribution et de transmission
+├── data/               # ressources locales, hors versionnement
+└── DEVELOPMENT_FR.md   # historique de développement
 ```
 
 Generated databases, Poképédia pages and vector indexes are not stored in the repository.
@@ -73,41 +65,44 @@ Create and activate a Python environment, then install the dependencies:
 
 ```bash
 pip install -r requirements.txt
+pip install -e .
 ```
 
 LM Studio must be running locally with the models expected by the application.
 
 ## Build the data
 
+These commands prepare or rebuild local resources; skip them when the data already exists. Read [the scripts guide (French)](scripts/README.md) before running them.
+
 Download the PokéAPI data:
 
 ```bash
-python pokeapi/download_pokeapi.py
+python scripts/pokeapi/download_pokeapi.py
 ```
 
 Build the PokéAPI database:
 
 ```bash
-python pokeapi/build_pokeapi_db.py
+python scripts/pokeapi/build_pokeapi_db.py
 ```
 
 Build the unified Pokémon database:
 
 ```bash
-python pokeapi/build_pokemon_db.py
+python scripts/pokeapi/build_pokemon_db.py
 ```
 
 Download and clean the Poképédia corpus:
 
 ```bash
-python download_pokepedia.py
-python clean_pokepedia.py
+python scripts/pokepedia/download.py
+python scripts/pokepedia/clean.py
 ```
 
 Build the RAG index:
 
 ```bash
-python ingest_pokemon.py
+python scripts/pokepedia/ingest.py
 ```
 
 ## Run
@@ -115,7 +110,7 @@ python ingest_pokemon.py
 Start LM Studio, load the required local models, then run:
 
 ```bash
-python pokemon_graph.py
+python -m pokemon_rag.graph.graph
 ```
 
 ## Tests
@@ -131,3 +126,6 @@ They cover the PokéAPI database, mappings, evolutions, move queries and the str
 ## Documentation
 
 A separate document will describe the design decisions, development process, experiments and benchmark results.
+## Contributor guides
+
+See [documentation navigation](docs/README.md) and [test prerequisites](tests/README.md). These contributor guides are maintained in French.
