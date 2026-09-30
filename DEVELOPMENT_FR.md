@@ -985,3 +985,61 @@ Le grounding de cette même exécution a utilisé :
 - environ 14,6 secondes pour l'appel.
 
 Cette instrumentation permet désormais de différencier plus précisément les requêtes lentes dues à un volume important de génération de celles associées à une baisse du débit d'inférence.
+
+## 30. Alignement du router sur les opérations disponibles
+
+Le router envoyait les questions sur les types, talents et statistiques vers STRUCTURED, alors que le moteur ne proposait pas d'opération pour y répondre.
+
+Les règles rapides et le prompt ont été alignés sur les opérations disponibles : évolutions, capacités par niveau, capacités par machine et méthodes d'apprentissage. Les autres questions ciblées passent désormais par RAG. Les présentations générales conservent le chemin PROFILE + HYBRID, qui utilise directement le profil du tableur.
+
+Les tests et les attentes du benchmark ont été adaptés à ce comportement. Les dépendances manquantes `mcp` et `pytest` ont également été ajoutées à `requirements.txt`.
+
+## 31. Abstention après échec du grounding
+
+Une réponse rejetée par le grounding pouvait encore être affichée après épuisement des retries.
+
+Un nœud d'abstention remplace désormais cette réponse par un message indiquant que les sources ne permettent pas de répondre de manière suffisamment fiable. La décision et la justification du checker restent disponibles pour le diagnostic.
+
+## 32. Gestion des erreurs de traitement
+
+Une panne de recherche ou de génération pouvait interrompre le graphe avant la sauvegarde de sa trace.
+
+Les nœuds sont maintenant protégés pour conserver l'état déjà acquis et identifier l'étape en échec. La fonction `run_graph()` gère également les erreurs du moteur LangGraph. Le terminal, le batch et le benchmark utilisent cette entrée commune.
+
+En cas de panne, le système retourne un message explicite et tente de sauvegarder la trace. Une erreur du checker est distinguée d'un contexte insuffisant, ce qui évite de relancer inutilement la recherche documentaire. Les délais réseau des clients LLM ont aussi été rendus explicites.
+
+## 33. Sauvegarde des traces non bloquante
+
+Une erreur d'écriture du fichier de traces ne doit pas empêcher de retourner une réponse déjà produite.
+
+La sauvegarde est désormais protégée : la réponse et la trace restent disponibles en mémoire, tandis que `trace_saved` et `trace_save_error` indiquent le résultat de l'écriture. L'erreur est journalisée sans nouvelle tentative automatique, pour éviter de dupliquer une écriture partielle.
+
+## 34. Cumul des métriques des tentatives
+
+Les retries remplaçaient les mesures précédentes par celles du dernier appel, ce qui sous-estimait le coût du traitement.
+
+Le module `observability/metrics.py` conserve maintenant un historique des tentatives. La finalisation cumule les durées et les tokens des appels instrumentés de génération, de grounding et de régénération, puis recalcule les débits à partir des totaux.
+
+Les consommations inconnues sont signalées plutôt que comptées comme zéro. L'affichage et le script d'analyse ont été adaptés tout en conservant la lecture des anciennes traces.
+
+## 35. Isolation des tests et évaluation factuelle
+
+Les tests rapides dépendaient parfois de la vraie base ou des modèles locaux. Les tests du router et du parseur utilisent désormais un petit catalogue SQLite en mémoire. Les marqueurs `real_data`, `models` et `llm` permettent de sélectionner les tests selon leurs prérequis.
+
+Le benchmark du graphe a aussi été complété par des références factuelles issues des sources locales. Il exporte les réponses avec une grille de relecture portant sur l'exactitude, la complétude et les affirmations non étayées. Un comparateur vérifie les champs structurés du cas de référence sur les évolutions de Pikachu.
+
+Le verdict PASS du grounding ne suffit donc plus à compter une réponse comme factuellement correcte. Les commandes de test et de relecture sont décrites dans `tests/README.md`.
+
+## 36. Clarification d'un test de grounding
+
+Un test attendait CONTRADICTION alors que son contexte n'excluait pas la méthode proposée par la réponse. Le classement UNSUPPORTED du modèle était donc défendable.
+
+Le contexte a été précisé pour rendre la contradiction explicite. Un cas séparé vérifie l'ajout d'une condition absente des sources. Cette distinction a été validée avec le modèle local, sans modifier le prompt.
+
+## 37. Correction des intervalles de niveaux
+
+Le Fast Parser s'arrêtait à la première borne reconnue. Une demande « après le niveau 20 mais avant le niveau 40 » pouvait ainsi perdre sa limite supérieure.
+
+Il collecte désormais les contraintes avant de calculer leur intersection : cette demande produit les bornes 21 à 39. Les limites inclusives sont également prises en charge, les intervalles impossibles sont rejetés et les formulations partiellement comprises sont laissées au parseur LLM.
+
+Les tests couvrent ces cas et le test des deux bornes n'est plus marqué comme échec attendu.
