@@ -24,7 +24,9 @@ Cette commande appelle réellement un LLM : l'utilisateur doit l'exécuter lui-m
 Le client lit une question, démarre le serveur avec le même interpréteur Python,
 initialise une session stdio et découvre les outils et leurs schémas. Qwen choisit
 un outil et ses arguments ; le client l'exécute puis transmet le résultat à Qwen
-pour formuler une réponse en français. Une question vide quitte sans démarrer le serveur.
+pour formuler une réponse en français. Il lit ensuite les questions suivantes
+dans la même session. Une ligne vide, `quit`, `/quit`, `exit` ou une fin de saisie
+termine la boucle ; une sortie avant la première question ne démarre aucun serveur.
 
 Les fonctions `choose_tool`, `extract_result` et `formulate_answer` sont dans
 [`client/mcp_client.py`](../client/mcp_client.py). Le client vérifie le nom de
@@ -32,8 +34,18 @@ l'outil et le type dictionnaire des arguments, mais ne valide pas lui-même leur
 conformité complète au schéma ni leur fidélité à la question. Une erreur MCP
 signalée par `is_error` empêche la formulation ; une réponse finale vide lève une erreur.
 
-Les context managers ferment la session et le sous-processus. Chaque `ask`
-recommence ce cycle. Les appels OpenAI synchrones s'exécutent dans la coroutine ;
+`open_client()` ouvre un contexte réutilisable : appeler `conversation.ask(question)`
+pour chaque question dans ce contexte. Le catalogue est découvert une fois et les
+modèles RAG restent disponibles dans le serveur après leur premier chargement.
+Les questions sont indépendantes, sans mémoire conversationnelle. Le catalogue
+n'est pas rafraîchi pendant la session ; rouvrir le contexte si les outils changent.
+
+Les context managers ferment la session, le sous-processus et le client HTTP LLM,
+y compris en cas d'erreur ou d'annulation. Une erreur arrête la boucle sans
+reconnexion automatique. La fonction ponctuelle `ask(question)` conserve son
+comportement : elle ouvre et ferme son propre contexte. La saisie du terminal
+est attendue dans un thread pour laisser fonctionner la réception MCP.
+Les appels OpenAI synchrones s'exécutent dans la coroutine ;
 le client ne configure pas les délais et reprises de `config.py`. Les limites
 ajoutées par les tests E2E ne sont donc pas celles de l'application.
 

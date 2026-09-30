@@ -69,13 +69,14 @@ def journey(monkeypatch):
             events.append("session_closed")
 
     create = Mock(side_effect=[response(json.dumps(SELECTION)), response(ANSWER)])
-    llm = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    llm = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)), close=Mock())
     monkeypatch.setattr(client, "stdio_client", transport)
     monkeypatch.setattr(client, "ClientSession", session_context)
     monkeypatch.setattr(client, "create_llm_client", lambda: llm)
-    yield SimpleNamespace(session=session, create=create, tool=tool, parameters=parameters)
+    yield SimpleNamespace(session=session, create=create, tool=tool, parameters=parameters, close=llm.close)
     if events:
         assert events == ["transport_open", "session_open", "session_closed", "transport_closed"]
+        llm.close.assert_called_once()
 
 
 def test_complete_journey_discovers_schema_calls_tool_and_transmits_result(journey):
@@ -203,7 +204,8 @@ def test_empty_answer_is_an_error(journey, answer):
 
 
 def test_cli_reads_question_and_prints_answer(journey, monkeypatch, capsys):
-    monkeypatch.setattr("builtins.input", lambda _: f"  {QUESTION}  ")
+    questions = iter([f"  {QUESTION}  ", "quit"])
+    monkeypatch.setattr("builtins.input", lambda _: next(questions))
     asyncio.run(client.main())
     assert capsys.readouterr().out == ANSWER + "\n"
 
@@ -213,6 +215,60 @@ def test_cli_empty_question_does_not_start_services(journey, monkeypatch):
     asyncio.run(client.main())
     assert journey.parameters == []
     journey.create.assert_not_called()
+
+
+def test_cli_reuses_server_and_catalog_for_two_questions(journey, monkeypatch, capsys):
+    second = "Quels sont les types de Raichu ?"
+    questions = iter([QUESTION, second, "quit"])
+    monkeypatch.setattr("builtins.input", lambda _: next(questions))
+    journey.create.side_effect = [
+        response(json.dumps(SELECTION)), response(ANSWER),
+        response(json.dumps({"tool": "pokemon_types", "arguments": {"pokemon": "Raichu"}})),
+        response("Raichu est de type Électrik."),
+    ]
+    asyncio.run(client.main())
+    assert len(journey.parameters) == 1
+    journey.session.initialize.assert_awaited_once()
+    journey.session.list_tools.assert_awaited_once()
+    assert journey.session.call_tool.await_count == 2
+    assert journey.session.call_tool.call_args.kwargs == {"arguments": {"pokemon": "Raichu"}}
+    assert capsys.readouterr().out == ANSWER + "\nRaichu est de type Électrik.\n"
+    prompt = journey.create.call_args_list[2].kwargs["messages"][1]["content"]
+    assert second in prompt and QUESTION not in prompt
+
+
+@pytest.mark.parametrize("ending", ["", "quit", " EXIT ", "/quit", EOFError(), KeyboardInterrupt()])
+@pytest.mark.parametrize("after_answer", [False, True])
+def test_cli_exit_closes_existing_session(journey, monkeypatch, ending, after_answer):
+    inputs = iter(([QUESTION] if after_answer else []) + [ending])
+
+    def read(_):
+        value = next(inputs)
+        if isinstance(value, BaseException):
+            raise value
+        return value
+
+    monkeypatch.setattr("builtins.input", read)
+    asyncio.run(client.main())
+    assert len(journey.parameters) == int(after_answer)
+    assert journey.close.call_count == int(after_answer)
+
+
+@pytest.mark.parametrize("error", [ConnectionError("MCP"), asyncio.CancelledError()])
+def test_persistent_session_closes_on_second_call_failure(journey, error):
+    journey.create.side_effect = [response(json.dumps(SELECTION)), response(ANSWER),
+                                  response(json.dumps(SELECTION))]
+    journey.session.call_tool.side_effect = [CallToolResult(content=[], structured_content=DATA), error]
+
+    async def run():
+        async with client.open_client() as conversation:
+            assert await conversation.ask(QUESTION) == ANSWER
+            await conversation.ask(QUESTION)
+
+    with pytest.raises(type(error)):
+        asyncio.run(run())
+    assert len(journey.parameters) == 1
+    assert journey.create.call_count == 3
 
 
 LIVE_CASES = [

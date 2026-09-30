@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import Any
 
 from openai import OpenAI
@@ -197,7 +199,26 @@ def formulate_answer(
     return answer
 
 
-async def ask(question: str) -> str:
+@dataclass
+class MCPConversation:
+    """Session séquentielle ; à utiliser uniquement dans le contexte open_client."""
+
+    session: ClientSession
+    tools: list[Any]
+    llm: OpenAI
+
+    async def ask(self, question: str) -> str:
+        # Les questions restent indépendantes : aucun historique de conversation.
+        tool_name, arguments = choose_tool(question, self.tools, self.llm)
+        result = await self.session.call_tool(tool_name, arguments=arguments)
+        if result.is_error:
+            raise RuntimeError(f"Le tool MCP {tool_name!r} a retourné une erreur.")
+        return formulate_answer(question, extract_result(result), self.llm)
+
+
+@asynccontextmanager
+async def open_client():
+    """Partage serveur, catalogue et client LLM ; les ferme même en cas d'erreur."""
     server = StdioServerParameters(
         command=sys.executable,
         args=["-m", SERVER_MODULE],
@@ -205,44 +226,40 @@ async def ask(question: str) -> str:
 
     client = create_llm_client()
 
-    async with stdio_client(server) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
+    try:
+        async with stdio_client(server) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                tools_result = await session.list_tools()
+                yield MCPConversation(session, tools_result.tools, client)
+    finally:
+        client.close()
 
-            tools_result = await session.list_tools()
-            tools = tools_result.tools
 
-            tool_name, arguments = choose_tool(
-                question=question,
-                tools=tools,
-                client=client,
-            )
+async def ask(question: str) -> str:
+    """Appel ponctuel compatible ; utiliser open_client pour plusieurs questions."""
+    async with open_client() as conversation:
+        return await conversation.ask(question)
 
-            result = await session.call_tool(
-                tool_name,
-                arguments=arguments,
-            )
 
-            if result.is_error:
-                raise RuntimeError(f"Le tool MCP {tool_name!r} a retourné une erreur.")
-
-            tool_result = extract_result(result)
-
-            return formulate_answer(
-                question=question,
-                tool_result=tool_result,
-                client=client,
-            )
+async def read_question() -> str:
+    """Attend la saisie sans bloquer les tâches de réception MCP."""
+    try:
+        return (await asyncio.to_thread(input, "Question (quit pour sortir) : ")).strip()
+    except (EOFError, KeyboardInterrupt):
+        return ""
 
 
 async def main() -> None:
-    question = input("Question : ").strip()
+    question = await read_question()
 
-    if not question:
+    if not question or question.casefold() in {"quit", "exit", "/quit"}:
         return
 
-    answer = await ask(question)
-    print(answer)
+    async with open_client() as conversation:
+        while question and question.casefold() not in {"quit", "exit", "/quit"}:
+            print(await conversation.ask(question))
+            question = await read_question()
 
 
 if __name__ == "__main__":
