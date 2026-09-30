@@ -39,3 +39,7 @@ Thumbs.db
 
 # Observability traces
 traces/*.jsonl
+
+# Generated test and benchmark reports
+traces/*.xml
+traces/*.json
