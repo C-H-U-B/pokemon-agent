@@ -241,32 +241,40 @@ def _fast_version_group(question: str) -> tuple[str | None, bool]:
 
 def _fast_level_bounds(question: str) -> tuple[int | None, int | None] | None:
     normalized = _normalize(question)
-
-    match = re.search(
-        r"(?:apres|after)-+(?:le-+)?(?:niveau|level)-+(\d+)", normalized
-    )
-    if match:
-        return int(match.group(1)) + 1, None
-
-    match = re.search(
-        r"(?:a-+partir-+du|a-+partir-+de|from)-+(?:niveau|level)-+(\d+)",
-        normalized,
-    )
-    if match:
-        return int(match.group(1)), None
-
-    match = re.search(
-        r"(?:avant|before)-+(?:le-+)?(?:niveau|level)-+(\d+)", normalized
-    )
-    if match:
-        return None, max(0, int(match.group(1)) - 1)
-
-    match = re.search(r"(?:au|a|at)-+(?:niveau|level)-+(\d+)", normalized)
-    if match:
-        level = int(match.group(1))
-        return level, level
-
-    return None
+    # Une alternative n'est pas un intervalle continu.
+    if re.search(r"(?:^|-)(?:ou|or)(?:-|$)", normalized):
+        return None
+    patterns = [
+        (r"(?:apres|after)-(?:le-)?(?:niveau|level)-(\d+)", "min", 1),
+        (r"(?:a-partir-du|a-partir-de|from)-(?:niveau|level)-(\d+)", "min", 0),
+        (r"(?:avant|before)-(?:le-)?(?:niveau|level)-(\d+)", "max", -1),
+        (r"(?:jusqu-au|jusqu-a|jusque-au|jusque-a)-(?:niveau|level)-(\d+)", "max", 0),
+        (r"(?:au|a|at)-(?:niveau|level)-(\d+)", "exact", 0),
+    ]
+    lower, upper, spans = [], [], []
+    for pattern, kind, offset in patterns:
+        for match in re.finditer(r"(?:^|-)(?:" + pattern + r")(?=-|$)", normalized):
+            if any(start <= match.start(1) < end for start, end in spans):
+                continue  # « au niveau » fait déjà partie de « jusqu'au niveau ».
+            spans.append(match.span())
+            value = int(match.group(1)) + offset
+            if kind in {"min", "exact"}:
+                lower.append(value)
+            if kind in {"max", "exact"}:
+                upper.append(value)
+    if not spans:
+        return None
+    # Ne jamais conserver une seule borne d'une formulation partiellement comprise.
+    remaining = list(normalized)
+    for start, end in spans:
+        remaining[start:end] = " " * (end - start)
+    if re.search(r"\d|\b(?:niveau|niveaux|level|levels)\b", "".join(remaining)):
+        return None
+    minimum = max(lower) if lower else None
+    maximum = min(upper) if upper else None
+    if maximum is not None and (maximum < 0 or (minimum is not None and minimum > maximum)):
+        raise ValueError("Intervalle de niveaux impossible.")
+    return minimum, maximum
 
 
 def _fast_parse_query(question: str) -> dict[str, Any] | None:
@@ -289,6 +297,8 @@ def _fast_parse_query(question: str) -> dict[str, Any] | None:
         r"(?:^|-)(?:ct|cs|machine|machines)(?:-|$)", normalized
     ))
     level_bounds = _fast_level_bounds(question)
+    if level_bounds is None and re.search(r"(?:^|-)(?:niveau|niveaux|level|levels)(?:-|$)", normalized):
+        return None
     level_request = level_bounds is not None
     learning = bool(re.search(
         r"(?:^|-)(?:apprendre|apprend|apprennent|appris|apprise|apprises)(?:-|$)",
