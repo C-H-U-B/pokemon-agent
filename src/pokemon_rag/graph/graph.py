@@ -431,7 +431,13 @@ graph = builder.compile()
 
 
 def run_graph(initial_state: PokemonState, *, config=None) -> PokemonState:
-    """Exécute le graphe en conservant le dernier état en cas d'erreur du moteur."""
+    """Entrée applicative du graphe ; initial_state doit contenir ``question``.
+
+    Conserve le dernier état en cas d'erreur du moteur et tente sa finalisation.
+    Lire les statuts de traitement et de grounding séparément du résultat
+    d'écriture de la trace. Un appel direct à graph.invoke contourne cette
+    protection extérieure ; une erreur de finalisation interne reste propagée.
+    """
     state = dict(initial_state)
     state["trace"] = create_trace(state["question"])
     try:
