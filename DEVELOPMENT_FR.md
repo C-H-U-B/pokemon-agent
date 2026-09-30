@@ -750,3 +750,17 @@ Ces diagnostics et les barres de progression sont désormais dirigés
 vers stderr. Un test de régression avec une collection et des modèles
 simulés vérifie que l'initialisation laisse stdout vide et conserve
 les informations de diagnostic.
+
+## 38. [Feature] Questions successives dans une session MCP
+
+Le client ouvrait un nouveau serveur pour chaque question, ce qui empêchait
+de conserver les ressources de recherche déjà chargées entre les appels.
+
+Le terminal accepte désormais plusieurs questions dans une même session.
+Le serveur, le catalogue d'outils et le client LLM sont réutilisés ; chaque
+question reste indépendante. Un contexte réutilisable est aussi disponible
+en Python, tandis que l'appel ponctuel conserve son fonctionnement.
+
+Les ressources sont fermées à la sortie, en cas d'erreur ou d'annulation.
+Des tests simulés vérifient cette fermeture et la réutilisation de la session.
+Le gain de latence sur les modèles réels reste à mesurer.

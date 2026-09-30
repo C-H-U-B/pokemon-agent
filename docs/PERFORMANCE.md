@@ -9,7 +9,7 @@
 | Recherche vectorielle | Embeddings des documents calculés à l'ingestion ; embedding de la question à chaque recherche |
 | BM25 | Scores calculés sur le corpus complet avant filtrage des indices du Pokémon ; le scope limite les résultats, pas ce calcul initial |
 | Sections et reranking | Plusieurs évaluations CrossEncoder possibles ; désactiver le reranking principal ne supprime pas le sélecteur de section |
-| Client MCP | Un nouveau serveur et une découverte des outils par `ask`, puis deux appels LLM en cas de succès ; les ressources RAG ne survivent pas au sous-processus |
+| Client MCP | Le terminal et `open_client` partagent serveur, catalogue et ressources RAG entre questions ; deux appels LLM par question réussie. La fonction ponctuelle `ask` démarre encore un serveur par appel |
 | Ingestion | Relit et découpe les documents, recalcule leurs embeddings, remplace la collection Chroma ; pas une mise à jour incrémentale |
 
 La configuration, les points d'entrée et les frontières sont dans
@@ -49,11 +49,31 @@ au [guide des tests](../tests/README.md).
 
 ## Pistes à mesurer, non implémentées
 
-Une session MCP persistante pourrait amortir le démarrage et le chargement RAG.
 Un cache des catalogues de noms pourrait éviter certaines lectures SQL répétées
 du routeur et du parseur. Une recherche BM25 limitée en amont pourrait réduire le
 travail sur le corpus, mais changerait potentiellement ses statistiques et son classement.
 Mesurer ces pistes avant de les retenir ; aucune amélioration chiffrée n'est établie ici.
+
+## Comparer les sessions MCP
+
+Le script [benchmark_mcp_sessions.py](../benchmarks/benchmark_mcp_sessions.py)
+compare les appels ponctuels et les questions dans une session partagée.
+Lancer ce fichier depuis l'IDE avec l'interpréteur Conda `langgraph-agent`.
+LM Studio, Qwen, la base et l'index local doivent être disponibles.
+Ce script appelle réellement le LLM : son exécution revient à l'utilisateur.
+
+Par défaut, il pose deux fois la même question documentaire par mode, affiche
+une progression avec ETA et enregistre les réponses et durées dans un rapport
+horodaté `traces/mcp-sessions-*.json`. Le rapport partiel est conservé en cas
+d'erreur ; aucun rapport existant n'est écrasé.
+
+Les totaux incluent l'ouverture et la fermeture des sessions. Dans le mode
+partagé, l'ouverture est aussi mesurée séparément et la première question
+inclut le chargement RAG. Les caches système et le préchauffage du LLM peuvent
+influencer les résultats : l'option `--reverse` inverse l'ordre des modes.
+`--questions` change le nombre de questions par mode et `--help` décrit les options
+sans inférence. Transmettre le rapport JSON et les erreurs éventuelles.
+Le gain réel reste à mesurer ; ce script ne juge pas la fidélité des réponses.
 
 Les scripts longs emploient déjà notamment `tqdm`. Conserver une progression
 compréhensible avec compteur et ETA lorsque pertinente ; dans un serveur MCP,

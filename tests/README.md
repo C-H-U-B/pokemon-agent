@@ -64,6 +64,10 @@ sans supprimer le filtre demandé. Ce comportement et les bornes de niveau
 outils → sélection → exécution → réponse. Les tests isolés simulent les frontières
 MCP et LLM pour vérifier les erreurs, les formats de résultats, l'interface terminal
 et la fermeture des contextes. Ils utilisent les objets du SDK MCP installé.
+Ils couvrent aussi plusieurs questions dans une seule session, une découverte
+unique des outils, les sorties du terminal et la fermeture après erreur ou annulation.
+La mesure réelle des sessions successives est décrite dans
+[Performance](../docs/PERFORMANCE.md) et doit être exécutée par l'utilisateur.
 La première commande sélectionne les tests simulés ; la seconde appelle Qwen
 et doit être exécutée par l'utilisateur. Transmettre la sortie pytest et le rapport
 JUnit, en distinguant les erreurs techniques des contraintes métier non respectées.

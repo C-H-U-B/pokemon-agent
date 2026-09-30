@@ -1,789 +1,726 @@
-## 1. Why Pokémon?
+# Development Notes
 
-Pokémon was chosen as the domain for this project because it provides a particularly useful environment for experimenting with both Retrieval-Augmented Generation and structured data querying.
+🇫🇷 [Version française](DEVELOPMENT_FR.md)
 
-The domain combines two very different types of information.
+This document traces the evolution of the Pokémon RAG project throughout
+development. It is not intended to present a fixed final architecture:
+it preserves the main stages, problems encountered, experiments, and
+decisions that progressively shaped the system.
 
-### Large-scale textual data
+## 1. \[Feature\] Starting point: experimenting with a local RAG
 
-There are 1,025 Pokémon species in the National Pokédex, with many additional forms and variants.
+The project began as an experiment around a locally executed
+Retrieval-Augmented Generation pipeline.
 
-Poképédia therefore provides more than a thousand substantial pages containing mostly unstructured or semi-structured information about:
+Pokémon was chosen as the working domain because it naturally combines
+two types of information:
 
-- biology and appearance;
-- behavior;
-- origins and inspirations;
-- descriptions across games;
-- anime and manga appearances;
-- trivia;
-- history;
-- move descriptions and contextual information.
+-   a large documentary corpus, notably through Poképédia;
+-   highly structured data, available notably through PokéAPI.
 
-This creates a sufficiently large document corpus to make retrieval a real problem rather than a small demonstration.
+The domain is large enough to expose real retrieval problems while
+remaining easy to verify manually.
 
-The corpus contains tens of thousands of chunks distributed across more than a thousand documents, with many pages sharing similar vocabulary and section structures.
+The initial objective was therefore to build a system capable of
+answering detailed questions from Poképédia using local models served by
+LM Studio.
 
-For example, almost every Pokémon page contains sections about evolution, moves, appearances and game data. The system must therefore identify not only the correct document, but often the correct section within that document.
+## 2. \[Feature\] Building the Poképédia corpus
 
-### Highly structured data
+The first step consisted of downloading and cleaning Poképédia pages to
+build a usable local corpus.
 
-At the same time, Pokémon contains a large amount of information naturally suited to relational databases.
+The general pipeline progressively became:
 
-Examples include:
-
-- base statistics;
-- types;
-- abilities;
-- moves;
-- move learning methods;
-- levels;
-- Technical Machines;
-- game versions;
-- species and forms;
-- evolution chains;
-- evolution conditions;
-- items;
-- locations.
-
-PokéAPI provides this information through a large relational dataset that can be imported into SQLite.
-
-This makes Pokémon particularly interesting for testing the boundary between database queries and document retrieval.
-
-For example:
-
-```text
-"What moves does Emboar learn after level 40?"
-```
-
-is fundamentally a structured database query.
-
-By contrast:
-
-```text
-"Why does Pikachu have red cheeks?"
-```
-
-is better answered from documentary text.
-
-Other questions may require both types of information.
-
-### A natural hybrid use case
-
-The objective is therefore not simply to build a Pokémon chatbot.
-
-Pokémon serves as a practical test domain for a more general problem:
-
-> How should an LLM-based system decide when to query structured data, when to search documents, and when to combine both?
-
-The domain provides enough data and enough variety to experiment with:
-
-```text
-Structured data ──────── SQLite / PokéAPI
-                              │
-                              │
-User question ── Router ──────┼────── Hybrid answer
-                              │
-                              │
-Textual knowledge ─────── RAG / Poképédia
-```
-
-It also provides useful ground truth for testing. Many questions have precise, verifiable answers, which makes retrieval errors, incomplete answers and hallucinations easier to identify.
-
-For these reasons, Pokémon provides a manageable but non-trivial benchmark for developing and evaluating a local hybrid RAG architecture.
-
----
-
-## 2. Initial goal
-
-The initial objective was to build a local system capable of answering detailed Pokémon questions while determining the most appropriate source of information for each question.
-
-The main constraints were:
-
-- local inference through LM Studio;
-- no dependency on an external LLM API;
-- retrieval over a large French Pokémon corpus;
-- structured queries over a local relational database;
-- answers grounded in the available sources;
-- support for precise factual questions as well as open-ended questions;
-- reasonable response times on consumer hardware.
-
-The project initially focused primarily on RAG over Poképédia. As testing exposed the limitations of using document retrieval for inherently structured questions, the architecture progressively evolved toward the current STRUCTURED / RAG / HYBRID system.
-
-## 3. Building the Poképédia corpus
-
-Poképédia pages are downloaded and converted into local documents before indexing.
-
-The processing pipeline is:
-
-```text
+``` text
 Poképédia
-    ↓
-download_pokepedia.py
-    ↓
-raw pages
-    ↓
-clean_pokepedia.py
-    ↓
-cleaned documents
-    ↓
-ingest_pokemon.py
-    ↓
-ChromaDB index
+   ↓
+Download
+   ↓
+Raw pages
+   ↓
+Cleaning
+   ↓
+Structured documents
+   ↓
+Chunking
+   ↓
+ChromaDB
 ```
 
-The cleaned corpus currently contains approximately 1,200 Pokémon documents and tens of thousands of chunks.
+The corpus represents more than a thousand documents and several tens of
+thousands of chunks.
 
-A major requirement during preprocessing was to preserve the structure of the original articles.
+From the cleaning stage onward, preserving article structure proved
+important. Indexed documents therefore retain information that makes it
+possible to identify, among other things, the Pokémon, the source
+document, and the original section.
 
-Chunks therefore contain metadata such as:
+This decision later proved important when retrieval began to directly
+use section structure.
 
-```text
-pokemon
-source_file
-section_path
-section_chunk_number
-```
+## 3. \[Feature\] First retrieval pipeline
 
-This structure later became important for retrieval.
+The first RAG architecture combined semantic and lexical search:
 
----
-
-## 4. First RAG architecture
-
-The initial retrieval system combined several techniques:
-
-```text
+``` text
 Question
    ↓
-Vector retrieval
+Vector search
    +
-BM25 retrieval
+BM25
    ↓
 Reciprocal Rank Fusion
    ↓
-CrossEncoder reranking
+CrossEncoder
    ↓
-Top results
+Context
    ↓
 LLM
 ```
 
-The current retrieval pipeline uses:
+Combining embeddings, BM25, and a reranker produced better results than
+vector search alone.
 
-- multilingual Sentence Transformer embeddings;
-- ChromaDB for vector search;
-- BM25 lexical retrieval;
-- Reciprocal Rank Fusion;
-- CrossEncoder reranking.
+However, the first experiments showed that retrieving individually
+relevant chunks still did not guarantee reliable context.
 
-This provided significantly better retrieval than relying on vector similarity alone.
+Two problems quickly became important:
 
-However, good chunk-level retrieval was not sufficient.
+1.  results from the wrong Pokémon could be retrieved;
+2.  a relevant chunk could contain only part of the required
+    information.
 
----
+## 4. \[Feature\] Restricting search to the relevant Pokémon
 
-## 5. Pokémon-scoped retrieval
+When a question explicitly mentions a single Pokémon, a global search
+can retrieve passages about other Pokémon that use similar vocabulary.
 
-A recurring problem was contamination between Pokémon pages.
+A strict rule was therefore added:
 
-When a question explicitly concerned a single Pokémon, globally searching the entire corpus could retrieve information about another Pokémon with similar terminology.
+> When exactly one Pokémon is identified unambiguously, retrieval
+> remains restricted to that Pokémon.
 
-A strict retrieval rule was therefore introduced:
+This constraint is preserved during any additional searches performed by
+the system.
 
-> When exactly one Pokémon is explicitly identified, retrieval remains restricted to that Pokémon.
+The general behavior became:
 
-This applies both to the initial retrieval and to retrieval retries.
-
-The resulting behavior is:
-
-```text
-One identified Pokémon
+``` text
+One Pokémon identified
         ↓
-Search only this Pokémon
+Search restricted to that Pokémon
 
-No identified Pokémon
+No Pokémon identified
         ↓
 Global search
 
-Ambiguous / multiple Pokémon
+Several Pokémon or ambiguity
         ↓
-Dedicated or global handling
+Context-dependent handling
 ```
 
-This considerably reduced irrelevant retrieval results.
+This step reduced a major source of context contamination.
 
----
+## 5. \[Feature\] Using section structure
 
-## 6. Section-aware retrieval
+Poképédia articles are organized into sections and subsections.
+Information can be spread across several chunks belonging to the same
+logical section.
 
-Poképédia pages contain structured sections such as:
+Retrieval therefore evolved to take this structure into account.
 
-```text
-Évolution
-Capacités apprises
-Capacités apprises > Par montée en niveau
-Capacités apprises > Par CT
-Capacités apprises > Par reproduction
-Localisations
-Statistiques
+When a relevant result is selected, the system can retrieve the other
+chunks belonging to exactly the same section instead of simply taking
+neighboring chunks in the index.
+
+The objective is to reconstruct coherent context:
+
+``` text
+Relevant result
+      ↓
+Identify its section
+      ↓
+Section expansion
+      ↓
+Complete documentary context
 ```
 
-Retrieving isolated chunks could provide incomplete context.
+This evolution improved the coherence of the context provided to the
+generator.
 
-The system was therefore changed to preserve and exploit `section_path`.
+## 6. \[Feature\] Grounding and retry mechanism
 
-When a relevant chunk is selected, the system can recover the complete logical section using:
+An answer produced from retrieved context can still introduce
+information absent from the sources or contradict them.
 
-```text
-source_file
-+
-section_path
-+
-section_chunk_number
-```
+A grounding check was therefore added after generation.
 
-Instead of simply retrieving neighboring chunk IDs, the RAG pipeline expands the exact section.
+It distinguishes several situations:
 
-This avoids accidentally joining unrelated portions of the same document.
-
----
-
-## 7. Grounding validation
-
-Generating an answer from retrieved context does not guarantee that the answer is actually supported by that context.
-
-A grounding checker was therefore introduced after generation.
-
-The checker can return:
-
-```text
+``` text
 PASS
 CONTRADICTION
 UNSUPPORTED
 INSUFFICIENT
 ```
 
-This made it possible to detect answers where the model introduced information absent from or contradictory to the retrieved documents.
+This step also led to the introduction of a retry mechanism. Depending
+on the type of failure, the system can attempt a new generation or
+search for better context.
 
-One useful regression case involved Roitiflam.
+However, this experiment revealed an important distinction:
 
-For a question asking which moves it learns after level 40, an early answer incorrectly included moves learned before level 40.
+> An answer can be perfectly grounded in its context without actually
+> answering the question correctly.
 
-The grounding and retry pipeline eventually produced the expected subset:
+## 7. \[Feature\] Experimenting with context sufficiency
 
-```text
-Lance-Flammes — 43
-Fracass’Tête — 50
-Hurlement — 55
-Boutefeu — 62
+To address this problem, a separate context-sufficiency verification
+step was tested.
+
+The idea was to distinguish two questions:
+
+``` text
+Grounding
+→ Is the answer supported by the context?
+
+Sufficiency
+→ Does the context actually contain what is needed to answer?
 ```
 
-This test also highlighted a deeper problem: grounding and question answering are not the same thing.
+In practice, this new validation could itself produce false positives
+and added an extra call to the local model.
 
----
+This step reinforced an idea that would become important later in the
+project: adding LLM validations does not necessarily fix a problem
+located earlier in the retrieval chain.
 
-## 8. Grounded does not mean relevant
+## 8. \[Architecture\] Improving the representation used for search
 
-One of the most important findings during development came from the question:
+Some retrieval errors came from how chunks were represented in the
+index.
 
-> Comment Pikachu peut-il apprendre Électacle ?
+The system was therefore modified to distinguish:
 
-Several retrieved sections mentioned Électacle.
+-   the source text, preserved for delivery to the generator;
+-   an enriched representation used for embeddings and search.
 
-The highest-ranked section discussed Électacle as a signature move, while another section contained actual information about how the move could be learned.
+The search representation contains more structural context, notably the
+identity of the Pokémon and the passage's position within the article.
 
-The generator produced an answer based on the first section.
+This separation improves search without polluting the documentary text
+ultimately passed to the LLM.
 
-The answer was factually supported by the supplied context, so the grounding checker returned:
+## 9. \[Architecture\] RAG limitations for structured data
 
-```text
-PASS
-```
+Over the course of testing, some questions proved poorly suited to RAG.
 
-But it did not actually answer the question.
+Requests concerning, for example:
 
-This exposed an important distinction:
+-   an evolution;
+-   moves learned at certain levels;
+-   TMs available in a version;
+-   a learning method;
 
-```text
-Grounding:
-"Is the answer supported by the context?"
+are closer to relational queries than documentary search.
 
-Answerability:
-"Does the context contain the information needed to answer the question?"
-```
+Systematically routing these questions through RAG introduced several
+risks:
 
-A separate context sufficiency check was experimented with, but it could also incorrectly classify semantically related context as sufficient.
+-   incomplete retrieval;
+-   wrong section;
+-   approximate filtering by the LLM;
+-   loss of information contained in tables;
+-   unnecessary latency.
 
-It additionally introduced another LLM call and several seconds of latency.
+The project therefore began evolving from a pure RAG system toward a
+hybrid architecture.
 
-The experiment showed that retrieval quality and information selection cannot simply be replaced by additional validation prompts.
+## 10. \[Feature\] Introducing PokéAPI data
 
----
+PokéAPI data was downloaded and imported into SQLite.
 
-## 9. Limits of pure RAG for structured questions
+The objective was not to reproduce the entire PokéAPI structure in the
+application code, but to have a sufficiently complete local relational
+source for deterministically answering structured questions.
 
-Another important observation was that many Pokémon questions are fundamentally database queries.
+During this stage, the imported schema was progressively completed when
+some required relationships were not yet available locally.
 
-Examples include:
+This phase also demonstrated the value of validating the actual PokéAPI
+schema rather than compensating for its particularities in higher layers
+of the system.
 
-```text
-Quelles capacités Roitiflam apprend après le niveau 40 ?
+## 11. \[Feature\] Integrating the custom Pokédex
 
-Quelles CT Pikachu peut-il apprendre dans Écarlate et Violet ?
+In parallel, a bilingual spreadsheet is used to store project-specific
+information that is not directly available in PokéAPI.
 
-Comment Tutafeh de Galar évolue-t-il ?
-```
+It contains the species from the National Pokédex as well as forms
+relevant to the project and various additional information.
 
-Using document retrieval and an LLM for these questions introduces several unnecessary sources of error:
+An explicit mapping to PokéAPI was added to link spreadsheet rows
+unambiguously to entities in the official database.
 
-- incomplete retrieval;
-- wrong section selection;
-- hallucinated filtering;
-- missing rows from tables;
-- additional latency.
+This step prepared the merge between custom data and PokéAPI data.
 
-This motivated the introduction of a structured data path.
+## 12. \[Architecture\] Moving to a unified SQLite database
 
----
+At one point in development, the runtime used both SQLite and the
+spreadsheet through Pandas.
 
-## 10. PokéAPI structured database
+This organization created two different access paths to structured data.
 
-PokéAPI data is downloaded locally and converted into SQLite.
+The architecture was therefore simplified around a single database:
 
-The structured database contains information such as:
-
-- Pokémon and species;
-- forms;
-- moves;
-- move learning methods;
-- version groups;
-- machines;
-- evolution relationships;
-- evolution conditions;
-- items;
-- locations;
-- types;
-- regions.
-
-During development, the evolution tables revealed several missing reference datasets.
-
-Additional PokéAPI tables were therefore imported for:
-
-```text
-genders
-locations
-location_names
-types
-type_names
-regions
-region_names
-```
-
-After this extension, all evolution reference fields could be resolved without orphaned references.
-
-The evolution dataset currently uses all of the condition fields present in the imported schema.
-
----
-
-## 11. Custom Pokédex data
-
-PokéAPI does not contain every piece of information useful to the project.
-
-A custom bilingual spreadsheet is therefore maintained:
-
-```text
-corpus/pokedex_particularites.xlsx
-```
-
-It contains 1,272 rows representing the 1,025 National Pokédex species and their relevant forms.
-
-The spreadsheet includes additional information such as:
-
-- French and English names;
-- forms;
-- types;
-- generation information;
-- signature moves and abilities;
-- unusual movepools;
-- subgroups;
-- gender differences;
-- other Pokémon-specific distinctions.
-
-Explicit PokéAPI mapping columns were added to make each spreadsheet row unambiguous.
-
-The mapping contains:
-
-```text
-PokéAPI Species ID
-PokéAPI Pokémon ID
-PokéAPI Pokémon Identifier
-PokéAPI Form ID
-PokéAPI Form Identifier
-PokéAPI Is Default
-PokéAPI Mapping Status
-```
-
-The resulting mapping contains:
-
-```text
-1,272 spreadsheet entries
-1,025 distinct species
-1,267 exact Pokémon/form mappings
-5 species-only mappings
-```
-
-The five species-only cases correspond to forms not represented as independent PokéAPI Pokémon entries in the imported data.
-
----
-
-## 12. Unified SQLite database
-
-Originally, structured queries accessed the spreadsheet directly with Pandas.
-
-This created two different runtime data systems:
-
-```text
-Excel / Pandas
-PokéAPI / SQLite
-```
-
-The architecture was simplified by creating a single generated database:
-
-```text
+``` text
+PokéAPI
+   ↓
+Intermediate database
+   │
+   ├──── Custom Pokédex data
+   ↓
 pokemon.db
 ```
 
-The build process is now:
+The spreadsheet remains a build source but is no longer queried directly
+at runtime.
 
-```text
-PokéAPI CSV
-    ↓
-pokeapi.db
-    ↓
-         + pokedex_particularites.xlsx
-         ↓
-      pokemon.db
+The rule is now simple:
+
+> Structured runtime queries go through `pokemon.db`.
+
+This unification reduces runtime dependencies and provides a single
+interface for structured data.
+
+## 13. \[Feature\] Creating the structured query engine
+
+The system does not allow the LLM to freely generate SQL.
+
+Instead, a structured question is transformed into a constrained
+semantic operation, then validated by Python before a predefined SQL
+query is executed.
+
+The principle is:
+
+``` text
+Question
+   ↓
+Interpretation
+   ↓
+Validated structured plan
+   ↓
+Predefined SQL function
+   ↓
+Deterministic result
 ```
 
-The spreadsheet is therefore a build-time source only.
+The first query families concern evolutions and moves, notably level-up
+learning, TMs, and learning methods.
 
-At runtime:
+This choice preserves natural-language understanding while avoiding
+arbitrary SQL generation.
 
-> All structured queries access `pokemon.db`.
+## 14. \[Bug fix\] Stabilizing evolutions and forms
 
-This removed the need to load the Excel spreadsheet during application startup and provides a single structured data interface.
+Evolutions were one of the first complex parts of the structured engine.
 
----
+The data can depend on a form, version, item, level, or other
+conditions.
 
-## 13. Safe structured query engine
+Several problems were discovered during this phase, notably around the
+distinction between:
 
-The structured query engine does not allow the LLM to generate arbitrary SQL.
+-   the species;
+-   the Pokémon form;
+-   the game version.
 
-Instead, the LLM converts the user question into a constrained semantic operation.
+The engine was progressively corrected to keep these concepts separate
+and prevent a rule associated with one specific form from being applied
+to another.
 
-For example:
+This phase was also used to strengthen regression tests for the
+structured engine.
 
-```json
-{
-  "operation": "get_level_up_moves",
-  "pokemon": "Roitiflam",
-  "version_group": "scarlet-violet",
-  "min_level": 41
-}
+## 15. \[Feature\] Extending structured queries to moves
+
+The structured engine was then extended to the main questions about move
+learning.
+
+It can notably handle:
+
+``` text
+moves learned by level
+TMs
+learning methods
 ```
 
-Python then validates this plan and executes predefined SQL.
+This step confirmed that PokéAPI data was better suited than RAG for
+this type of question.
 
-The currently supported operations are:
+It also made it possible to identify and correct several assumptions
+initially made about the relational schema.
 
-```text
-get_evolutions
-get_level_up_moves
-get_machine_moves
-get_move_learning_methods
+## 16. \[Feature\] Emergence of the three execution routes
+
+At this stage, the architecture took a more general form with three
+paths:
+
+``` text
+                     Question
+                        │
+                      Router
+               ┌─────────┼─────────┐
+               │         │         │
+         STRUCTURED      RAG     HYBRID
+               │         │         │
+          pokemon.db  Poképédia   combination
 ```
 
-This design provides the flexibility of natural-language parsing while keeping database execution deterministic.
+**STRUCTURED**
 
----
+Used when the answer can be obtained directly from relational data.
 
-## 14. Evolution query validation
+**RAG**
 
-Evolution queries required careful handling because PokéAPI represents many different conditions.
+Used when the answer requires documentary, explanatory, or contextual
+content.
 
-Tests were added for conditions involving:
+**HYBRID**
 
-- items;
-- levels;
-- locations;
-- gender;
-- known moves;
-- known move types;
-- party Pokémon;
-- party types;
-- held items;
-- regions;
-- time of day;
-- physical-stat relationships;
-- damage taken;
-- forms;
-- version groups.
+Used when both sources can contribute to the answer.
 
-Two implementation bugs were discovered during testing.
+This separation is a major change from the initial RAG: the system no
+longer tries to make every question go through the same pipeline.
 
-### Regional forms
+## 17. \[Architecture\] Refactoring the project structure
 
-A query for:
+As the number of components increased, the project was reorganized
+around a `src/pokemon_rag` package.
 
-```text
-Comment Tutafeh de Galar évolue-t-il ?
+Responsibilities were separated into several groups:
+
+``` text
+graph/       orchestration and routing
+structured/  queries against pokemon.db
+rag/         retrieval and documentary validations
+scripts/     data construction and ingestion
+tests/       regressions
 ```
 
-initially allowed evolution rows that did not correspond to the requested source form.
+Paths to data, databases, and indexes were also centralized.
 
-Strict source-form filtering fixed the issue.
+This refactoring clarified the separation between:
 
-### Physical stat relationships
+-   data construction;
+-   runtime;
+-   tests.
 
-PokéAPI uses values including:
+## 18. \[Performance\] First targeted performance work
 
-```text
-1
-0
--1
+Once the main routes were functional, timing measurements showed that
+SQLite was not the main bottleneck.
+
+SQL queries generally executed in a few tens of milliseconds, while some
+calls to local models took several seconds.
+
+The router was the first component targeted.
+
+**Fast Router**
+
+A deterministic router was added before the LLM router.
+
+Its principle is deliberately conservative:
+
+``` text
+Question
+   ↓
+Fast Router
+   ├── certain decision → direct route
+   └── uncertainty      → LLM router
 ```
 
-for some evolution conditions.
+Sufficiently explicit structured questions can therefore be sent to
+`STRUCTURED` without a model call.
 
-An ordinary truth-value check incorrectly discarded `0`.
+The LLM router remains available as a fallback for ambiguous,
+documentary, or hybrid questions.
 
-The code was changed to explicitly test against `None`.
+For simple structured cases, this change reduced routing time from
+several seconds to a few tens of milliseconds.
 
-The dedicated evolution query suite subsequently reached:
+## 19. \[Performance\] Fast Parser for structured queries
 
-```text
-44 / 44 tests passing
+After optimizing the router, measurements showed that the main remaining
+cost for a simple structured query came from the semantic parser.
+
+A deterministic Fast Parser was therefore added before the LLM parser.
+
+The architecture becomes:
+
+``` text
+Question
+   ↓
+Fast Router
+   ↓
+Fast Parser
+   ├── certain plan → SQL
+   └── uncertainty  → LLM parser → SQL
 ```
 
----
+The Fast Parser does not try to understand every possible phrasing.
 
-## 15. Move query validation
+It only takes over when it can identify the operation and its parameters
+with sufficient confidence. In all other cases, the existing LLM
+behavior is preserved.
 
-Structured move queries were then added.
+This approach follows the same principle as the Fast Router: reserve
+models for situations where their interpretation capabilities actually
+add value.
 
-They support:
+## 20. \[Architecture\] Removing the separate sufficiency check
 
-### Level-up moves
+The pre-generation context check added a model call and partially
+duplicated the faithfulness check performed after the answer. It was
+removed from documentary and hybrid paths.
 
-Example:
+The post-generation check then decides whether the answer can be
+accepted, whether a new search is required, or whether the answer must
+be regenerated. Graph tests verify that these retries remain bounded and
+that retrieval preserves the targeted Pokémon.
 
-```text
-Quelles capacités Roitiflam apprend après le niveau 40
-dans Écarlate et Violet ?
-```
+## 21. \[Performance\] Lazy loading of retrieval
 
-### Machine moves
+Importing graph modules triggered loading of the corpus and retrieval
+models even when the query or test did not use them.
 
-Example:
+This initialization was moved to the first actual access to documentary
+retrieval. Structured processing and tests using simulated dependencies
+therefore avoid this cost.
 
-```text
-Quelles CT Pikachu peut-il apprendre
-dans Écarlate et Violet ?
-```
+## 22. \[Bug fix\] Separating retry budgets
 
-### Learning methods
+A shared counter limited both new searches and regenerations. An
+additional search could therefore prevent a later correction of the
+answer.
 
-Example:
+The two mechanisms were given independent budgets, each allowing one
+retry. Regression tests verify that they can occur sequentially without
+causing a loop. An unrecognized control decision stops processing.
 
-```text
-Comment Pikachu peut-il apprendre Électacle ?
-```
+## 23. \[Bug fix\] Distinguishing insufficient context from an incomplete answer
 
-The move query tests cover:
+The faithfulness check could accept an answer consistent with the
+sources even when those sources did not actually make it possible to
+answer the question. Its instructions and Python checks were
+strengthened to explicitly examine context sufficiency and unsupported
+claims.
 
-- levels;
-- machines;
-- learning methods;
-- forms;
-- version groups;
-- French and English identifiers;
-- invalid inputs.
+An answer could also omit information that was nevertheless available.
+The `INCOMPLETE` decision was added to trigger regeneration in this
+case, without unnecessarily rerunning documentary retrieval.
 
-One schema assumption was discovered during testing: the PokéAPI `machines` table does not contain the expected generic `id` column.
+## 24. \[Feature\] Setting up benchmarks
 
-The query was corrected to use the actual machine fields instead of relying on an assumed schema.
+Separate benchmarks were added to evaluate documentary retrieval,
+routing, and the faithfulness check, followed by a full-graph benchmark
+linking these checks together.
 
----
+For retrieval, questions were written from real corpus sections, with an
+expected source for each case. For the faithfulness check, synthetic
+contexts make it possible to isolate the model's decision from retrieval
+quality.
 
-## 16. Current routing architecture
+The graph benchmark verifies structured, documentary, and hybrid paths,
+as well as rejection of multiple requests. It distinguishes a structured
+answer produced directly from a generated answer subjected to the
+faithfulness check.
 
-The project now uses three execution paths:
+Durations observed on the full graph motivated the addition of per-stage
+measurements to locate processing costs.
 
-```text
-                       Question
-                          │
-                        Router
-              ┌───────────┼───────────┐
-              │           │           │
-         STRUCTURED      RAG        HYBRID
-              │           │           │
-         pokemon.db   Poképédia   pokemon.db
-                                      +
-                                  Poképédia
-```
+## 25. \[Feature\] Tracking executions and their performance
 
-### STRUCTURED
+The overall duration of a query did not explain why it was slow. A
+per-execution trace was added to the graph to connect the path taken,
+retries, final decision, and time spent in each stage.
 
-Used when the answer can be deterministically obtained from the local database.
+Traces are stored as JSONL and a script aggregates them to compare paths
+and identify slow queries. Initial observations confirmed the weight of
+model calls compared with SQL execution and context construction.
 
-Examples:
+## 26. \[Feature\] Measuring model usage
 
-- evolution;
-- level-up moves;
-- machines;
-- move learning methods.
+Call duration alone was not enough to distinguish a long response from a
+model slowdown. Traces were therefore enriched with token volumes and
+throughput for generation, checking, and regeneration calls.
 
-### RAG
+Throughput is calculated over the total duration of the call: it
+includes prompt processing and does not measure text generation alone.
+The analysis script uses this information while preserving support for
+older traces.
 
-Used for documentary questions that require Poképédia text.
+## 27. \[Bug fix\] Aligning the router with available operations
 
-Examples include explanations about:
+The router sent questions about types, abilities, and stats to
+`STRUCTURED`, even though the engine did not provide an operation for
+answering them.
 
-- appearance;
-- biology;
-- history;
-- descriptions;
-- contextual information.
+The fast rules and prompt were aligned with the available operations:
+evolutions, level-up moves, machine moves, and learning methods. At this
+stage, other targeted questions go through documentary retrieval.
+General presentations retain the hybrid path, which uses the profile
+from the spreadsheet.
 
-### HYBRID
+Tests and benchmark expectations were adapted to this behavior.
 
-Used when both structured Pokémon information and documentary context are useful.
+## 28. \[Bug fix\] Abstention after grounding failure
 
----
+An answer rejected by grounding could still be displayed after retries
+were exhausted.
 
-## 17. End-to-end validation
+An abstention node now replaces that answer with a message indicating
+that the sources do not support a sufficiently reliable answer. The
+checker's decision and justification remain available for diagnostics.
 
-The three execution paths have been validated independently.
+## 29. \[Bug fix\] Handling processing errors
 
-### STRUCTURED
+A retrieval or generation failure could interrupt the graph before its
+trace was saved.
 
-Validated with questions covering:
+Nodes are now protected so that already acquired state is preserved and
+the failing stage can be identified. The `run_graph()` function also
+handles LangGraph engine errors. The terminal, batch, and benchmark use
+this common entry point.
 
-- Roitiflam level-up moves;
-- Pikachu machine moves;
-- Pikachu move learning methods;
-- Tutafeh de Galar evolution.
+In case of failure, the system returns an explicit message and attempts
+to save the trace. A checker error is distinguished from insufficient
+context, preventing an unnecessary documentary search retry. Network
+timeouts for LLM clients were also made explicit.
 
-### HYBRID
+## 30. \[Bug fix\] Non-blocking trace persistence
 
-A profile-style question about Lovdisc successfully combined structured database information with Poképédia retrieval.
+An error while writing the trace file must not prevent an already
+produced answer from being returned.
 
-### RAG
+Persistence is now protected: the answer and trace remain available in
+memory, and the write result is reported separately. The error is logged
+without an automatic retry to avoid duplicating a partial write.
 
-A documentary question about Pikachu's red cheeks was answered using Poképédia retrieval and passed grounding validation.
+## 31. \[Bug fix\] Accumulating metrics across attempts
 
----
+Retries replaced previous measurements with those from the latest call,
+underestimating processing cost.
 
-## 18. Performance observations
+A history now preserves measurements for each attempt. Finalization sums
+durations and tokens for instrumented generation, grounding, and
+regeneration calls, then recalculates throughput from the totals.
 
-SQLite itself is not a performance bottleneck.
+Unknown usage is reported rather than counted as zero. Display and the
+analysis script were adapted while preserving support for older traces.
 
-Typical structured SQL execution during testing was on the order of a few tens of milliseconds.
+## 32. \[Architecture\] Test isolation and factual evaluation
 
-Most latency currently comes from local LLM calls:
+Fast tests sometimes depended on the real database or local models.
+Router and parser tests now use a small in-memory SQLite catalog. The
+`real_data`, `models`, and `llm` markers make it possible to select
+tests according to their prerequisites.
 
-```text
-Router
-Query parsing
-Answer generation
-Context sufficiency
-Grounding validation
-```
+The graph benchmark was also supplemented with factual references from
+local sources. It exports answers with a review rubric covering
+accuracy, completeness, and unsupported claims. A comparator verifies
+the structured fields of the reference case for Pikachu evolutions.
 
-A structured query that takes only milliseconds to execute can therefore still take several seconds end-to-end because of routing and semantic parsing.
+A `PASS` verdict from the faithfulness check is therefore no longer
+enough for an answer to count as factually correct.
 
-RAG and HYBRID questions are slower because they may additionally involve:
+As part of this work, one test expected `CONTRADICTION` even though its
+context did not exclude the method proposed by the answer. The model's
+`UNSUPPORTED` classification was therefore defensible.
 
-- retrieval;
-- reranking;
-- context validation;
-- generation;
-- grounding.
+The context was clarified to make the contradiction explicit. A separate
+case verifies the addition of a condition absent from the sources. This
+distinction was validated with the local model without modifying the
+prompt.
 
-Performance optimization has intentionally been postponed until the architecture and correctness are stable.
+## 33. \[Bug fix\] Correcting level ranges
 
----
+The Fast Parser stopped at the first recognized bound. A request such as
+"after level 20 but before level 40" could therefore lose its upper
+bound.
 
-## 19. Current state
+It now collects constraints before calculating their intersection: this
+request produces bounds 21 through 39. Inclusive bounds are also
+supported, impossible intervals are rejected, and partially understood
+phrasings are left to the LLM parser.
 
-The current architecture has reached the following stage:
+Regression tests verify that level constraints are preserved.
 
-- local Poképédia corpus;
-- hybrid lexical/vector retrieval;
-- Pokémon-scoped retrieval;
-- section-aware retrieval;
-- exact section expansion;
-- CrossEncoder reranking;
-- local grounding validation;
-- PokéAPI SQLite database;
-- custom Pokédex integration;
-- unified `pokemon.db`;
-- deterministic structured query engine;
-- STRUCTURED / RAG / HYBRID routing;
-- dedicated structured-data regression tests.
+## 34. \[Feature\] Extending structured queries to the custom Pokédex
 
-The runtime no longer depends directly on the Excel spreadsheet.
+The custom Pokédex contains data that can be returned directly, without
+LLM generation: types, National Pokédex number, introduction generation,
+and signature moves.
 
-The spreadsheet is used only when building `pokemon.db`.
+The structured engine was extended to these requests, with appropriate
+routing and direct data output. French or English names and explicitly
+named forms are supported.
 
----
+Answers report missing values and preserve source annotations. Since
+these data cannot be filtered by game, that filter is rejected. Tests
+and factual benchmark references cover the new operations.
 
-## 20. Remaining work
+## 35. \[Bug fix\] Preserving game constraints
 
-Several areas are intentionally still under development.
+The Fast Parser could ignore an unknown game and answer across all
+versions.
 
-### RAG section selection
+It now detects explicit mentions of unrecognized games, and processing
+rejects them before falling back to the LLM, preserving the question's
+constraint. Regression tests verify that the game constraint is
+preserved.
 
-Section selection remains one of the main retrieval problems.
+## 36. \[Feature\] Exposing project capabilities through MCP
 
-A document can contain several sections that are lexically related to a question while only one contains the requested information.
+To use the project from MCP-compatible clients, a server exposes
+structured operations and documentary retrieval as typed tools. It
+reuses the existing engine and retrieval pipeline without duplicating
+business logic.
 
-Future work should improve semantic selection between these sections without adding unnecessary LLM calls.
+Search can cover the entire corpus or be restricted to one Pokémon. It
+returns passages and their source references. Tools call the underlying
+components directly, without going through the graph's checks and
+retries.
 
-### Context sufficiency
+A client discovers the available tools and their schemas, then lets Qwen
+choose a tool and its arguments from the question. It executes that tool
+through MCP and passes the result to Qwen to formulate an answer in
+French. This first loop therefore allows the model to choose between
+structured data and documentary retrieval.
 
-The current context sufficiency stage adds latency and has produced false-positive results.
+The integration was validated on questions using both sources.
 
-Once retrieval and section selection are sufficiently reliable, its usefulness should be reevaluated.
+## 37. \[Bug fix\] Separating RAG diagnostics from the MCP protocol
 
-### Performance
+On the first documentary call, RAG initialization wrote its diagnostics
+to stdout, which was also used for MCP messages.
 
-The Router and semantic query parser currently rely on local LLM inference and account for most of the latency of structured questions.
+These diagnostics and progress bars are now directed to stderr. A
+regression test using a simulated collection and models verifies that
+initialization leaves stdout empty while retaining diagnostic
+information.
 
-A faster routing strategy can be investigated after correctness is stable.
+## 38. [Feature] Consecutive questions in one MCP session
 
-### Regression suite
+The client opened a new server for each question, preventing loaded retrieval
+resources from being retained between calls.
 
-The test suite should continue growing as new retrieval failures and edge cases are discovered.
+The terminal now accepts multiple questions within one session. The server,
+tool catalog and LLM client are reused; each question remains independent.
+A reusable context is also available in Python, while the one-shot function
+preserves its existing behavior.
 
----
-
-## 21. Development principle
-
-A general principle emerged during the project:
-
-> Use deterministic structured data when the question is fundamentally structured, and use RAG when the answer genuinely requires documents.
-
-The goal is not to make every question pass through an LLM.
-
-The goal is to use each component only where it provides value:
-
-```text
-SQLite       → precise structured facts
-Retrieval    → relevant documentary evidence
-LLM          → language understanding and generation
-Grounding    → answer validation
-LangGraph    → orchestration
-```
-
-This principle is the basis of the current architecture.
+Resources are closed on exit, error or cancellation. Tests with simulated
+dependencies verify cleanup and session reuse. The latency improvement with
+real models remains to be measured.

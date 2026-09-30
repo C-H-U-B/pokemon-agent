@@ -10,7 +10,7 @@ Lire ensuite uniquement le [guide spécialisé](docs/README.md) de la tâche.
 | --- | --- |
 | `python -m pokemon_rag.graph.graph` | Terminal interactif ; appelle `run_graph`, peut utiliser LM Studio et écrit une trace |
 | `graph.graph.run_graph(initial_state)` | Entrée Python du graphe ; état contenant au minimum `question` |
-| `python -m pokemon_rag.client.mcp_client` | Une question au terminal, sélection d'un outil par Qwen, exécution MCP, réponse par Qwen |
+| `python -m pokemon_rag.client.mcp_client` | Questions successives dans une session MCP, sélection d'un outil et réponse par Qwen |
 | `python -m pokemon_rag.mcp.server` | Serveur stdio pour un client MCP ; ce n'est pas un terminal de questions-réponses |
 | `scripts/batch/run_questions.py` | Lot de questions via le vrai graphe |
 | `benchmarks/benchmark_*.py` | Évaluation des composants ou du graphe avec leurs dépendances réelles |
@@ -53,9 +53,11 @@ pour les présentations générales ; le tableur n'est pas lu à l'exécution.
 
 ## Parcours MCP
 
-`client.mcp_client.ask` démarre un sous-processus serveur, découvre les schémas,
+`client.mcp_client.open_client` démarre un sous-processus serveur, découvre les schémas
+une fois et partage la session entre les questions. Pour chacune, le client
 demande à Qwen un nom d'outil et des arguments, exécute cet outil puis demande à
-Qwen une réponse. Il sélectionne un seul outil par question : il n'orchestre pas
+Qwen une réponse. La fonction ponctuelle `ask` ouvre son propre contexte.
+Le client sélectionne un seul outil par question : il n'orchestre pas
 les trois routes du graphe et n'en applique pas le grounding, les reprises ou les traces.
 
 Le serveur adapte les fonctions `get_*` et `retrieve` au protocole. Il ne passe
