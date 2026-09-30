@@ -1051,3 +1051,7 @@ Le moteur structuré a été étendu aux types, au numéro national, à la gén�
 Trois fonctions ont été ajoutées : `get_pokemon_types`, `get_pokedex_identity` et `get_signature_moves`. Les formulations simples sont reconnues directement par le router et le parseur, puis formatées sans génération LLM. Les noms français et anglais ainsi que les formes explicitement nommées sont résolus dans le tableur.
 
 Les valeurs absentes sont signalées comme non renseignées et les annotations des capacités signature sont conservées. Ces opérations ne prennent pas en charge les filtres par jeu. Les tests et les benchmarks ont été adaptés aux nouvelles possibilités.
+
+## 39. Conservation des contraintes de jeu
+
+Une mention de jeu inconnu pouvait être ignorée par le parseur rapide et produire une réponse toutes versions confondues. Les filtres de jeu explicites non reconnus sont désormais rejetés avant le recours au LLM. Le dernier test marqué comme échec attendu devient un test de régression normal.

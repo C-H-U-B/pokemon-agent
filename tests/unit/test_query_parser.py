@@ -132,10 +132,21 @@ def test_fast_parser_defers_incomplete_or_disjoint_interval(bounds):
     assert _fast_parse_query(f"Quelles capacités Pikachu apprend-il {bounds} ?") is None
 
 
-@pytest.mark.xfail(strict=True, reason="Bug connu : une version inconnue devient une absence de filtre")
-def test_fast_parser_does_not_drop_unknown_game():
-    plan = _fast_parse_query("Quelles CT Pikachu apprend-il dans Pokémon JeuInexistant ?")
+@pytest.mark.parametrize("game_filter", [
+    "dans Pokémon JeuInexistant", "dans JeuInexistant",
+    "en Pokémon JeuInexistant", "sur Pokémon JeuInexistant",
+    "version JeuInexistant",
+])
+def test_fast_parser_does_not_drop_unknown_game(game_filter):
+    plan = _fast_parse_query(f"Quelles CT Pikachu apprend-il {game_filter} ?")
     assert plan is None
+
+
+def test_parse_query_rejects_unknown_game_before_llm():
+    with patch("pokemon_rag.structured.query_engine.llm_client.chat.completions.create") as mocked:
+        with pytest.raises(ValueError, match="Jeu inconnu ou ambigu"):
+            parse_query("Quelles CT Pikachu apprend-il dans Pokémon JeuInexistant ?")
+    mocked.assert_not_called()
 
 
 def test_fast_parser_rejects_unknown_pokemon():
