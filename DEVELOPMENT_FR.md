@@ -8,9 +8,7 @@ figée : il conserve les principales étapes, les problèmes rencontrés,
 les expérimentations et les décisions qui ont progressivement façonné le
 système.
 
-------------------------------------------------------------------------
-
-## 1. Point de départ : expérimenter un RAG local
+## 1. [Feature] Point de départ : expérimenter un RAG local
 
 Le projet a commencé comme une expérimentation autour d'un pipeline de
 Retrieval-Augmented Generation exécuté localement.
@@ -29,9 +27,7 @@ L'objectif initial était donc de construire un système capable de
 répondre à des questions détaillées à partir de Poképédia, avec des
 modèles locaux servis par LM Studio.
 
-------------------------------------------------------------------------
-
-## 2. Construction du corpus Poképédia
+## 2. [Feature] Construction du corpus Poképédia
 
 La première étape a consisté à télécharger et nettoyer les pages
 Poképédia afin de constituer un corpus local exploitable.
@@ -65,9 +61,7 @@ d'origine.
 Cette décision s'est révélée importante par la suite, lorsque le
 retrieval a commencé à exploiter directement la structure des sections.
 
-------------------------------------------------------------------------
-
-## 3. Premier pipeline de retrieval
+## 3. [Feature] Premier pipeline de retrieval
 
 La première architecture RAG combinait recherche sémantique et recherche
 lexicale :
@@ -102,9 +96,7 @@ Deux problèmes sont rapidement devenus importants :
 2.  un chunk pertinent pouvait ne contenir qu'une partie de
     l'information nécessaire.
 
-------------------------------------------------------------------------
-
-## 4. Limiter la recherche au Pokémon concerné
+## 4. [Feature] Limiter la recherche au Pokémon concerné
 
 Lorsqu'une question mentionne explicitement un seul Pokémon, une
 recherche globale peut récupérer des passages concernant d'autres
@@ -136,9 +128,7 @@ Traitement adapté au contexte
 
 Cette étape a réduit une source importante de contamination du contexte.
 
-------------------------------------------------------------------------
-
-## 5. Exploiter la structure des sections
+## 5. [Feature] Exploiter la structure des sections
 
 Les articles Poképédia sont organisés en sections et sous-sections. Une
 information peut être répartie sur plusieurs chunks appartenant à une
@@ -165,9 +155,7 @@ Contexte documentaire complet
 Cette évolution a amélioré la cohérence du contexte fourni au
 générateur.
 
-------------------------------------------------------------------------
-
-## 6. Grounding et mécanisme de retry
+## 6. [Feature] Grounding et mécanisme de retry
 
 Une réponse produite à partir d'un contexte récupéré peut malgré tout
 introduire une information absente des sources ou contredire celles-ci.
@@ -193,9 +181,7 @@ importante :
 > Une réponse peut être parfaitement ancrée dans son contexte sans pour
 > autant répondre correctement à la question.
 
-------------------------------------------------------------------------
-
-## 7. Expérimentation autour de la suffisance du contexte
+## 7. [Feature] Expérimentation autour de la suffisance du contexte
 
 Pour traiter ce problème, une étape séparée de vérification de la
 suffisance du contexte a été expérimentée.
@@ -217,9 +203,7 @@ Cette étape a renforcé une idée qui deviendra importante pour la suite
 du projet : ajouter des validations LLM ne corrige pas nécessairement un
 problème situé plus tôt dans la chaîne de retrieval.
 
-------------------------------------------------------------------------
-
-## 8. Améliorer la représentation utilisée pour la recherche
+## 8. [Architecture] Améliorer la représentation utilisée pour la recherche
 
 Une partie des erreurs de retrieval provenait de la représentation des
 chunks dans l'index.
@@ -237,9 +221,7 @@ dans l'article.
 Cette séparation permet d'améliorer la recherche sans polluer le texte
 documentaire finalement transmis au LLM.
 
-------------------------------------------------------------------------
-
-## 9. Limites du RAG pour les données structurées
+## 9. [Architecture] Limites du RAG pour les données structurées
 
 Au fil des tests, certaines questions se sont révélées mal adaptées au
 RAG.
@@ -266,9 +248,7 @@ plusieurs risques :
 Le projet a donc commencé à évoluer d'un RAG pur vers une architecture
 hybride.
 
-------------------------------------------------------------------------
-
-## 10. Introduction des données PokéAPI
+## 10. [Feature] Introduction des données PokéAPI
 
 Les données PokéAPI ont été téléchargées et importées dans SQLite.
 
@@ -285,9 +265,7 @@ Cette phase a également montré l'intérêt de valider le schéma réel de
 PokéAPI plutôt que de compenser ses particularités dans les couches
 supérieures du système.
 
-------------------------------------------------------------------------
-
-## 11. Intégration du Pokédex personnalisé
+## 11. [Feature] Intégration du Pokédex personnalisé
 
 En parallèle, un tableur bilingue est utilisé pour stocker des
 informations spécifiques au projet qui ne sont pas directement
@@ -302,9 +280,7 @@ ambiguïté les lignes du tableur aux entités de la base officielle.
 Cette étape a permis de préparer la fusion entre les données
 personnalisées et les données PokéAPI.
 
-------------------------------------------------------------------------
-
-## 12. Passage à une base SQLite unifiée
+## 12. [Architecture] Passage à une base SQLite unifiée
 
 À un moment du développement, le runtime utilisait à la fois SQLite et
 le tableur via Pandas.
@@ -334,9 +310,7 @@ La règle est désormais simple :
 Cette unification réduit les dépendances du runtime et fournit une
 interface unique pour les données structurées.
 
-------------------------------------------------------------------------
-
-## 13. Création du moteur de requêtes structurées
+## 13. [Feature] Création du moteur de requêtes structurées
 
 Le système ne laisse pas le LLM générer du SQL librement.
 
@@ -365,9 +339,7 @@ d'apprentissage.
 Ce choix conserve la compréhension du langage naturel tout en évitant la
 génération arbitraire de SQL.
 
-------------------------------------------------------------------------
-
-## 14. Stabilisation des évolutions et des formes
+## 14. [Bug fix] Stabilisation des évolutions et des formes
 
 Les évolutions ont constitué l'une des premières parties complexes du
 moteur structuré.
@@ -389,9 +361,7 @@ soit appliquée à une autre.
 Cette phase a aussi servi à renforcer les tests de régression du moteur
 structuré.
 
-------------------------------------------------------------------------
-
-## 15. Extension aux requêtes sur les capacités
+## 15. [Feature] Extension aux requêtes sur les capacités
 
 Le moteur structuré a ensuite été étendu aux principales questions
 portant sur l'apprentissage des capacités.
@@ -410,9 +380,7 @@ le RAG pour ce type de questions.
 Elle a également permis d'identifier et de corriger plusieurs hypothèses
 faites initialement sur le schéma relationnel.
 
-------------------------------------------------------------------------
-
-## 16. Apparition des trois routes d'exécution
+## 16. [Feature] Apparition des trois routes d'exécution
 
 À ce stade, l'architecture a pris une forme plus générale avec trois
 chemins :
@@ -428,17 +396,17 @@ chemins :
          pokemon.db  Poképédia   combinaison
 ```
 
-### STRUCTURED
+**STRUCTURED**
 
 Utilisé lorsque la réponse peut être obtenue directement depuis les
 données relationnelles.
 
-### RAG
+**RAG**
 
 Utilisé lorsque la réponse nécessite du contenu documentaire, explicatif
 ou contextuel.
 
-### HYBRID
+**HYBRID**
 
 Utilisé lorsque les deux sources peuvent contribuer à la réponse.
 
@@ -446,9 +414,7 @@ Cette séparation constitue un changement important par rapport au RAG
 initial : le système ne cherche plus à faire résoudre toutes les
 questions par le même pipeline.
 
-------------------------------------------------------------------------
-
-## 17. Refactorisation de la structure du projet
+## 17. [Architecture] Refactorisation de la structure du projet
 
 Avec l'augmentation du nombre de composants, le projet a été réorganisé
 autour d'un package `src/pokemon_rag`.
@@ -472,9 +438,7 @@ Cette refactorisation a permis de clarifier la séparation entre :
 -   runtime ;
 -   tests.
 
-------------------------------------------------------------------------
-
-## 18. Premier travail ciblé sur les performances
+## 18. [Performance] Premier travail ciblé sur les performances
 
 Une fois les principales routes fonctionnelles, les mesures de temps ont
 montré que SQLite n'était pas le principal goulot d'étranglement.
@@ -485,7 +449,7 @@ plusieurs secondes.
 
 Le premier composant ciblé a été le routeur.
 
-### Fast Router
+**Fast Router**
 
 Un routeur déterministe a été ajouté devant le routeur LLM.
 
@@ -508,9 +472,7 @@ ambiguës, documentaires ou hybrides.
 Sur les cas structurés simples, cette modification a réduit le temps du
 routage de plusieurs secondes à quelques dizaines de millisecondes.
 
-------------------------------------------------------------------------
-
-## 19. Fast Parser pour les requêtes structurées
+## 19. [Performance] Fast Parser pour les requêtes structurées
 
 Après l'optimisation du routeur, les mesures ont montré que le principal
 coût restant sur une requête structurée simple venait du parser
@@ -541,9 +503,7 @@ Cette approche poursuit le même principe que le Fast Router : réserver
 les modèles aux situations où leur capacité d'interprétation apporte
 réellement quelque chose.
 
-------------------------------------------------------------------------
-
-## 20. Suppression du contrôle de suffisance séparé
+## 20. [Architecture] Suppression du contrôle de suffisance séparé
 
 Le contrôle du contexte avant génération ajoutait un appel au modèle et
 faisait en partie doublon avec le contrôle de fidélité effectué après la
@@ -554,7 +514,7 @@ acceptée, si une nouvelle recherche est nécessaire ou si la réponse doit
 être régénérée. Les tests du graphe vérifient que ces reprises restent
 limitées et que la recherche conserve le Pokémon ciblé.
 
-## 21. Chargement de la recherche à la demande
+## 21. [Performance] Chargement de la recherche à la demande
 
 Importer les modules du graphe déclenchait le chargement du corpus et
 des modèles de recherche, même lorsque la requête ou le test ne les
@@ -564,7 +524,7 @@ Cette initialisation a été déplacée au premier accès réel à la recherche
 documentaire. Les traitements structurés et les tests utilisant des
 dépendances simulées évitent ainsi ce coût.
 
-## 22. Séparation des budgets de reprise
+## 22. [Bug fix] Séparation des budgets de reprise
 
 Un compteur commun limitait les nouvelles recherches et les
 régénérations. Une recherche supplémentaire pouvait donc empêcher la
@@ -575,7 +535,7 @@ une reprise. Les tests de régression vérifient qu'ils peuvent
 s'enchaîner sans provoquer de boucle. Une décision de contrôle non
 reconnue arrête le traitement.
 
-## 23. Distinguer contexte insuffisant et réponse incomplète
+## 23. [Bug fix] Distinguer contexte insuffisant et réponse incomplète
 
 Le contrôle de fidélité pouvait accepter une réponse cohérente avec les
 sources alors que celles-ci ne permettaient pas réellement de répondre à
@@ -587,7 +547,7 @@ Une réponse pouvait aussi omettre des informations pourtant disponibles.
 La décision INCOMPLETE a été ajoutée pour déclencher une régénération
 dans ce cas, sans relancer inutilement la recherche documentaire.
 
-## 24. Mise en place des benchmarks
+## 24. [Feature] Mise en place des benchmarks
 
 Des benchmarks séparés ont été ajoutés pour évaluer la recherche
 documentaire, le routage et le contrôle de fidélité, puis un benchmark
@@ -606,7 +566,7 @@ contrôle de fidélité.
 Les durées observées sur le graphe complet ont motivé l'ajout de mesures
 par étape pour localiser les coûts de traitement.
 
-## 25. Suivi des exécutions et de leurs performances
+## 25. [Feature] Suivi des exécutions et de leurs performances
 
 La durée globale d'une requête ne permettait pas d'expliquer sa lenteur.
 Une trace par exécution a été ajoutée au graphe pour relier le parcours
@@ -618,7 +578,7 @@ comparer les parcours et repérer les requêtes lentes. Les premières
 observations ont confirmé le poids des appels aux modèles par rapport à
 l'exécution SQL et à la construction du contexte.
 
-## 26. Mesure de la consommation des modèles
+## 26. [Feature] Mesure de la consommation des modèles
 
 La durée d'un appel ne suffisait pas à distinguer une réponse longue
 d'un ralentissement du modèle. Les traces ont donc été enrichies avec
@@ -630,7 +590,7 @@ traitement du prompt et ne mesure pas seulement la production du texte.
 Le script d'analyse exploite ces informations tout en conservant la
 lecture des anciennes traces.
 
-## 27. Alignement du routeur sur les opérations disponibles
+## 27. [Bug fix] Alignement du routeur sur les opérations disponibles
 
 Le routeur envoyait les questions sur les types, talents et statistiques
 vers STRUCTURED, alors que le moteur ne proposait pas d'opération pour y
@@ -645,7 +605,7 @@ conservent le chemin hybride, qui utilise le profil issu du tableur.
 Les tests et les attentes du benchmark ont été adaptés à ce
 comportement.
 
-## 28. Abstention après échec du grounding
+## 28. [Bug fix] Abstention après échec du grounding
 
 Une réponse rejetée par le grounding pouvait encore être affichée après
 épuisement des retries.
@@ -655,7 +615,7 @@ indiquant que les sources ne permettent pas de répondre de manière
 suffisamment fiable. La décision et la justification du checker restent
 disponibles pour le diagnostic.
 
-## 29. Gestion des erreurs de traitement
+## 29. [Bug fix] Gestion des erreurs de traitement
 
 Une panne de recherche ou de génération pouvait interrompre le graphe
 avant la sauvegarde de sa trace.
@@ -671,7 +631,7 @@ insuffisant, ce qui évite de relancer inutilement la recherche
 documentaire. Les délais réseau des clients LLM ont aussi été rendus
 explicites.
 
-## 30. Sauvegarde des traces non bloquante
+## 30. [Bug fix] Sauvegarde des traces non bloquante
 
 Une erreur d'écriture du fichier de traces ne doit pas empêcher de
 retourner une réponse déjà produite.
@@ -681,7 +641,7 @@ disponibles en mémoire, et le résultat de l'écriture est signalé
 séparément. L'erreur est journalisée sans nouvelle tentative
 automatique, pour éviter de dupliquer une écriture partielle.
 
-## 31. Cumul des métriques des tentatives
+## 31. [Bug fix] Cumul des métriques des tentatives
 
 Les retries remplaçaient les mesures précédentes par celles du dernier
 appel, ce qui sous-estimait le coût du traitement.
@@ -695,7 +655,7 @@ Les consommations inconnues sont signalées plutôt que comptées comme
 zéro. L'affichage et le script d'analyse ont été adaptés tout en
 conservant la lecture des anciennes traces.
 
-## 32. Isolation des tests et évaluation factuelle
+## 32. [Architecture] Isolation des tests et évaluation factuelle
 
 Les tests rapides dépendaient parfois de la vraie base ou des modèles
 locaux. Les tests du routeur et du parseur utilisent désormais un petit
@@ -719,7 +679,7 @@ Le contexte a été précisé pour rendre la contradiction explicite. Un cas
 séparé vérifie l'ajout d'une condition absente des sources. Cette
 distinction a été validée avec le modèle local, sans modifier le prompt.
 
-## 33. Correction des intervalles de niveaux
+## 33. [Bug fix] Correction des intervalles de niveaux
 
 Le Fast Parser s'arrêtait à la première borne reconnue. Une demande «
 après le niveau 20 mais avant le niveau 40 » pouvait ainsi perdre sa
@@ -734,7 +694,7 @@ au parseur LLM.
 Des tests de régression vérifient que les contraintes de niveau sont
 conservées.
 
-## 34. Extension des requêtes structurées au Pokédex personnalisé
+## 34. [Feature] Extension des requêtes structurées au Pokédex personnalisé
 
 Le Pokédex personnalisé contient des données qui peuvent être restituées
 directement, sans génération LLM : types, numéro national, génération
@@ -749,7 +709,7 @@ annotations des sources. Ces données ne permettant pas de filtrer par
 jeu, ce filtre est refusé. Les tests et les références factuelles du
 benchmark couvrent les nouvelles opérations.
 
-## 35. Conservation des contraintes de jeu
+## 35. [Bug fix] Conservation des contraintes de jeu
 
 Le parseur rapide pouvait ignorer un jeu inconnu et répondre toutes
 versions confondues.
@@ -759,15 +719,24 @@ traitement les rejette avant le recours au LLM, pour conserver la
 contrainte de la question. Des tests de régression vérifient que la
 contrainte de jeu est conservée.
 
-## 36. \[Feature\] Exposition du moteur structuré via MCP
+## 36. [Feature] Exposition des capacités du projet via MCP
 
-Le moteur structuré était jusque-là accessible uniquement depuis
-l'application. Un serveur MCP a été ajouté comme couche d'adaptation
-afin de rendre ses capacités utilisables par un client compatible MCP
-sans dupliquer la logique métier ni les requêtes SQL.
+Pour utiliser le projet depuis des clients compatibles MCP, un serveur
+expose les opérations structurées et la recherche documentaire sous
+forme d'outils typés. Il réutilise le moteur existant et le pipeline de
+recherche sans dupliquer la logique métier.
 
-Les opérations structurées existantes sont exposées sous forme de tools
-avec des paramètres typés. Le serveur transmet directement les arguments
-aux fonctions du moteur structuré et retourne leurs résultats
-structurés. La découverte des tools, la génération de leurs schémas
-d'entrée et leur exécution ont été validées avec MCP Inspector.
+La recherche peut porter sur tout le corpus ou être limitée à un
+Pokémon. Elle retourne des passages et leurs références de source.
+Les outils appellent directement les composants sous-jacents, sans
+passer par les contrôles et les reprises du graphe.
+
+Un client découvre les outils disponibles et leurs schémas, puis confie
+à Qwen le choix d'un outil et de ses arguments à partir de la question.
+Il exécute cet outil via MCP et transmet le résultat à Qwen pour
+formuler une réponse en français. Cette première boucle permet ainsi
+au modèle de choisir entre données structurées et recherche
+documentaire.
+
+L'intégration a été validée sur des questions mobilisant ces deux
+sources.
