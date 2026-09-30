@@ -1,3 +1,10 @@
+"""Outils MCP appelant directement SQLite et la recherche documentaire.
+
+Cette interface ne traverse pas le graphe : génération, contrôle de fidélité
+et traces du graphe ne sont pas appliqués ici. Voir README.md dans ce dossier.
+Les diagnostics du serveur doivent utiliser stderr pour préserver le stdio MCP.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,6 +21,7 @@ from pokemon_rag.structured.query_engine import (
     get_signature_moves,
 )
 
+from pokemon_rag.rag.retrieval import retrieve
 
 mcp = MCPServer("Pokemon RAG")
 
@@ -159,6 +167,59 @@ def pokemon_signature_moves(
         pokemon=pokemon,
         form=form,
     )
+
+@mcp.tool()
+def pokemon_rag_search(
+    question: str,
+    pokemon: str | None = None,
+) -> dict[str, Any]:
+    """Recherche des informations dans le corpus documentaire Poképédia.
+
+    Renvoie des passages sourcés, pas une réponse générée ou validée.
+    Une liste vide ne prouve pas l'absence du fait recherché dans le domaine.
+
+    Args:
+        question: Information à rechercher dans le corpus.
+        pokemon: Nom canonique du Pokémon lorsque la recherche doit être
+            strictement limitée à celui-ci.
+    """
+    results = retrieve(
+        question=question,
+        pokemon = pokemon.strip() if pokemon and pokemon.strip() else None,
+    )
+
+    if not results:
+        return {
+            "question": question,
+            "pokemon": pokemon,
+            "results": [],
+        }
+
+    context_results = results[0].get("context_results") or results
+
+    documents = []
+
+    for result in context_results:
+        metadata = result.get("metadata") or {}
+
+        documents.append(
+            {
+                "text": result.get("document", ""),
+                "pokemon": metadata.get("pokemon"),
+                "source_file": metadata.get("source_file"),
+                "section_path": (
+                    metadata.get("section_path")
+                    or metadata.get("section")
+                ),
+                "chunk_number": metadata.get("chunk_number"),
+            }
+        )
+
+    return {
+        "question": question,
+        "pokemon": pokemon,
+        "results": documents,
+    }
 
 
 if __name__ == "__main__":
