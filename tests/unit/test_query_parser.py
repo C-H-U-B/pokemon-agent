@@ -102,10 +102,34 @@ def test_fast_parser_before_level_is_exclusive():
     assert plan["max_level"] == 39
 
 
-@pytest.mark.xfail(strict=True, reason="Bug connu : la deuxième borne est ignorée par le parseur rapide")
 def test_fast_parser_preserves_both_level_bounds():
     plan = _fast_parse_query("Quelles capacités Pikachu apprend-il après le niveau 20 mais avant le niveau 40 ?")
-    assert plan is None or (plan["min_level"], plan["max_level"]) == (21, 39)
+    assert plan is not None
+    assert (plan["min_level"], plan["max_level"]) == (21, 39)
+
+
+@pytest.mark.parametrize("bounds, expected", [
+    ("avant le niveau 40 mais après le niveau 20", (21, 39)),
+    ("à partir du niveau 20 jusqu'au niveau 40", (20, 40)),
+    ("après le niveau 20 jusqu'au niveau 40", (21, 40)),
+    ("après le niveau 20 mais après le niveau 30", (31, None)),
+    ("au niveau 20", (20, 20)),
+])
+def test_fast_parser_level_intersections(bounds, expected):
+    plan = _fast_parse_query(f"Quelles capacités Pikachu apprend-il {bounds} ?")
+    assert plan is not None
+    assert (plan["min_level"], plan["max_level"]) == expected
+
+
+@pytest.mark.parametrize("bounds", ["après le niveau 40 avant le niveau 20", "avant le niveau 0"])
+def test_fast_parser_rejects_impossible_interval(bounds):
+    with pytest.raises(ValueError, match="Intervalle"):
+        _fast_parse_query(f"Quelles capacités Pikachu apprend-il {bounds} ?")
+
+
+@pytest.mark.parametrize("bounds", ["au niveau 20 ou au niveau 40", "après le niveau 20 mais avant 40"])
+def test_fast_parser_defers_incomplete_or_disjoint_interval(bounds):
+    assert _fast_parse_query(f"Quelles capacités Pikachu apprend-il {bounds} ?") is None
 
 
 @pytest.mark.xfail(strict=True, reason="Bug connu : une version inconnue devient une absence de filtre")
