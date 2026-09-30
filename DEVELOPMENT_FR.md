@@ -8,9 +8,6 @@ figée : il conserve les principales étapes, les problèmes rencontrés,
 les expérimentations et les décisions qui ont progressivement façonné le
 système.
 
-Un document de synthèse séparé sera produit lorsque le projet sera
-terminé.
-
 ------------------------------------------------------------------------
 
 ## 1. Point de départ : expérimenter un RAG local
@@ -239,9 +236,6 @@ dans l'article.
 
 Cette séparation permet d'améliorer la recherche sans polluer le texte
 documentaire finalement transmis au LLM.
-
-Après reconstruction de l'index, le corpus contient environ 36 000
-chunks.
 
 ------------------------------------------------------------------------
 
@@ -549,509 +543,231 @@ réellement quelque chose.
 
 ------------------------------------------------------------------------
 
-## 20. Suppression du Sufficiency Checker
+## 20. Suppression du contrôle de suffisance séparé
 
-Le pipeline RAG utilisait jusqu'ici un contrôle de suffisance du contexte avant l'appel au modèle principal. Ce contrôle nécessitait un appel LLM supplémentaire et faisait en partie doublon avec le Grounding Checker exécuté après génération.
+Le contrôle du contexte avant génération ajoutait un appel au modèle et
+faisait en partie doublon avec le contrôle de fidélité effectué après la
+réponse. Il a été retiré des chemins documentaires et hybrides.
 
-Le Grounding Checker distingue déjà plusieurs situations :
+Le contrôle après génération décide alors si la réponse peut être
+acceptée, si une nouvelle recherche est nécessaire ou si la réponse doit
+être régénérée. Les tests du graphe vérifient que ces reprises restent
+limitées et que la recherche conserve le Pokémon ciblé.
 
-- `PASS` : la réponse est correctement supportée par le contexte ;
-- `INSUFFICIENT` : le contexte récupéré ne permet pas de répondre correctement ;
-- `UNSUPPORTED` : certaines affirmations de la réponse ne sont pas supportées par le contexte ;
-- `CONTRADICTION` : la réponse contredit le contexte.
+## 21. Chargement de la recherche à la demande
 
-Le Sufficiency Checker a donc été retiré du chemin d'exécution RAG et HYBRID.
+Importer les modules du graphe déclenchait le chargement du corpus et
+des modèles de recherche, même lorsque la requête ou le test ne les
+utilisait pas.
 
-Le pipeline devient :
+Cette initialisation a été déplacée au premier accès réel à la recherche
+documentaire. Les traitements structurés et les tests utilisant des
+dépendances simulées évitent ainsi ce coût.
 
-Retrieval → Construction du contexte → Génération → Grounding
+## 22. Séparation des budgets de reprise
 
-Le Grounding Checker devient ainsi le mécanisme central permettant de déterminer si la réponse peut être acceptée ou si un retry est nécessaire.
+Un compteur commun limitait les nouvelles recherches et les
+régénérations. Une recherche supplémentaire pouvait donc empêcher la
+correction ultérieure de la réponse.
 
-En particulier :
+Les deux mécanismes ont reçu des budgets indépendants, chacun autorisant
+une reprise. Les tests de régression vérifient qu'ils peuvent
+s'enchaîner sans provoquer de boucle. Une décision de contrôle non
+reconnue arrête le traitement.
 
-- `INSUFFICIENT` déclenche un nouveau retrieval ;
-- `UNSUPPORTED` ou `CONTRADICTION` déclenchent une nouvelle génération à partir du contexte existant ;
-- `PASS` termine normalement l'exécution.
+## 23. Distinguer contexte insuffisant et réponse incomplète
 
-Des tests d'intégration du graphe ont été ajoutés afin de vérifier les principaux chemins de retry, l'absence de boucle infinie et le maintien du scope Pokémon lors d'un nouveau retrieval.
+Le contrôle de fidélité pouvait accepter une réponse cohérente avec les
+sources alors que celles-ci ne permettaient pas réellement de répondre à
+la question. Ses consignes et les vérifications Python ont été
+renforcées pour examiner explicitement la suffisance du contexte et les
+affirmations non étayées.
 
-La suppression du Sufficiency Checker permet également d'éviter un appel LLM systématique avant chaque génération RAG/HYBRID.
-## 21. Chargement paresseux du pipeline de retrieval
+Une réponse pouvait aussi omettre des informations pourtant disponibles.
+La décision INCOMPLETE a été ajoutée pour déclencher une régénération
+dans ce cas, sans relancer inutilement la recherche documentaire.
 
-L'initialisation du système de retrieval était auparavant effectuée dès l'import du module `retrieval.py`.
+## 24. Mise en place des benchmarks
 
-Cette initialisation comprend notamment :
+Des benchmarks séparés ont été ajoutés pour évaluer la recherche
+documentaire, le routage et le contrôle de fidélité, puis un benchmark
+du graphe complet a relié ces vérifications.
 
-- l'ouverture de la collection Chroma ;
-- le chargement du modèle d'embeddings ;
-- le chargement du reranker ;
-- le chargement du corpus ;
-- la construction des index par Pokémon et par section ;
-- la construction de l'index BM25.
+Pour la recherche, les questions ont été rédigées à partir de sections
+réelles du corpus, avec une source attendue pour chaque cas. Pour le
+contrôle de fidélité, des contextes synthétiques permettent d'isoler la
+décision du modèle de la qualité de la recherche.
 
-Ce comportement imposait donc le coût complet d'initialisation du RAG à tout module important `retrieval.py`, y compris lorsque le retrieval n'était pas réellement utilisé.
+Le benchmark du graphe vérifie les chemins structurés, documentaires et
+hybrides, ainsi que le rejet des demandes multiples. Il distingue une
+réponse structurée produite directement d'une réponse générée soumise au
+contrôle de fidélité.
 
-Cela affectait particulièrement les tests du graphe et des nodes, qui pouvaient nécessiter plusieurs dizaines de secondes alors que leurs dépendances de retrieval étaient mockées.
+Les durées observées sur le graphe complet ont motivé l'ajout de mesures
+par étape pour localiser les coûts de traitement.
 
-L'initialisation a été déplacée dans une fonction dédiée et est maintenant effectuée de manière paresseuse lors du premier accès réel au pipeline de retrieval.
+## 25. Suivi des exécutions et de leurs performances
 
-L'import des modules du graphe ne déclenche donc plus automatiquement le chargement du corpus et des modèles.
+La durée globale d'une requête ne permettait pas d'expliquer sa lenteur.
+Une trace par exécution a été ajoutée au graphe pour relier le parcours
+suivi, les reprises, la décision finale et le temps passé dans chaque
+étape.
 
-Les tests d'intégration utilisant réellement le retrieval déclenchent explicitement cette initialisation avant de vérifier directement le contenu du corpus ou de ses index.
+Les traces sont enregistrées en JSONL et un script les agrège pour
+comparer les parcours et repérer les requêtes lentes. Les premières
+observations ont confirmé le poids des appels aux modèles par rapport à
+l'exécution SQL et à la construction du contexte.
 
-Cette modification conserve le comportement du pipeline de retrieval tout en réduisant fortement le coût des tests qui n'en ont pas besoin.
+## 26. Mesure de la consommation des modèles
 
+La durée d'un appel ne suffisait pas à distinguer une réponse longue
+d'un ralentissement du modèle. Les traces ont donc été enrichies avec
+les volumes de tokens et le débit des appels de génération, de contrôle
+et de régénération.
 
-## 22. Séparation des politiques de retry
+Le débit est calculé sur la durée totale de l'appel : il inclut le
+traitement du prompt et ne mesure pas seulement la production du texte.
+Le script d'analyse exploite ces informations tout en conservant la
+lecture des anciennes traces.
 
-Le graphe utilisait initialement un compteur unique `retry_count` pour limiter les retries après le Grounding Checker.
+## 27. Alignement du routeur sur les opérations disponibles
 
-Ce compteur était partagé entre deux mécanismes différents :
+Le routeur envoyait les questions sur les types, talents et statistiques
+vers STRUCTURED, alors que le moteur ne proposait pas d'opération pour y
+répondre.
 
-- le nouveau retrieval déclenché après une décision `INSUFFICIENT` ;
-- la nouvelle génération déclenchée après une décision `UNSUPPORTED` ou `CONTRADICTION`.
+Les règles rapides et le prompt ont été alignés sur les opérations
+disponibles : évolutions, capacités par niveau, capacités par machine et
+méthodes d'apprentissage. À cette étape, les autres questions ciblées
+passent par la recherche documentaire. Les présentations générales
+conservent le chemin hybride, qui utilise le profil issu du tableur.
 
-Cette architecture empêchait certains enchaînements légitimes. Par exemple, un retry de retrieval pouvait consommer l'unique budget disponible puis empêcher une correction de la réponse générée, et inversement.
+Les tests et les attentes du benchmark ont été adaptés à ce
+comportement.
 
-Le compteur unique a été remplacé par deux compteurs indépendants :
+## 28. Abstention après échec du grounding
 
-- `retrieval_retry_count` pour les nouveaux retrievals ;
-- `generation_retry_count` pour les nouvelles générations.
+Une réponse rejetée par le grounding pouvait encore être affichée après
+épuisement des retries.
 
-Chaque mécanisme dispose actuellement d'un budget maximal d'un retry.
+Un nœud d'abstention remplace désormais cette réponse par un message
+indiquant que les sources ne permettent pas de répondre de manière
+suffisamment fiable. La décision et la justification du checker restent
+disponibles pour le diagnostic.
 
-Le graphe peut ainsi effectuer les enchaînements suivants lorsque cela est nécessaire :
+## 29. Gestion des erreurs de traitement
 
-Retrieval → Génération → `INSUFFICIENT` → nouveau Retrieval → nouvelle Génération
+Une panne de recherche ou de génération pouvait interrompre le graphe
+avant la sauvegarde de sa trace.
 
-ou :
+Les nœuds sont maintenant protégés pour conserver l'état déjà acquis et
+identifier l'étape en échec. La fonction `run_graph()` gère également
+les erreurs du moteur LangGraph. Le terminal, le batch et le benchmark
+utilisent cette entrée commune.
 
-Génération → `UNSUPPORTED` / `CONTRADICTION` → nouvelle Génération
+En cas de panne, le système retourne un message explicite et tente de
+sauvegarder la trace. Une erreur du checker est distinguée d'un contexte
+insuffisant, ce qui évite de relancer inutilement la recherche
+documentaire. Les délais réseau des clients LLM ont aussi été rendus
+explicites.
 
-Les deux budgets étant indépendants, un retry de retrieval peut également être suivi d'un retry de génération, ou inversement.
+## 30. Sauvegarde des traces non bloquante
 
-Le routage après grounding a également été rendu fail-closed : une décision différente de `PASS`, `INSUFFICIENT`, `UNSUPPORTED` ou `CONTRADICTION` ne déclenche aucun retry supplémentaire et termine le pipeline.
+Une erreur d'écriture du fichier de traces ne doit pas empêcher de
+retourner une réponse déjà produite.
 
-Des tests spécifiques ont d'abord été introduits pour reproduire les limitations du compteur partagé. Après modification de la politique de retry, ces scénarios ainsi que l'ensemble des tests unitaires et d'intégration ont été validés.
+La sauvegarde est désormais protégée : la réponse et la trace restent
+disponibles en mémoire, et le résultat de l'écriture est signalé
+séparément. L'erreur est journalisée sans nouvelle tentative
+automatique, pour éviter de dupliquer une écriture partielle.
 
-La suite de tests unitaires et d'intégration atteint alors 213 tests passants.
+## 31. Cumul des métriques des tentatives
 
-## 23. Renforcement du Grounding Checker et distinction des types d'échec
+Les retries remplaçaient les mesures précédentes par celles du dernier
+appel, ce qui sous-estimait le coût du traitement.
 
-Les tests longs du Grounding Checker ont été étendus afin d'évaluer plus largement sa capacité à distinguer la suffisance du contexte de la fidélité de la réponse.
+Un historique conserve maintenant les mesures de chaque tentative. La
+finalisation cumule les durées et les tokens des appels instrumentés de
+génération, de grounding et de régénération, puis recalcule les débits à
+partir des totaux.
 
-Les premiers tests ont mis en évidence une confusion importante : le modèle pouvait considérer une réponse comme valide lorsqu'elle était simplement cohérente avec le contexte, alors que l'information nécessaire pour répondre à la question n'était pas réellement présente dans celui-ci.
+Les consommations inconnues sont signalées plutôt que comptées comme
+zéro. L'affichage et le script d'analyse ont été adaptés tout en
+conservant la lecture des anciennes traces.
 
-Le Grounding Checker a donc été renforcé afin de distinguer explicitement :
+## 32. Isolation des tests et évaluation factuelle
 
-- la suffisance du contexte pour répondre à la question ;
-- les affirmations effectivement supportées par le contexte ;
-- les contradictions avec une information établie ;
-- les informations supplémentaires non supportées.
+Les tests rapides dépendaient parfois de la vraie base ou des modèles
+locaux. Les tests du routeur et du parseur utilisent désormais un petit
+catalogue SQLite en mémoire. Les marqueurs `real_data`, `models` et
+`llm` permettent de sélectionner les tests selon leurs prérequis.
 
-La sortie du checker contient désormais notamment `context_sufficient` et `unsupported_claims`, ce qui permet de rendre ces vérifications explicites et d'appliquer des contrôles fail-closed côté Python.
+Le benchmark du graphe a aussi été complété par des références
+factuelles issues des sources locales. Il exporte les réponses avec une
+grille de relecture portant sur l'exactitude, la complétude et les
+affirmations non étayées. Un comparateur vérifie les champs structurés
+du cas de référence sur les évolutions de Pikachu.
 
-L'élargissement des tests a ensuite révélé un autre cas distinct : un contexte peut être entièrement suffisant alors que la réponse générée n'utilise qu'une partie des informations nécessaires. Ce cas ne correspond pas à `INSUFFICIENT`, puisque relancer le retrieval serait inutile.
+Le verdict PASS du contrôle de fidélité ne suffit donc plus à compter
+une réponse comme factuellement correcte.
 
-Une nouvelle décision `INCOMPLETE` a donc été introduite.
+Dans la continuité de ce travail, un test attendait CONTRADICTION alors
+que son contexte n'excluait pas la méthode proposée par la réponse. Le
+classement UNSUPPORTED du modèle était donc défendable.
 
-La taxonomie du Grounding Checker devient :
+Le contexte a été précisé pour rendre la contradiction explicite. Un cas
+séparé vérifie l'ajout d'une condition absente des sources. Cette
+distinction a été validée avec le modèle local, sans modifier le prompt.
 
-- `PASS` : le contexte est suffisant et la réponse est complète et supportée ;
-- `INSUFFICIENT` : le contexte ne contient pas suffisamment d'informations pour répondre à la question ;
-- `INCOMPLETE` : le contexte est suffisant mais la réponse omet une partie nécessaire ;
-- `UNSUPPORTED` : la réponse ajoute une affirmation importante qui n'est pas établie par le contexte ;
-- `CONTRADICTION` : la réponse fournit une information incompatible avec ce que le contexte établit.
+## 33. Correction des intervalles de niveaux
 
-Cette distinction est également utilisée par la politique de retry du graphe :
+Le Fast Parser s'arrêtait à la première borne reconnue. Une demande «
+après le niveau 20 mais avant le niveau 40 » pouvait ainsi perdre sa
+limite supérieure.
 
-- `INSUFFICIENT` déclenche un retry du retrieval ;
-- `INCOMPLETE`, `UNSUPPORTED` et `CONTRADICTION` déclenchent un retry de génération ;
-- `PASS` termine normalement l'exécution.
+Il collecte désormais les contraintes avant de calculer leur
+intersection : cette demande produit les bornes 21 à 39. Les limites
+inclusives sont également prises en charge, les intervalles impossibles
+sont rejetés et les formulations partiellement comprises sont laissées
+au parseur LLM.
 
-Les tests unitaires et d'intégration ont été adaptés à cette nouvelle taxonomie et la suite de régression reste entièrement passante.
+Des tests de régression vérifient que les contraintes de niveau sont
+conservées.
 
-Le Grounding Checker a ensuite été évalué sur un ensemble élargi de 20 situations couvrant notamment la suffisance du contexte, les réponses incomplètes, les contradictions, les informations supplémentaires non supportées et différentes contraintes explicites de la question.
+## 34. Extension des requêtes structurées au Pokédex personnalisé
 
-Le checker classe correctement 19 cas sur 20. Le cas restant correspond à une confusion entre `CONTRADICTION` et `UNSUPPORTED` lorsqu'une réponse remplace entièrement une méthode établie par le contexte par une autre méthode non supportée. Cette confusion n'affecte actuellement pas la politique de retry, les deux décisions déclenchant un nouveau passage de génération.
+Le Pokédex personnalisé contient des données qui peuvent être restituées
+directement, sans génération LLM : types, numéro national, génération
+d'introduction et capacités signature.
 
-Ce cas est conservé comme échec connu dans les tests longs plutôt que de spécialiser davantage le prompt pour cet exemple.
+Le moteur structuré a été étendu à ces demandes, avec un routage adapté
+et une restitution directe des données. Les noms français ou anglais et
+les formes explicitement nommées sont pris en charge.
 
-## 24. Mise en place d'un benchmark du retrieval
+Les réponses signalent les valeurs absentes et conservent les
+annotations des sources. Ces données ne permettant pas de filtrer par
+jeu, ce filtre est refusé. Les tests et les références factuelles du
+benchmark couvrent les nouvelles opérations.
 
-Après la stabilisation du pipeline de retrieval et du mécanisme de grounding, un benchmark dédié au retrieval a été ajouté afin de mesurer objectivement sa qualité sur le corpus Poképédia réel.
+## 35. Conservation des contraintes de jeu
 
-L'objectif est de disposer d'une baseline reproductible avant toute nouvelle optimisation du retrieval.
+Le parseur rapide pouvait ignorer un jeu inconnu et répondre toutes
+versions confondues.
 
-### Construction du jeu de référence
+Il détecte désormais les mentions explicites de jeu non reconnues et le
+traitement les rejette avant le recours au LLM, pour conserver la
+contrainte de la question. Des tests de régression vérifient que la
+contrainte de jeu est conservée.
 
-Une première approche consistait à générer automatiquement les questions de benchmark à l'aide d'un LLM.
+## 36. \[Feature\] Exposition du moteur structuré via MCP
 
-Cette approche a été abandonnée après analyse des questions produites. Plusieurs problèmes ont été observés :
+Le moteur structuré était jusque-là accessible uniquement depuis
+l'application. Un serveur MCP a été ajouté comme couche d'adaptation
+afin de rendre ses capacités utilisables par un client compatible MCP
+sans dupliquer la logique métier ni les requêtes SQL.
 
-- questions contenant plusieurs intentions ;
-- formulations artificielles faisant référence au document source ;
-- questions relevant en réalité du moteur de requêtes structurées ;
-- répartition insuffisamment représentative des différents types de contenu du corpus.
-
-Le jeu de référence a donc finalement été construit manuellement à partir du véritable index Chroma.
-
-Un catalogue des sections présentes dans `pokemon_documents` a d'abord été extrait. L'index contient 27 970 sections logiques, identifiées par le couple :
-
-```text
-source_file + section_path
-```
-
-Trente sections ont ensuite été sélectionnées dans ce catalogue et leur contenu réel a été exporté depuis Chroma.
-
-Le dataset final contient 30 questions réparties en trois catégories :
-
-- 15 questions `core`, portant principalement sur des descriptions, comportements, origines ou informations générales sur les Pokémon ;
-- 10 questions `documentary`, portant notamment sur les apparitions dans les dessins animés ou d'autres jeux ;
-- 5 questions `rare`, construites à partir d'informations plus spécifiques présentes dans les sections d'anecdotes.
-
-Les questions ont été rédigées manuellement à partir du contenu effectivement présent dans les sections sélectionnées.
-
-Chaque question possède comme vérité terrain le couple exact :
-
-```text
-expected_source_file
-expected_section_path
-```
-
-Les identifiants des chunks correspondants ont également été conservés afin de pouvoir auditer les cas du benchmark.
-
-Cette méthode permet d'évaluer le moteur de retrieval sur le véritable corpus utilisé par l'application, sans créer un corpus artificiel spécifiquement adapté au benchmark.
-
-### Métriques
-
-Le benchmark exécute le véritable pipeline de retrieval :
-
-```text
-Vector Search
-    +
-BM25
-    ↓
-RRF
-    ↓
-candidats structurels
-    ↓
-CrossEncoder
-    ↓
-Top-K
-```
-
-Pour chaque question, la position de la section attendue dans les résultats est mesurée.
-
-Les métriques retenues sont :
-
-- `Recall@1` : proportion de questions pour lesquelles la bonne section est classée première ;
-- `Recall@3` : proportion pour lesquelles elle apparaît dans les trois premiers résultats ;
-- `Recall@5` : proportion pour lesquelles elle apparaît dans les cinq premiers résultats ;
-- `MRR` (`Mean Reciprocal Rank`) : mesure tenant compte de la position du premier résultat correct.
-
-Le temps d'initialisation du moteur est mesuré séparément des temps de requête afin de distinguer le cold start des performances une fois les modèles et index chargés.
-
-### Résultats
-
-Le benchmark sur les 30 questions donne les résultats suivants :
-
-```text
-Cas               : 30
-
-Recall@1          : 0.767 (23/30)
-Recall@3          : 1.000 (30/30)
-Recall@5          : 1.000 (30/30)
-MRR               : 0.872
-
-Cold start        : 18.943 s
-
-Warm mean         : 2247.7 ms
-Warm median       : 2273.3 ms
-Warm p95          : 2888.2 ms
-Warm min/max      : 1041.5 / 3791.2 ms
-
-Échecs Top-5      : 0
-```
-
-La section attendue est donc retrouvée pour les 30 questions dans les trois premiers résultats.
-
-Dans 23 cas sur 30, elle est directement classée en première position.
-
-Les sept autres cas correspondent à des problèmes de classement relatif plutôt qu'à une absence de la section recherchée dans les candidats retournés.
-
-Ces résultats fournissent une première baseline mesurée du retrieval sur le corpus Poképédia réel.
-
-Ils ne justifient pas à ce stade une modification du pipeline de retrieval : la bonne section est systématiquement disponible dans le Top-3 et aucune question du benchmark n'échoue en Top-5.
-
-Les performances temporelles montrent en revanche un coût moyen d'environ 2,25 secondes par requête une fois le moteur initialisé. Cette mesure servira de référence pour les futures optimisations de performances.
-
-## 25. Benchmark du router
-
-Après la validation du benchmark du retrieval, un benchmark dédié au router a été ajouté afin de mesurer sa capacité à sélectionner correctement le chemin d'exécution du graphe.
-
-Le jeu de référence contient 30 requêtes couvrant les trois routes disponibles :
-
-- `STRUCTURED` pour les informations pouvant être obtenues depuis `pokemon.db` ;
-- `RAG` pour les recherches documentaires dans le corpus Poképédia ;
-- `HYBRID` lorsque les deux sources sont nécessaires.
-
-Des requêtes contenant plusieurs besoins informationnels ont également été ajoutées afin de vérifier la détection des questions multiples.
-
-Le benchmark mesure séparément :
-
-- la route choisie ;
-- l'intent détecté ;
-- la détection d'une question unique ;
-- la correspondance exacte de l'ensemble de ces décisions ;
-- le mode de routage utilisé (`FAST` ou `LLM`) ;
-- le temps d'exécution.
-
-Résultats obtenus :
-
-```text
-Cas               : 30
-Route accuracy    : 0.900 (27/30)
-Intent accuracy   : 0.900 (27/30)
-Single accuracy   : 1.000 (30/30)
-Exact accuracy    : 0.867 (26/30)
-Modes             : {'FAST': 9, 'LLM': 21}
-Temps moyen       : 7337.1 ms
-Temps médian      : 9453.1 ms
-Erreurs runtime   : 0
-```
-
-Les erreurs restantes concernent principalement des différences de classification entre `PROFILE`, `DOCUMENT_SEARCH`, `STRUCTURED` et `HYBRID`.
-
-La détection des requêtes contenant plusieurs besoins est correcte sur l'ensemble du benchmark. C'est particulièrement important car ces requêtes sont rejetées avant l'exécution du reste du pipeline.
-
-Aucune modification supplémentaire du router n'a été effectuée à ce stade. Le benchmark sert désormais de baseline pour mesurer de futures modifications.
-
-## 26. Benchmark du grounding
-
-Un benchmark spécifique a ensuite été ajouté pour évaluer le grounding checker indépendamment du retrieval et de la génération de réponse.
-
-Le jeu contient 25 cas contrôlés, répartis équitablement entre les cinq décisions possibles :
-
-- `PASS` ;
-- `INSUFFICIENT` ;
-- `CONTRADICTION` ;
-- `UNSUPPORTED` ;
-- `INCOMPLETE`.
-
-Les contextes et réponses sont volontairement synthétiques afin d'isoler le raisonnement du checker de la qualité du retrieval et des connaissances Pokémon du modèle.
-
-Résultats obtenus :
-
-```text
-Cas               : 25
-Accuracy          : 0.800 (20/25)
-PASS              : 0.800 (4/5)
-INSUFFICIENT      : 0.800 (4/5)
-CONTRADICTION     : 0.800 (4/5)
-UNSUPPORTED       : 1.000 (5/5)
-INCOMPLETE        : 0.600 (3/5)
-Temps moyen       : 6321.0 ms
-Temps médian      : 5887.0 ms
-```
-
-Les erreurs observées concernent principalement deux difficultés.
-
-La première est la distinction entre l'insuffisance du contexte et une réponse contenant une information non supportée. Dans certains cas, le modèle classe directement une affirmation comme `UNSUPPORTED` alors que le contexte ne contient pas l'information nécessaire pour répondre à la question et devrait donc conduire à `INSUFFICIENT`.
-
-La seconde concerne la complétude. Le modèle peut accepter avec `PASS` une réponse partielle alors que plusieurs éléments sont explicitement demandés et présents dans le contexte. Cette difficulté apparaît dans le score plus faible de `INCOMPLETE`.
-
-Des erreurs ont également été observées sur certaines contraintes numériques simples, par exemple l'interprétation de « après le niveau 30 ».
-
-Ces résultats sont conservés comme baseline. Le prompt du grounding checker n'a pas été complexifié davantage à ce stade afin d'éviter une optimisation excessive sur un petit jeu de cas.
-
-## 27. Benchmark end-to-end du graphe
-
-Après les benchmarks isolés du retrieval, du router et du grounding, un benchmark end-to-end a été ajouté afin de vérifier le comportement du système complet.
-
-Contrairement aux benchmarks précédents, celui-ci exécute directement le graphe LangGraph avec ses composants réels.
-
-Le jeu contient 16 requêtes couvrant :
-
-- le chemin `STRUCTURED` ;
-- le chemin `RAG` ;
-- le chemin `HYBRID` ;
-- le rejet des requêtes contenant plusieurs besoins.
-
-Pour les requêtes structurées, le résultat attendu est une terminaison `DETERMINISTIC`, puisque la réponse est produite directement à partir des données structurées sans passer par le Main LLM ni par le grounding checker.
-
-Pour les requêtes RAG et HYBRID, le résultat attendu est une terminaison `PASS` après vérification du grounding.
-
-Les requêtes multiples doivent quant à elles terminer en `NOT_RUN`, le pipeline étant arrêté avant retrieval.
-
-Résultats obtenus :
-
-```text
-Cas               : 16
-Route accuracy    : 1.000 (13/13)
-Single accuracy   : 1.000 (16/16)
-Terminal accuracy : 1.000 (16/16)
-Exact accuracy    : 1.000 (16/16)
-Routes obtenues   : {'STRUCTURED': 4, 'RAG': 5, 'HYBRID': 7}
-Décisions finales : {'DETERMINISTIC': 4, 'PASS': 9, 'NOT_RUN': 3}
-Retries retrieval : 1
-Retries génération: 0
-Temps moyen       : 54.13 s
-Temps médian      : 40.84 s
-Temps min/max     : 0.05 / 226.29 s
-```
-
-Les 16 cas atteignent le comportement terminal attendu.
-
-Un retry du retrieval a été déclenché pendant le benchmark et la requête concernée a tout de même terminé avec succès. Aucun retry de génération n'a été nécessaire.
-
-Le benchmark a également mis en évidence le coût important du pipeline complet.
-
-Lors de son initialisation, le système RAG a notamment mesuré :
-
-```text
-Chargement embeddings : 9.298 s
-Chargement reranker   : 5.390 s
-Chargement corpus     : 4.991 s
-Construction BM25     : 0.865 s
-Startup total         : 21.305 s
-```
-
-Le benchmark end-to-end présente ensuite une médiane de `40.84 s` par requête et un maximum de `226.29 s`.
-
-Ces mesures montrent qu'après les travaux consacrés à la qualité fonctionnelle du pipeline, les performances constituent désormais un point mesurable à analyser. Les timings déjà exposés par les différents nœuds du graphe permettront d'identifier précisément les composants responsables de cette latence avant d'envisager des optimisations.
-
-## 28. Ajout de l'observabilité et du profiling du graphe
-
-Après la mise en place des benchmarks, le temps d'exécution global du graphe était mesurable, mais il restait difficile d'identifier précisément les composants responsables de la latence. Une couche d'observabilité légère a donc été ajoutée afin de suivre le parcours et les performances de chaque requête.
-
-Un module `observability/tracing.py` a été introduit pour créer une trace par exécution du graphe. Chaque trace possède un identifiant unique et conserve les principales informations utiles au diagnostic : route choisie, intent, mode du router, Pokémon identifié, décision finale du grounding, nombre de retries et temps d'exécution des différents composants.
-
-Les traces enregistrent également des informations sur le retrieval, notamment le nombre de chunks récupérés, le nombre de chunks réellement utilisés dans le contexte et la taille du contexte transmis au modèle.
-
-L'instrumentation a été intégrée directement au graphe avec un nœud d'initialisation et un nœud de finalisation commun aux différents chemins terminaux. Cette approche permet de séparer l'observabilité de la logique métier des nœuds existants.
-
-Les traces sont enregistrées au format JSONL dans le dossier `traces/`. Les fichiers générés sont exclus du versionnement. Les tests d'intégration continuent d'exécuter le mécanisme de finalisation des traces, mais l'écriture sur disque y est neutralisée afin de ne pas mélanger les traces de test avec les exécutions réelles.
-
-Plusieurs exécutions réelles ont ensuite permis de valider l'instrumentation sur les principaux chemins du graphe :
-
-- une requête `STRUCTURED` utilisant le Fast Router ;
-- une requête `RAG` scoped sur un Pokémon identifié ;
-- une requête `HYBRID` ;
-- une requête `RAG` particulièrement lente, utile pour vérifier le diagnostic des anomalies de performance.
-
-Ces premières traces ont montré que la construction du contexte et l'exécution SQL ont un coût négligeable par rapport aux appels aux modèles. Sur la requête structurée observée, l'exécution de la requête elle-même prenait environ 42 ms, alors que le parsing par modèle prenait environ 6,66 s. Sur les chemins RAG et HYBRID observés, la génération principale, le router LLM et le grounding représentaient l'essentiel du temps total.
-
-Un script `scripts/observability/analyze_traces.py` a enfin été ajouté pour agréger les traces et faciliter le profiling. Il fournit notamment les temps moyens, médians et p95, les timings par composant, des regroupements par route et mode du router, les métriques de retrieval, les retries, les décisions finales et les requêtes les plus lentes.
-
-Sur le premier échantillon de quatre traces réelles, les temps totaux observés allaient d'environ 6,76 s pour une requête `STRUCTURED` utilisant le Fast Router à environ 160,50 s pour une requête `RAG`. L'échantillon étant encore très réduit, les p95 sont explicitement présentés comme indicatifs.
-
-Cette instrumentation permet désormais de localiser les coûts d'une exécution complète plutôt que de se limiter à mesurer sa durée globale.
-
-## 29. Ajout des métriques de tokens pour les appels LLM
-
-Le profiling temporel a montré que les appels aux LLM représentent une part importante du temps d'exécution du graphe. Cependant, la durée seule ne permet pas de distinguer une génération naturellement longue d'un ralentissement du modèle.
-
-L'observabilité a donc été étendue avec des métriques liées aux tokens pour les appels au modèle principal, au grounding et aux éventuelles régénérations.
-
-Les métriques enregistrées sont :
-
-- nombre de tokens du prompt ;
-- nombre de tokens générés ;
-- nombre total de tokens ;
-- débit effectif de génération en tokens par seconde.
-
-Ces informations sont récupérées depuis les données `usage` exposées par l'API OpenAI-compatible de LM Studio. Le débit enregistré correspond au nombre de tokens générés divisé par la durée totale de l'appel. Il s'agit donc d'un débit effectif incluant notamment le traitement du prompt et les éventuels coûts de démarrage de l'appel, et non d'une mesure isolée de la vitesse de décodage.
-
-Les métriques sont propagées dans l'état du graphe puis enregistrées dans les traces JSONL par le module d'observabilité. Le script `scripts/observability/analyze_traces.py` a également été étendu afin d'analyser les volumes de tokens et les débits observés pour les différents appels LLM.
-
-La lecture des anciennes traces reste compatible : les traces créées avant l'ajout de ces métriques continuent d'être utilisées pour les statistiques existantes, mais sont ignorées pour les statistiques de tokens et de débit.
-
-Une première exécution instrumentée sur une requête RAG a permis de mesurer pour le modèle principal :
-
-- 710 tokens de prompt ;
-- 478 tokens générés ;
-- 1188 tokens au total ;
-- environ 4,78 tokens/s ;
-- environ 99,9 secondes pour l'appel.
-
-Le grounding de cette même exécution a utilisé :
-
-- 3441 tokens de prompt ;
-- 69 tokens générés ;
-- 3510 tokens au total ;
-- environ 4,73 tokens/s ;
-- environ 14,6 secondes pour l'appel.
-
-Cette instrumentation permet désormais de différencier plus précisément les requêtes lentes dues à un volume important de génération de celles associées à une baisse du débit d'inférence.
-
-## 30. Alignement du router sur les opérations disponibles
-
-Le router envoyait les questions sur les types, talents et statistiques vers STRUCTURED, alors que le moteur ne proposait pas d'opération pour y répondre.
-
-Les règles rapides et le prompt ont été alignés sur les opérations disponibles : évolutions, capacités par niveau, capacités par machine et méthodes d'apprentissage. Les autres questions ciblées passent désormais par RAG. Les présentations générales conservent le chemin PROFILE + HYBRID, qui utilise directement le profil du tableur.
-
-Les tests et les attentes du benchmark ont été adaptés à ce comportement. Les dépendances manquantes `mcp` et `pytest` ont également été ajoutées à `requirements.txt`.
-
-## 31. Abstention après échec du grounding
-
-Une réponse rejetée par le grounding pouvait encore être affichée après épuisement des retries.
-
-Un nœud d'abstention remplace désormais cette réponse par un message indiquant que les sources ne permettent pas de répondre de manière suffisamment fiable. La décision et la justification du checker restent disponibles pour le diagnostic.
-
-## 32. Gestion des erreurs de traitement
-
-Une panne de recherche ou de génération pouvait interrompre le graphe avant la sauvegarde de sa trace.
-
-Les nœuds sont maintenant protégés pour conserver l'état déjà acquis et identifier l'étape en échec. La fonction `run_graph()` gère également les erreurs du moteur LangGraph. Le terminal, le batch et le benchmark utilisent cette entrée commune.
-
-En cas de panne, le système retourne un message explicite et tente de sauvegarder la trace. Une erreur du checker est distinguée d'un contexte insuffisant, ce qui évite de relancer inutilement la recherche documentaire. Les délais réseau des clients LLM ont aussi été rendus explicites.
-
-## 33. Sauvegarde des traces non bloquante
-
-Une erreur d'écriture du fichier de traces ne doit pas empêcher de retourner une réponse déjà produite.
-
-La sauvegarde est désormais protégée : la réponse et la trace restent disponibles en mémoire, tandis que `trace_saved` et `trace_save_error` indiquent le résultat de l'écriture. L'erreur est journalisée sans nouvelle tentative automatique, pour éviter de dupliquer une écriture partielle.
-
-## 34. Cumul des métriques des tentatives
-
-Les retries remplaçaient les mesures précédentes par celles du dernier appel, ce qui sous-estimait le coût du traitement.
-
-Le module `observability/metrics.py` conserve maintenant un historique des tentatives. La finalisation cumule les durées et les tokens des appels instrumentés de génération, de grounding et de régénération, puis recalcule les débits à partir des totaux.
-
-Les consommations inconnues sont signalées plutôt que comptées comme zéro. L'affichage et le script d'analyse ont été adaptés tout en conservant la lecture des anciennes traces.
-
-## 35. Isolation des tests et évaluation factuelle
-
-Les tests rapides dépendaient parfois de la vraie base ou des modèles locaux. Les tests du router et du parseur utilisent désormais un petit catalogue SQLite en mémoire. Les marqueurs `real_data`, `models` et `llm` permettent de sélectionner les tests selon leurs prérequis.
-
-Le benchmark du graphe a aussi été complété par des références factuelles issues des sources locales. Il exporte les réponses avec une grille de relecture portant sur l'exactitude, la complétude et les affirmations non étayées. Un comparateur vérifie les champs structurés du cas de référence sur les évolutions de Pikachu.
-
-Le verdict PASS du grounding ne suffit donc plus à compter une réponse comme factuellement correcte. Les commandes de test et de relecture sont décrites dans `tests/README.md`.
-
-## 36. Clarification d'un test de grounding
-
-Un test attendait CONTRADICTION alors que son contexte n'excluait pas la méthode proposée par la réponse. Le classement UNSUPPORTED du modèle était donc défendable.
-
-Le contexte a été précisé pour rendre la contradiction explicite. Un cas séparé vérifie l'ajout d'une condition absente des sources. Cette distinction a été validée avec le modèle local, sans modifier le prompt.
-
-## 37. Correction des intervalles de niveaux
-
-Le Fast Parser s'arrêtait à la première borne reconnue. Une demande « après le niveau 20 mais avant le niveau 40 » pouvait ainsi perdre sa limite supérieure.
-
-Il collecte désormais les contraintes avant de calculer leur intersection : cette demande produit les bornes 21 à 39. Les limites inclusives sont également prises en charge, les intervalles impossibles sont rejetés et les formulations partiellement comprises sont laissées au parseur LLM.
-
-Les tests couvrent ces cas et le test des deux bornes n'est plus marqué comme échec attendu.
-
-## 38. Extension des requêtes structurées au Pokédex personnalisé
-
-Le moteur structuré a été étendu aux types, au numéro national, à la génération d'introduction et aux capacités signature. Ces informations disposent de colonnes dédiées dans le Pokédex personnalisé ; les statistiques complètes et la liste générale des talents restent traitées par le RAG.
-
-Trois fonctions ont été ajoutées : `get_pokemon_types`, `get_pokedex_identity` et `get_signature_moves`. Les formulations simples sont reconnues directement par le router et le parseur, puis formatées sans génération LLM. Les noms français et anglais ainsi que les formes explicitement nommées sont résolus dans le tableur.
-
-Les valeurs absentes sont signalées comme non renseignées et les annotations des capacités signature sont conservées. Ces opérations ne prennent pas en charge les filtres par jeu. Les tests et les benchmarks ont été adaptés aux nouvelles possibilités.
-
-## 39. Conservation des contraintes de jeu
-
-Une mention de jeu inconnu pouvait être ignorée par le parseur rapide et produire une réponse toutes versions confondues. Les filtres de jeu explicites non reconnus sont désormais rejetés avant le recours au LLM. Le dernier test marqué comme échec attendu devient un test de régression normal.
+Les opérations structurées existantes sont exposées sous forme de tools
+avec des paramètres typés. Le serveur transmet directement les arguments
+aux fonctions du moteur structuré et retourne leurs résultats
+structurés. La découverte des tools, la génération de leurs schémas
+d'entrée et leur exécution ont été validées avec MCP Inspector.
