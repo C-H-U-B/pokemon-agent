@@ -8,12 +8,77 @@ from pokemon_rag.graph import nodes
 from pokemon_rag.rag import grounding
 
 graph_module = import_module("pokemon_rag.graph.graph")
+router_module = import_module("pokemon_rag.graph.router")
+
+
+@pytest.mark.parametrize("failure_stage", ["fast", "llm", "invalid", "unexpected"])
+@pytest.mark.parametrize("known_target", [False, True])
+def test_router_failure_stops_without_losing_target(pipeline, failure_stage, known_target):
+    retrieval, retry, generation, checker, save = pipeline
+    state = {"question": "Pourquoi les joues de Pikachu produisent-elles de l'électricité ?"}
+    if known_target:
+        state.update(pokemon="Pikachu", pokemon_validated=True)
+    with (
+        patch.object(nodes, "route_question", side_effect=router_module.route_question) as route,
+        patch.object(router_module, "_fast_route_question", return_value=None) as fast,
+        patch.object(router_module.llm_client.chat.completions, "create",
+                     side_effect=TimeoutError("Routeur indisponible")) as llm,
+    ):
+        if failure_stage == "fast":
+            fast.side_effect = RuntimeError("Catalogue indisponible")
+        elif failure_stage == "invalid":
+            llm.side_effect = None
+            llm.return_value = response("JSON invalide")
+        elif failure_stage == "unexpected":
+            route.side_effect = RuntimeError("Exception inattendue")
+        result = graph_module.run_graph(state)
+
+    assert result["execution_status"] == "ERROR"
+    assert result["failed_step"] == "router"
+    assert result["router_mode"] == "ERROR"
+    assert result["router_error"]
+    assert result["trace"]["router_error"] == result["router_error"]
+    assert result["trace"]["steps"]["router"]["errors"] == 1
+    assert "route" not in result  # Pas de route RAG créée après une panne.
+    if known_target:
+        assert result["pokemon"] == result["trace"]["pokemon"] == "Pikachu"
+        assert result["pokemon_validated"] is True
+    assert "Pikachu" in result["trace"]["question"]
+    assert "erreur technique" in result["answer"]
+    assert result["router_error"] not in result["answer"]
+    retrieval.assert_not_called()
+    retry.assert_not_called()
+    generation.assert_not_called()
+    checker.assert_not_called()
+    save.assert_called_once_with(result["trace"])
+    if failure_stage in {"fast", "unexpected"}:
+        llm.assert_not_called()
 
 
 def response(text):
     return SimpleNamespace(choices=[SimpleNamespace(
         message=SimpleNamespace(content=text)
     )])
+
+
+def test_valid_profile_without_resolved_entity_can_use_rag(pipeline):
+    retrieval, _, _, _, save = pipeline
+    with (
+        patch.object(nodes, "route_question", side_effect=router_module.route_question),
+        patch.object(router_module, "_fast_route_question", return_value=None),
+        patch.object(router_module, "_canonical_pokemon_name", return_value=None),
+        patch.object(router_module.llm_client.chat.completions, "create", return_value=response(
+            '{"route":"HYBRID","intent":"PROFILE","single_question":true,'
+            '"pokemon":"Inconnu","reason":"Présentation","information_need":"Profil"}'
+        )),
+    ):
+        result = graph_module.run_graph({"question": "Présente Inconnu", "router_error": "ancien"})
+    assert result["execution_status"] == "COMPLETED"
+    assert result["route"] == "RAG"
+    assert result["router_mode"] == "LLM"
+    assert result["router_error"] is result["trace"]["router_error"] is None
+    retrieval.assert_called_once()
+    save.assert_called_once()
 
 
 @pytest.fixture

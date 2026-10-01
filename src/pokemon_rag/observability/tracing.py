@@ -29,6 +29,7 @@ def create_trace(question: str) -> dict[str, Any]:
         "route": None,
         "intent": None,
         "router_mode": None,
+        "router_error": None,
         "pokemon": None,
         "single_question": None,
         "timings": {},

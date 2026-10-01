@@ -94,9 +94,9 @@ au [guide de performance](docs/PERFORMANCE.md).
 
 ## Limites observées à examiner avant une évolution
 
-- Le routeur intercepte ses erreurs et retourne un fallback RAG global. `route_query`
-  ne propage pas son champ `router_error` : toutes les pannes de routage ne deviennent
-  donc pas une erreur terminale visible dans le graphe.
+- Les pannes du routeur arrêtent le graphe avant recherche ; `router_error` est
+  conservé dans l'état et la trace. Le repli sémantique après une sortie valide
+  est distingué des pannes dans le [contrat du graphe](src/pokemon_rag/graph/README.md).
 - Le serveur MCP expose les fonctions sous-jacentes sans validation du plan complet.
   Les pertes de contraintes du client sont décrites dans son guide, pas corrigées ici.
 - Les versions des dépendances ne sont pas verrouillées dans `requirements.txt`.

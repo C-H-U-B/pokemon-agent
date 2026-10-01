@@ -764,3 +764,17 @@ en Python, tandis que l'appel ponctuel conserve son fonctionnement.
 Les ressources sont fermées à la sortie, en cas d'erreur ou d'annulation.
 Des tests simulés vérifient cette fermeture et la réutilisation de la session.
 Le gain de latence sur les modèles réels reste à mesurer.
+
+## 39. [Bug fix] Arrêt explicite après une panne du routeur
+
+Une panne du routeur déclenchait une recherche documentaire globale et son
+diagnostic disparaissait de l'état du graphe. Le Pokémon ciblé pouvait ainsi
+être perdu sans signalement.
+
+Les erreurs de routage rapide, d'appel au modèle et de validation interrompent
+désormais le traitement avant la recherche. Le diagnostic est conservé dans
+l'état et les traces, ainsi que le Pokémon déjà validé. Le repli documentaire
+après une sortie valide reste distinct de cette gestion des pannes.
+
+Des tests simulés vérifient la conservation du scope, la trace du diagnostic
+et l'absence d'appel aux étapes suivantes après une panne.
