@@ -763,3 +763,21 @@ Scenarios using real Qwen calls are grouped under `tests/long`, separately from
 simulated client journeys. A server integration test checks tool discovery and a
 structured query over stdio without LLM generation. This separation allows
 validation to be selected according to its actual dependencies.
+
+## 42. [Architecture] Introducing a local ADK agent
+
+ADK is introduced to experiment with an additional orchestration layer without
+replacing existing business components. Qwen remains the model that generates
+text; ADK defines the agent and its instructions; MCP is the protocol that
+exposes project capabilities to clients.
+
+The first implementation deliberately uses a single agent answering in French,
+with local Qwen through LiteLLM and LM Studio's OpenAI-compatible API. The
+endpoint is explicit to prevent an external OpenAI configuration from redirecting
+calls. The locally validated ADK and LiteLLM versions are declared in the project
+dependencies.
+
+The agent has no tools yet. Access to existing capabilities through MCP is
+deferred to a separate integration. The graph, MCP client and server remain
+available; SQLite, Chroma, the structured engine, RAG and grounding retain their
+responsibilities.

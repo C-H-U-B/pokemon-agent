@@ -8,6 +8,24 @@ version = "0.1.0"
 description = "Local hybrid RAG and structured query system for Pokémon data"
 requires-python = ">=3.10"
 
+dependencies = [
+    "openai",
+    "langgraph",
+    "google-adk==2.10.0",
+    "litellm==1.103.2",
+    "chromadb",
+    "sentence-transformers",
+    "rank-bm25",
+    "numpy",
+    "tqdm",
+    "requests",
+    "langchain-text-splitters",
+    "pandas",
+    "openpyxl",
+    "mcp",
+    "pytest",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

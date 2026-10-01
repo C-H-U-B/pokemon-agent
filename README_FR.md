@@ -48,6 +48,10 @@ Les profils personnalisés alimentent également les présentations générales.
 
 Le pipeline RAG utilise une recherche hybride, une recherche tenant compte de la structure des sections et un reranking avant la génération de la réponse.
 
+Un [agent ADK indépendant](src/pokemon_rag/agent/README.md) utilise Qwen local via
+LiteLLM et LM Studio. Ce premier parcours comporte un seul agent, sans outils ni
+recherche documentaire ; le graphe et le client MCP existants restent disponibles.
+
 ## Technologies
 
 - Python

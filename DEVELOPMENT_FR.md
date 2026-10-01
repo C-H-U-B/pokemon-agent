@@ -803,3 +803,21 @@ Les scénarios qui utilisent réellement Qwen sont regroupés dans `tests/long`,
 séparément des parcours client simulés. Un test d'intégration du serveur vérifie
 la découverte des outils et une requête structurée via stdio sans génération LLM.
 Cette séparation permet de choisir une validation selon ses dépendances réelles.
+
+## 42. [Architecture] Introduction d'un agent ADK local
+
+ADK est introduit pour expérimenter une couche d'orchestration supplémentaire
+sans remplacer les composants métier existants. Qwen reste le modèle qui génère
+le texte ; ADK définit l'agent et ses instructions ; MCP est le protocole qui
+expose les capacités du projet aux clients.
+
+La première implémentation se limite volontairement à un seul agent répondant
+en français, avec Qwen local via LiteLLM et l'API compatible OpenAI de LM Studio.
+L'endpoint est explicite pour éviter qu'une configuration OpenAI externe détourne
+les appels. Les versions ADK et LiteLLM validées localement sont déclarées dans
+les dépendances du projet.
+
+L'agent ne possède encore aucun outil. Son accès aux capacités existantes par
+MCP est différé à une intégration distincte. Le graphe, le client et le serveur
+MCP restent disponibles ; SQLite, Chroma, le moteur structuré, le RAG et le
+grounding conservent leurs responsabilités.

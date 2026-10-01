@@ -1,5 +1,7 @@
 openai
 langgraph
+google-adk
+litellm
 chromadb
 sentence-transformers
 rank-bm25
