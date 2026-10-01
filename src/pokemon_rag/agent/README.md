@@ -18,21 +18,14 @@ l'utiliser pour les questions de types. Aucun sous-agent ni outil RAG n'est expo
 Ce parcours n'applique ni le grounding du graphe ni la réconciliation des
 contraintes du client MCP existant. Ces deux parcours restent disponibles.
 
-`before_tool_callback` applique le guard déterministe de `tool_guard.py` aux
-niveaux numériques explicites : il restaure les bornes pour
-`pokemon_level_up_moves` et bloque un outil incompatible ou des bornes ambiguës
-ou invalides. Sans message utilisateur ou contrainte numérique, il laisse
-l'appel passer. Ce contrôle ne couvre pas encore les formes et les jeux.
-Le filtre actuel n'expose toujours que `pokemon_types` : le guard n'ajoute
-aucun outil au catalogue de l'agent.
-
-`before_tool_callback` applique le guard déterministe de `tool_guard.py` aux
-niveaux numériques explicites : il restaure les bornes pour
-`pokemon_level_up_moves` et bloque un outil incompatible ou des bornes ambiguës
-ou invalides. Sans message utilisateur ou contrainte numérique, il laisse
-l'appel passer. Ce contrôle ne couvre pas encore les formes et les jeux.
-Le filtre actuel n'expose toujours que `pokemon_types` : le guard n'ajoute
-aucun outil au catalogue de l'agent.
+Le callback avant appel applique le guard déterministe de tool_guard.py aux
+contraintes reconnues de niveaux, de jeux et de formes régionales. Il rétablit
+les arguments pour les outils compatibles et bloque les outils incompatibles,
+les jeux inconnus ou ambigus et les niveaux ambigus ou invalides. Sans message
+utilisateur, il laisse passer l’appel. La reconnaissance des formes conserve
+les limites de l’extracteur commun, notamment pour les formes multiples.
+Le filtre actuel expose uniquement pokemon_types : le guard n’ajoute aucun
+outil au catalogue de l’agent.
 
 ## Utilisation manuelle
 
