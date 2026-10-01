@@ -97,6 +97,7 @@ pip install -e .
 ```
 
 LM Studio doit être lancé localement avec les modèles attendus par l'application.
+L'installation inclut Gradio, déclaré dans `pyproject.toml`, pour l'interface Web.
 
 ## Construction des données
 
@@ -134,6 +135,16 @@ python scripts/pokepedia/ingest.py
 ```
 
 ## Lancement
+
+Pour la [conversation Web Gradio](src/pokemon_rag/web/README.md), avec Qwen
+disponible dans LM Studio et les données locales déjà préparées :
+
+```powershell
+python -m pokemon_rag.web.app
+```
+
+Le navigateur s'ouvre automatiquement. L'interface réutilise l'agent ADK,
+conserve la conversation et affiche l'activité des outils et le chrono.
 
 Lancer LM Studio, charger les modèles locaux nécessaires, puis exécuter :
 

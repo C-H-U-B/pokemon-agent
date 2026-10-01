@@ -12,6 +12,7 @@ Lire ensuite uniquement le [guide spécialisé](docs/README.md) de la tâche.
 
 | Entrée | Usage et effets |
 | --- | --- |
+| `python -m pokemon_rag.web.app` | Interface Gradio, navigateur automatique, session ADK conservée et activité progressive ; appelle Qwen lors d'une question |
 | `adk run src/pokemon_rag/agent` | Agent ADK unique via LiteLLM et LM Studio ; huit outils MCP, guard avant appel, réponses en français, sans grounding |
 | `python -m pokemon_rag.graph.graph` | Terminal interactif ; appelle `run_graph`, peut utiliser LM Studio et écrit une trace |
 | `graph.graph.run_graph(initial_state)` | Entrée Python du graphe ; état contenant au minimum `question` |
@@ -22,7 +23,26 @@ Lire ensuite uniquement le [guide spécialisé](docs/README.md) de la tâche.
 
 Ces commandes décrivent les entrées existantes, pas une autorisation d'exécution
 par un agent. Les restrictions et prérequis sont dans [les tests](tests/README.md).
-Le projet n'expose pas de serveur web ni de commande installée via `[project.scripts]`.
+L'interface Gradio fournit un serveur Web local. Aucune commande n'est installée
+via `[project.scripts]`.
+
+## Parcours Web
+
+```mermaid
+flowchart TD
+    B[Navigateur] --> W[Gradio : conversation et activité]
+    W --> A[root_agent ADK existant]
+    A --> Q[Qwen local via LiteLLM et LM Studio]
+    Q --> G[before_tool_guard avant appel]
+    G --> M[Serveur MCP]
+    M --> S[Outils structurés : pokemon.db]
+    M --> R[Recherche RAG : Poképédia et Chroma]
+```
+
+La Web UI réutilise la session ADK entre messages et affiche les événements
+d'outils ainsi que le temps écoulé. Elle conserve les limites du parcours ADK.
+Voir le [guide Web](src/pokemon_rag/web/README.md) pour l'utilisation, les exemples
+et les points non vérifiés concernant l'isolation des navigateurs.
 
 ## Parcours du graphe
 
@@ -74,6 +94,7 @@ ni par `query_structured_data` ni par `run_graph`. Voir les
 
 | Comportement | Emplacement principal | Frontière à préserver |
 | --- | --- | --- |
+| Conversation Web, activité et exemples | `web/app.py`, `web/example_questions.txt` | Présentation et état de conversation ; réutiliser root_agent et MCP, sans dupliquer la logique métier |
 | Configurer l'agent ADK et son modèle local | `agent/agent.py` | Couche indépendante, huit outils MCP structurés et documentaires ; voir le [guide ADK](src/pokemon_rag/agent/README.md) pour le contexte local et les limites |
 | Préserver les contraintes avant un outil ADK | `agent/tool_guard.py` | Réutiliser les extracteurs communs ; restaurer les arguments compatibles ou bloquer l'appel, sans accès aux données |
 | Choisir une route et identifier le Pokémon | `graph/router.py` | Ne pas y exécuter une requête métier ou générer la réponse finale |
