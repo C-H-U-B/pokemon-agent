@@ -863,3 +863,19 @@ et bloque les outils incompatibles. Les jeux inconnus ou ambigus sont refusés.
 Les tests unitaires couvrent ces contraintes et la combinaison jeu/niveaux,
 sans appel au modèle. La reconnaissance des formes conserve les limites de
 l'extracteur partagé ; le guard ne modifie pas le catalogue d'outils exposé.
+
+## 46. [Feature] Accès ADK aux huit outils MCP
+
+L'agent expose désormais les huit outils du serveur Pokémon, structurés et
+documentaires. Le guard déterministe avant appel conserve la protection des
+niveaux, groupes de versions et formes reconnus. Les instructions orientent
+Qwen vers l'outil adapté et lui permettent de corriger son choix après un refus.
+
+Le parcours ADK → Qwen local → MCP → données locales a été validé manuellement,
+avec des scénarios de routage et de contraintes. Les huit schémas ont révélé
+une fenêtre de contexte insuffisante : le contexte Qwen dans LM Studio a été
+augmenté de 8192 à 16384 tokens.
+
+Des différences de temps de traitement ont été observées pour les résultats
+d'outils volumineux. Leur cause n'a pas été établie ; cette observation ne
+constitue pas une mesure isolant un composant ou expliquant son coût.
