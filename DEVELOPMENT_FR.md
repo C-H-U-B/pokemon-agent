@@ -852,3 +852,14 @@ les contrôles du graphe ou du client MCP.
 La détection `level_explicit` exige désormais un nombre en plus du mot niveau,
 pour laisser passer une demande générale comme « en montant de niveau ».
 Des tests unitaires avec le contexte ADK simulé vérifient ces décisions sans LLM.
+
+## 45. [Feature] Extension du guard ADK aux jeux et aux formes
+
+Le guard réutilise désormais aussi les groupes de versions et les formes
+régionales reconnus par l'extracteur commun. Il rétablit ces arguments lorsque
+l'outil les accepte, remplace les valeurs incorrectes proposées par le modèle
+et bloque les outils incompatibles. Les jeux inconnus ou ambigus sont refusés.
+
+Les tests unitaires couvrent ces contraintes et la combinaison jeu/niveaux,
+sans appel au modèle. La reconnaissance des formes conserve les limites de
+l'extracteur partagé ; le guard ne modifie pas le catalogue d'outils exposé.
