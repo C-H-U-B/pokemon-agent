@@ -14,6 +14,13 @@ Le filtre `pokemon` de la recherche attend un nom canonique. Les paramètres et 
 
 ## Client local
 
+L'[agent ADK](../agent/README.md) constitue un autre client du serveur. Son
+catalogue est actuellement filtré sur `pokemon_types`. Son callback préserve les
+contraintes reconnues de niveaux, de jeux et de formes ou refuse un outil
+incompatible ; il ne passe pas par `reconcile_tool_call` du client ci-dessous.
+Ces protections appartiennent aux clients : un appel direct au serveur ne les
+applique pas. Le guard ne remplace pas le grounding du graphe.
+
 Après installation du projet dans l'environnement :
 
 ```powershell

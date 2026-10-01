@@ -33,6 +33,8 @@ The RAG pipeline uses hybrid retrieval, section-aware retrieval and reranking be
 A separate [ADK agent](src/pokemon_rag/agent/README.md) uses local Qwen through
 LiteLLM and LM Studio. This single-agent path exposes the MCP `pokemon_types` tool;
 the existing graph and MCP client remain available.
+Its deterministic guard preserves recognized level, game and form constraints
+before tool execution, rejecting tools that cannot support them.
 
 ## Stack
 

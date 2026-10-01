@@ -14,7 +14,7 @@ les données locales. Chaque guide ci-dessous est la référence de son périmè
 | Extraire les contraintes communes de forme, jeu et niveau | [Contraintes](../src/pokemon_rag/constraints/README.md) |
 | Modifier la recherche documentaire ou le grounding | [RAG](../src/pokemon_rag/rag/README.md) |
 | Utiliser les outils et le client MCP | [MCP](../src/pokemon_rag/mcp/README.md) |
-| Utiliser l'agent ADK avec Qwen local | [Agent ADK](../src/pokemon_rag/agent/README.md) |
+| Utiliser l'agent ADK avec Qwen local et son guard de contraintes | [Agent ADK](../src/pokemon_rag/agent/README.md) |
 | Comprendre les sources et scripts | [Scripts](../scripts/README.md) |
 | Choisir les tests et relire les réponses | [Tests](../tests/README.md) |
 | Mesurer la latence et les coûts | [Performance](PERFORMANCE.md) |

@@ -4,6 +4,8 @@ Le code applicatif est dans `src/pokemon_rag`. Le graphe et le parcours MCP
 partagent SQLite et la recherche documentaire, mais n'offrent pas les mêmes garanties.
 Un agent ADK indépendant utilise Qwen local et expose uniquement `pokemon_types`
 via MCP, sans les contrôles du graphe ou du client MCP existant.
+Son callback déterministe préserve les niveaux, jeux et formes reconnus avant
+l'appel d'outil ; ses limites sont décrites dans le [guide ADK](src/pokemon_rag/agent/README.md).
 Lire ensuite uniquement le [guide spécialisé](docs/README.md) de la tâche.
 
 ## Points d'entrée
@@ -73,6 +75,7 @@ ni par `query_structured_data` ni par `run_graph`. Voir les
 | Comportement | Emplacement principal | Frontière à préserver |
 | --- | --- | --- |
 | Configurer l'agent ADK et son modèle local | `agent/agent.py` | Couche indépendante, accès MCP limité à `pokemon_types` ; aucun outil RAG exposé à l'agent. Voir le [guide ADK](src/pokemon_rag/agent/README.md) |
+| Préserver les contraintes avant un outil ADK | `agent/tool_guard.py` | Réutiliser les extracteurs communs ; restaurer les arguments compatibles ou bloquer l'appel, sans accès aux données |
 | Choisir une route et identifier le Pokémon | `graph/router.py` | Ne pas y exécuter une requête métier ou générer la réponse finale |
 | Extraire les formes, jeux et niveaux explicites | `constraints/query_constraints.py` | Extraction pure partagée entre moteur structuré et client MCP ; ni SQLite ni choix d'outil. Voir le [guide des contraintes](src/pokemon_rag/constraints/README.md) |
 | Ajouter une opération structurée, comprendre un jeu ou un niveau | `structured/query_engine.py` | Plan validé et SQL prédéfini ; adapter aussi routeur, formatage et éventuellement outil MCP |

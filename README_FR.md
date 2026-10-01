@@ -51,6 +51,8 @@ Le pipeline RAG utilise une recherche hybride, une recherche tenant compte de la
 Un [agent ADK indépendant](src/pokemon_rag/agent/README.md) utilise Qwen local via
 LiteLLM et LM Studio. Ce parcours comporte un seul agent et expose l'outil MCP
 `pokemon_types` ; le graphe et le client MCP existants restent disponibles.
+Son guard déterministe préserve les contraintes reconnues de niveaux, de jeux
+et de formes avant l'appel d'outil, en refusant les outils incompatibles.
 
 ## Technologies
 
