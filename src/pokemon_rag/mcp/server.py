@@ -21,8 +21,6 @@ from pokemon_rag.structured.query_engine import (
     get_signature_moves,
 )
 
-from pokemon_rag.rag.retrieval import retrieve
-
 mcp = MCPServer("Pokemon RAG")
 
 
@@ -183,6 +181,7 @@ def pokemon_rag_search(
         pokemon: Nom canonique du Pokémon lorsque la recherche doit être
             strictement limitée à celui-ci.
     """
+    from pokemon_rag.rag.retrieval import retrieve
     results = retrieve(
         question=question,
         pokemon = pokemon.strip() if pokemon and pokemon.strip() else None,
