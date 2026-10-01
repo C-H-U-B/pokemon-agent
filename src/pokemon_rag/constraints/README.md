@@ -1,7 +1,8 @@
 # Contraintes explicites des questions
 
 `query_constraints.py` rassemble les règles déterministes utilisées par le
-[moteur structuré](../structured/README.md) et le [client MCP](../mcp/README.md)
+[moteur structuré](../structured/README.md), le [client MCP](../mcp/README.md)
+et le [guard ADK](../agent/README.md)
 pour extraire les formes régionales, groupes de versions et bornes de niveau.
 Il utilise uniquement la bibliothèque standard : aucun accès SQLite, appel LLM
 ou appel MCP. `__init__.py` ne réexporte actuellement aucune fonction.
@@ -20,6 +21,9 @@ ne valide pas un plan SQL et ne décide pas du message à afficher à l'utilisat
   les refus sont implémentés dans le client, pas dans ce dossier.
 - Un appel direct à un outil du serveur MCP ne passe pas par cette
   réconciliation du client.
+- Le guard ADK appelle `extract_explicit_constraints` avant l'exécution d'un
+  outil. Il utilise les alias sans catalogue SQLite et conserve dans le package
+  `agent` la restauration des arguments et les refus selon l'outil sélectionné.
 
 La résolution des espèces et des capacités reste hors de ce module. En
 particulier, la correspondance interne `Tonnerre` → `thunderbolt` appartient à

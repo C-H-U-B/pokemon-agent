@@ -811,3 +811,14 @@ levels only, without replacing graph or MCP client checks.
 Detection through `level_explicit` now requires a number alongside the word
 level, allowing general requests such as the French “en montant de niveau”.
 Unit tests with a simulated ADK context verify these decisions without an LLM.
+
+## 45. [Feature] Extending the ADK guard to games and forms
+
+The guard now also reuses version groups and regional forms recognized by the
+shared extractor. It restores these arguments when the tool supports them,
+overrides incorrect values proposed by the model and blocks incompatible tools.
+Unknown or ambiguous games are rejected.
+
+Unit tests cover these constraints and combined game/level filters without
+calling the model. Form recognition retains the shared extractor's limitations;
+the guard does not change the exposed tool catalog.

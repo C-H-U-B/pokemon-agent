@@ -54,6 +54,7 @@ décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 | Traces et coûts | `unit/test_metrics.py`, `unit/test_tracing.py` |
 | Client MCP | `integration/test_mcp_client.py`, puis `long/test_mcp_client_e2e.py` exécuté par l'utilisateur |
 | Contraintes MCP | `unit/test_mcp_constraint_preservation.py` : extraction et réconciliation sans LLM |
+| Guard ADK | `unit/test_adk_tool_guard.py` : callback et vrais extracteurs, contexte et outils ADK simulés, sans LLM ni serveur MCP |
 | Serveur MCP | `integration/test_mcp_server.py` : vrai transport stdio et outil structuré, sans Qwen |
 | Résolution de Tonnerre | `integration/test_structured_constraint_preservation.py` : parsing et vraie base |
 
@@ -62,6 +63,18 @@ sans supprimer le filtre demandé. Ce comportement et les bornes de niveau
 (intersections et intervalles impossibles compris) sont couverts par des tests ordinaires.
 
 ## Client MCP : intégration et bout en bout
+
+Pour les contraintes de l'agent ADK, la validation déterministe ciblée est :
+
+```powershell
+conda run -n langgraph-agent python -m pytest tests/unit/test_adk_tool_guard.py -q -p no:cacheprovider
+```
+
+Elle couvre la restauration et le remplacement des niveaux, groupes de versions
+et formes reconnus, les refus d'outils incompatibles et la combinaison jeu/niveaux.
+Elle ne valide pas le choix d'outil par Qwen. Les tests ADK réels de function
+calling et du parcours MCP restent dans `tests/long`, marqués `llm`, `models`
+et `long`, et doivent être exécutés par l'utilisateur.
 
 `integration/test_mcp_client.py` couvre le parcours question → découverte des
 outils → sélection → exécution → réponse. Les tests isolés simulent les frontières
