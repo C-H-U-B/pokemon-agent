@@ -109,7 +109,8 @@ au [guide de performance](docs/PERFORMANCE.md).
 - Le serveur MCP expose les fonctions sous-jacentes sans validation du plan complet.
   Le client réconcilie les contraintes reconnues avant exécution ; les limites
   d'extraction sont décrites dans le [guide des contraintes](src/pokemon_rag/constraints/README.md).
-- Les versions des dépendances ne sont pas verrouillées dans `requirements.txt`.
+- Les dépendances sont déclarées dans `pyproject.toml` ; seules certaines versions
+  sont fixées, sans verrouillage complet des dépendances transitives.
   La compatibilité du SDK MCP doit être vérifiée dans l'environnement installé.
 
 Ce sont des constats sur le code, pas des changements applicatifs effectués par

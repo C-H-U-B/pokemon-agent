@@ -93,7 +93,6 @@ Le [guide des contraintes](src/pokemon_rag/constraints/README.md) décrit les ex
 Créer et activer un environnement Python, puis installer les dépendances :
 
 ```bash
-pip install -r requirements.txt
 pip install -e .
 ```
 
