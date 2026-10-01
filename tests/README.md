@@ -76,6 +76,14 @@ Elle ne valide pas le choix d'outil par Qwen. Les tests ADK réels de function
 calling et du parcours MCP restent dans `tests/long`, marqués `llm`, `models`
 et `long`, et doivent être exécutés par l'utilisateur.
 
+`integration/test_adk_mcp_toolset.py` vérifie la découverte exacte des huit outils
+via le vrai serveur stdio, sans appel d'outil ni LLM. Le test stdio officiel
+reste une validation distincte du protocole. Les E2E de `long/test_adk_agent.py`
+vérifient le routage vers types, identité, CT avec version et capacités avec
+intervalle ; ils nécessitent Qwen local avec un contexte de 16384 tokens et
+les données SQLite. Les function calls enregistrés ne suffisent pas à vérifier
+les arguments effectivement corrigés par le guard et envoyés au serveur.
+
 `integration/test_mcp_client.py` couvre le parcours question → découverte des
 outils → sélection → exécution → réponse. Les tests isolés simulent les frontières
 MCP et LLM pour vérifier les erreurs, les formats de résultats, l'interface terminal

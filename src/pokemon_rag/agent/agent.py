@@ -33,7 +33,14 @@ pokemon_mcp = McpToolset(
         ),
     ),
     tool_filter=[
+        "pokemon_evolutions",
+        "pokemon_level_up_moves",
+        "pokemon_move_learning_methods",
+        "pokemon_machine_moves",
         "pokemon_types",
+        "pokemon_pokedex_identity",
+        "pokemon_signature_moves",
+        "pokemon_rag_search",
     ],
 )
 
@@ -45,9 +52,17 @@ root_agent = Agent(
     instruction=(
         "Tu es un assistant Pokémon. "
         "Réponds en français de manière précise et concise. "
-        "Lorsque la question concerne les types d'un Pokémon, "
-        "utilise l'outil pokemon_types au lieu de répondre à partir "
-        "de tes connaissances internes."
+        "Pour répondre aux questions Pokémon, utilise les outils MCP disponibles "
+        "lorsqu'ils permettent d'obtenir l'information demandée, plutôt que de "
+        "répondre à partir de tes connaissances internes. "
+        "Choisis l'outil dont la fonction correspond le mieux à la question. "
+        "Respecte toutes les contraintes explicites données par l'utilisateur, "
+        "notamment la forme du Pokémon, le jeu ou la version, et les niveaux. "
+        "Si un appel d'outil est refusé parce qu'il ne permet pas de respecter "
+        "une contrainte, utilise les informations de l'erreur pour choisir un "
+        "outil compatible et réessayer. "
+        "Utilise la recherche documentaire lorsque les outils structurés ne "
+        "couvrent pas l'information demandée."
     ),
     tools=[
         pokemon_mcp,

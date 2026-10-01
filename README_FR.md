@@ -49,10 +49,12 @@ Les profils personnalisés alimentent également les présentations générales.
 Le pipeline RAG utilise une recherche hybride, une recherche tenant compte de la structure des sections et un reranking avant la génération de la réponse.
 
 Un [agent ADK indépendant](src/pokemon_rag/agent/README.md) utilise Qwen local via
-LiteLLM et LM Studio. Ce parcours comporte un seul agent et expose l'outil MCP
-`pokemon_types` ; le graphe et le client MCP existants restent disponibles.
+LiteLLM et LM Studio. Ce parcours comporte un seul agent et expose
+les huit outils MCP ; le graphe et le client MCP existants restent disponibles.
 Son guard déterministe préserve les contraintes reconnues de niveaux, de jeux
 et de formes avant l'appel d'outil, en refusant les outils incompatibles.
+La configuration locale validée utilise une fenêtre Qwen de 16384 tokens dans
+LM Studio pour les huit schémas ; les prérequis sont dans le guide de l'agent.
 
 ## Technologies
 

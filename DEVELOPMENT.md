@@ -822,3 +822,18 @@ Unknown or ambiguous games are rejected.
 Unit tests cover these constraints and combined game/level filters without
 calling the model. Form recognition retains the shared extractor's limitations;
 the guard does not change the exposed tool catalog.
+
+## 46. [Feature] ADK access to all eight MCP tools
+
+The agent now exposes all eight Pokémon server tools, covering structured data
+and documentary retrieval. The deterministic before-tool guard retains
+protection for recognized levels, version groups and forms. Instructions guide
+Qwen toward the appropriate tool and allow it to correct its choice after a refusal.
+
+The ADK → local Qwen → MCP → local data path was validated manually with routing
+and constraint scenarios. The eight schemas revealed an insufficient context
+window: Qwen's context in LM Studio was increased from 8192 to 16384 tokens.
+
+Differences in processing time were observed for large tool results. Their
+cause has not been established; this observation does not isolate a component
+or explain its cost.
