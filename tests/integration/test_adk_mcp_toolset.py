@@ -1,13 +1,22 @@
 import asyncio
 
 import pytest
+from google.adk.tools.mcp_tool import McpToolset
 
 from pokemon_rag.agent.agent import pokemon_mcp
 
 
 async def _get_mcp_tools():
     """Charge les tools exposés à ADK par le serveur MCP."""
-    return await pokemon_mcp.get_tools()
+    # Une session indépendante par boucle asyncio, fermée avant sa destruction.
+    toolset = McpToolset(
+        connection_params=pokemon_mcp.connection_params,
+        tool_filter=pokemon_mcp.tool_filter,
+    )
+    try:
+        return await toolset.get_tools()
+    finally:
+        await toolset.close()
 
 
 @pytest.mark.integration

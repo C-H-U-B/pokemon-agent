@@ -6,14 +6,18 @@ modèle de répondre en français.
 
 Le parcours est : utilisateur → agent ADK → LiteLLM → API compatible OpenAI de
 LM Studio (`http://localhost:1234/v1`) → `qwen/qwen3-vl-8b` local. Le préfixe
-`openai/` du nom LiteLLM indique le protocole utilisé. L'URL et la clé factice
-`lm-studio` sont passées explicitement au modèle, sans modifier les variables
-globales `OPENAI_API_BASE` et `OPENAI_API_KEY`.
+`openai/` du nom LiteLLM indique le protocole utilisé. L'agent définit par défaut
+`OPENAI_API_BASE` et la clé factice `OPENAI_API_KEY=lm-studio` avec `setdefault`.
+Des valeurs déjà présentes sont conservées : vérifier qu'elles ciblent bien
+LM Studio avant toute exécution.
 
-Cette première intégration ne dispose d'aucun outil ni sous-agent. Elle n'accède
-pas à SQLite, Chroma ou au RAG et n'applique pas le grounding du graphe. Ses
-réponses reposent uniquement sur le modèle. MCP est le protocole d'accès aux
-outils existants ; sa connexion à cet agent reste hors du périmètre actuel.
+L'agent unique dispose désormais de `McpToolset`, qui démarre le serveur Pokémon
+en stdio avec le même interpréteur Python. Le filtre expose uniquement
+`pokemon_types`, qui interroge SQLite ; les instructions demandent au modèle de
+l'utiliser pour les questions de types. Aucun sous-agent ni outil RAG n'est exposé.
+Ce parcours n'applique ni le grounding du graphe ni la réconciliation des
+contraintes du client MCP existant. Ces deux parcours restent disponibles.
+
 
 ## Utilisation manuelle
 
@@ -40,7 +44,14 @@ le même environnement avec LM Studio et Qwen disponibles :
 python -m pytest tests/long/test_adk_agent.py -q -p no:cacheprovider
 ```
 
-Il porte les marqueurs `llm`, `long` et `models`, utilise `asyncio.run` sans
-plugin pytest asynchrone et vérifie le retour du témoin `ADK_OK`. Transmettre
-la sortie pytest ; ce témoin valide le parcours technique, pas la qualité
-factuelle des réponses Pokémon.
+Ces tests portent les marqueurs `llm`, `long` et `models` et utilisent
+`asyncio.run` sans plugin pytest asynchrone. Ils vérifient le témoin `ADK_OK`
+et l'appel MCP `pokemon_types` pour Pikachu, avec la base locale disponible.
+`tests/long/test_adk_tool_calling.py` isole le function calling avec un outil
+Python sans MCP. Transmettre la sortie pytest ; ces contrôles techniques ne
+garantissent pas la qualité factuelle des réponses Pokémon.
+
+Les tests `tests/integration/test_adk_mcp_toolset.py` et
+`tests/integration/test_mcp_stdio.py` découvrent les outils sans appeler de LLM
+ni exécuter de recherche. Le serveur importe le module RAG uniquement lors
+d'un appel à `pokemon_rag_search`, pour ne pas retarder l'initialisation MCP.

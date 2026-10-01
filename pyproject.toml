@@ -32,6 +32,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
+    "integration: interaction entre plusieurs composants réels du projet",
     "real_data: nécessite les bases ou le corpus locaux du projet",
     "llm: nécessite le serveur LLM local",
     "models: charge les modèles d'embedding ou de reranking",

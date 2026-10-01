@@ -821,3 +821,22 @@ L'agent ne possède encore aucun outil. Son accès aux capacités existantes par
 MCP est différé à une intégration distincte. Le graphe, le client et le serveur
 MCP restent disponibles ; SQLite, Chroma, le moteur structuré, le RAG et le
 grounding conservent leurs responsabilités.
+
+## 43. [Feature] Connexion de l'agent ADK aux types Pokémon via MCP
+
+Le function calling ADK/LiteLLM/Qwen a d'abord été validé manuellement avec
+un outil Python simple, sans MCP. L'agent a ensuite été connecté au serveur
+Pokémon par `McpToolset`, en limitant les outils visibles à `pokemon_types`.
+
+La découverte échouait car l'initialisation MCP prenait environ 9,2 secondes,
+au-delà du délai ADK de 5 secondes. Le diagnostic a identifié l'import immédiat
+de `pokemon_rag.rag.retrieval`, et notamment de `sentence_transformers`, comme
+cause principale. Cet import est désormais effectué uniquement dans l'outil
+RAG : les outils structurés démarrent sans charger ce module lourd.
+
+L'initialisation mesurée après correction est d'environ 1,7 seconde sur la même
+machine. Ces mesures ont motivé le chargement différé, sans devenir des seuils
+de test. La découverte de `pokemon_types` par `McpToolset` et le parcours complet
+Qwen → ADK → MCP → `pokemon_types` → réponse ont été validés manuellement.
+Les tests conservent des frontières distinctes : protocole stdio, découverte
+ADK, function calling et parcours complet.
