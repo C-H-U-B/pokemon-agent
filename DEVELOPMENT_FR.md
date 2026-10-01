@@ -936,3 +936,35 @@ RAG pour l'apparence, avec une réponse limitée aux passages récupérés ou un
 signalement d'information indisponible. La description de l'outil de types
 précise cette limite. Le guard conserve son rôle de protection des contraintes ;
 le respect de ces consignes par Qwen reste à vérifier manuellement.
+
+## 52. [Feature] Interface Web centrée sur l'activité de l'agent
+
+L'interface conserve un panneau d'activité important pour montrer comment
+l'agent ADK utilise les outils MCP. Elle présente le parcours de la question,
+les libellés lisibles des outils, leurs noms techniques, arguments et réponses
+reçues ou attendues. Une réponse d'outil reçue n'est pas présentée comme une
+preuve de réussite.
+
+La question apparaît immédiatement dans l'historique, avec la saisie sous les
+réponses et un rappel de l'indépendance des questions. La saisie initiale est
+vide ; un bouton d'exemple la remplit sans lancer l'agent. L'absence de réponse
+finale a son propre statut. Un thème Soft et des styles adaptés aux petits
+écrans améliorent la lisibilité.
+L'espace de travail tient dans la fenêtre avec un défilement à l'intérieur des
+panneaux. Une bulle temporaire avec des points de suspension indique que la
+réponse est en préparation puis est remplacée par la réponse finale ou l'erreur,
+sans rester dans l'historique de conversation.
+Le titre redondant de la conversation est retiré et les lignes de saisie et
+d'actions gardent leur hauteur naturelle pour réserver l'espace aux réponses.
+La conversation est placée à gauche et le panneau de l'agent à droite.
+Les bulles utilisateur sont à gauche et celles de l'assistant à droite. Une grille
+attribue au chat toute la hauteur restante au-dessus des commandes compactes.
+L'activité explique désormais les technologies au fil des appels : Qwen
+interprète la question, les outils MCP consultent SQLite ou recherchent du texte
+Poképédia via le RAG / Chroma, puis Qwen prépare la réponse à partir des retours
+d'outils. Les textes explicatifs statiques sont remplacés par ce suivi progressif.
+Les durées distinguent désormais l'analyse initiale, l'attente des outils et la
+préparation de la réponse, avec un chrono par appel. Les reprises cumulent le
+temps et les attentes parallèles comptent une fois dans le total de l'étape.
+Ces mesures reflètent les événements reçus par l'interface, délais de transport
+et de session compris.

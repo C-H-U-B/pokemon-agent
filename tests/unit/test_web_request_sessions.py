@@ -70,3 +70,85 @@ def test_failed_request_deletes_session_and_finishes(web, monkeypatch):
     outputs = asyncio.run(run())
     assert fake.deleted == ["1"]
     assert "RuntimeError" in outputs[-1][0][-1]["content"]
+
+
+def test_question_is_visible_before_answer_without_duplicate(web, monkeypatch):
+    monkeypatch.setattr(web, "runner", FakeRunner())
+    history = [{"role": "assistant", "content": "Ancienne réponse"}]
+
+    async def run():
+        return [output async for output in web.chat("  Pikachu ?  ", history, web.WebSession())]
+
+    outputs = asyncio.run(run())
+    assert outputs[0][0][:-1] == history + [{"role": "user", "content": "Pikachu ?"}]
+    assert all(output[0][-1]["content"] == "…" for output in outputs[:-1])
+    assert outputs[-1][0][-1]["content"] == "Réponse"
+    assert len(outputs[-1][0]) == 3
+    assert history == [{"role": "assistant", "content": "Ancienne réponse"}]
+
+
+def test_missing_final_response_is_not_reported_as_success(web, monkeypatch):
+    class EmptyRunner(FakeRunner):
+        async def run_async(self, **kwargs):
+            if False:
+                yield
+
+    monkeypatch.setattr(web, "runner", EmptyRunner())
+
+    async def run():
+        return [output async for output in web.chat("Pikachu ?", [], web.WebSession())]
+
+    outputs = asyncio.run(run())
+    assert "Aucune réponse finale" in outputs[-1][2]
+    assert "Réponse disponible" not in outputs[-1][2]
+
+
+def test_repeated_tool_calls_distinguish_received_and_pending(web):
+    activity = web._format_activity(
+        [("pokemon_types", {"pokemon": "Pikachu"}), ("pokemon_types", {"pokemon": "Raichu"})],
+        ["pokemon_types"], 2.0, "Exécution",
+    )
+    assert activity.count("Réponse reçue") == 1
+    assert activity.count("réponse en attente") == 1
+    assert "2 appel(s) d'outil" in activity
+
+
+def test_timing_counts_parallel_tools_once_and_accumulates_retries(web):
+    timing = web.ActivityTiming()
+    timing.observe([("pokemon_types", {}), ("pokemon_rag_search", {})], [], 2.0)
+    timing.observe([], ["pokemon_types"], 3.0)
+    assert timing.phase == "tools"
+    timing.observe([], ["pokemon_rag_search"], 5.0)
+    timing.observe([("pokemon_types", {})], [], 7.0)
+    timing.observe([], ["pokemon_types"], 8.0)
+    timing.transition("finished", 10.0)
+    assert timing.duration("analysis", 20.0) == 2.0
+    assert timing.duration("tools", 20.0) == 4.0
+    assert timing.duration("generation", 20.0) == 4.0
+    assert timing.calls == [
+        ("pokemon_types", 2.0, 3.0), ("pokemon_rag_search", 2.0, 5.0),
+        ("pokemon_types", 7.0, 8.0),
+    ]
+
+
+def test_pending_tool_timer_is_frozen_when_request_finishes(web):
+    timing = web.ActivityTiming()
+    timing.observe([("pokemon_types", {})], [], 1.0)
+    timing.transition("finished", 4.0)
+    panel = web._format_activity([("pokemon_types", {})], [], 9.0, "Erreur", timing)
+    assert "**⏱ 3.0 s** · en attente" in panel
+
+
+@pytest.mark.parametrize("tool, technology, description", [
+    ("pokemon_types", "base SQLite", "Consultation des données Pokémon"),
+    ("pokemon_rag_search", "Poképédia / index Chroma", "Recherche de passages textuels"),
+])
+def test_activity_explains_requested_backend_and_response_preparation(web, tool, technology, description):
+    waiting = web._format_activity([(tool, {})], [], 1.0, "Recherche en cours")
+    received = web._format_activity([(tool, {})], [tool], 2.0, "Retour reçu")
+    assert technology in waiting
+    assert description in waiting
+    assert "Préparation de la réponse · Qwen" not in waiting
+    assert "Réponse reçue" in received
+    assert "Préparation de la réponse · Qwen" in received
+    assert "passages textuels" not in waiting if tool == "pokemon_types" else "base SQLite" not in waiting
