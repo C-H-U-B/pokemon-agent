@@ -1,13 +1,15 @@
 # Architecture et points de modification
 
-Le code applicatif est dans `src/pokemon_rag`. Deux parcours partagent SQLite
-et la recherche documentaire, mais n'offrent pas les mêmes garanties.
+Le code applicatif est dans `src/pokemon_rag`. Le graphe et le parcours MCP
+partagent SQLite et la recherche documentaire, mais n'offrent pas les mêmes garanties.
+Un agent ADK indépendant utilise pour l'instant uniquement Qwen local, sans outils.
 Lire ensuite uniquement le [guide spécialisé](docs/README.md) de la tâche.
 
 ## Points d'entrée
 
 | Entrée | Usage et effets |
 | --- | --- |
+| `adk run src/pokemon_rag/agent` | Agent ADK unique via LiteLLM et LM Studio ; réponses en français, sans outils ni grounding |
 | `python -m pokemon_rag.graph.graph` | Terminal interactif ; appelle `run_graph`, peut utiliser LM Studio et écrit une trace |
 | `graph.graph.run_graph(initial_state)` | Entrée Python du graphe ; état contenant au minimum `question` |
 | `python -m pokemon_rag.client.mcp_client` | Questions successives dans une session MCP, sélection d'un outil et réponse par Qwen |
@@ -69,6 +71,7 @@ ni par `query_structured_data` ni par `run_graph`. Voir les
 
 | Comportement | Emplacement principal | Frontière à préserver |
 | --- | --- | --- |
+| Configurer l'agent ADK et son modèle local | `agent/agent.py` | Couche d'orchestration indépendante ; aucun accès MCP ou RAG à ce stade. Voir le [guide ADK](src/pokemon_rag/agent/README.md) |
 | Choisir une route et identifier le Pokémon | `graph/router.py` | Ne pas y exécuter une requête métier ou générer la réponse finale |
 | Extraire les formes, jeux et niveaux explicites | `constraints/query_constraints.py` | Extraction pure partagée entre moteur structuré et client MCP ; ni SQLite ni choix d'outil. Voir le [guide des contraintes](src/pokemon_rag/constraints/README.md) |
 | Ajouter une opération structurée, comprendre un jeu ou un niveau | `structured/query_engine.py` | Plan validé et SQL prédéfini ; adapter aussi routeur, formatage et éventuellement outil MCP |
