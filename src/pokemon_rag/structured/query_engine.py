@@ -11,6 +11,14 @@ from openai import OpenAI
 
 
 from pokemon_rag.config import DB_PATH, LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES
+from pokemon_rag.constraints.query_constraints import (
+    REGION_FORMS,
+    VERSION_ALIASES,
+    extract_form,
+    extract_level_bounds,
+    extract_version_group,
+    has_explicit_game,
+)
 LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
 QUERY_MODEL = "qwen/qwen3-vl-8b"
 
@@ -183,58 +191,35 @@ def _fast_species(question: str) -> str | None:
     return _fast_find_unique(_normalize(question), candidates)
 
 
+_MOVE_INTERNAL_ALIASES = {
+    "tonnerre": "thunderbolt",
+}
+
+
 def _fast_move(question: str) -> str | None:
+    normalized_question = _normalize(question)
+    padded = f"-{normalized_question}-"
+    for french_name, identifier in _MOVE_INTERNAL_ALIASES.items():
+        if f"-{french_name}-" in padded:
+            return french_name.capitalize()
+
     conn = _connect()
     try:
         candidates = _fast_db_names(conn, "moves", "move_names", "move_id")
     finally:
         conn.close()
-    return _fast_find_unique(_normalize(question), candidates)
+    return _fast_find_unique(normalized_question, candidates)
 
 
-_REGION_FORMS = {
-    "alola": "alola",
-    "galar": "galar",
-    "hisui": "hisui",
-    "paldea": "paldea",
-}
+_REGION_FORMS = REGION_FORMS
+_VERSION_ALIASES = VERSION_ALIASES
 
 
 def _fast_form(question: str) -> str | None:
-    normalized = _normalize(question)
-    matches = [
-        form for token, form in _REGION_FORMS.items()
-        if re.search(rf"(?:^|-){re.escape(token)}(?:-|$)", normalized)
-    ]
-    return matches[0] if len(matches) == 1 else None
+    return extract_form(question)
 
 
-_VERSION_ALIASES = {
-    "rouge-et-bleu": "red-blue",
-    "red-and-blue": "red-blue",
-    "diamant-et-perle": "diamond-pearl",
-    "diamond-and-pearl": "diamond-pearl",
-    "soleil-et-lune": "sun-moon",
-    "sun-and-moon": "sun-moon",
-    "epee-et-bouclier": "sword-shield",
-    "sword-and-shield": "sword-shield",
-    "ecarlate-et-violet": "scarlet-violet",
-    "scarlet-and-violet": "scarlet-violet",
-    "ev": "scarlet-violet",
-}
-
-
-def _fast_version_group(question: str) -> tuple[str | None, bool]:
-    normalized = _normalize(question)
-    matches = {
-        value for alias, value in _VERSION_ALIASES.items()
-        if f"-{alias}-" in f"-{normalized}-"
-    }
-    if len(matches) > 1:
-        return None, True
-    if len(matches) == 1:
-        return next(iter(matches)), False
-
+def _known_version_groups() -> set[str]:
     conn = _connect()
     try:
         rows = conn.execute(
@@ -242,63 +227,19 @@ def _fast_version_group(question: str) -> tuple[str | None, bool]:
         ).fetchall()
     finally:
         conn.close()
+    return {str(row["identifier"]) for row in rows}
 
-    direct = {
-        str(row["identifier"])
-        for row in rows
-        if f"-{_normalize(row['identifier'])}-" in f"-{normalized}-"
-    }
-    if len(direct) > 1:
-        return None, True
-    if direct:
-        return next(iter(direct)), False
-    return None, _has_explicit_game(question)
+
+def _fast_version_group(question: str) -> tuple[str | None, bool]:
+    return extract_version_group(question, known_version_groups=_known_version_groups())
 
 
 def _has_explicit_game(question: str) -> bool:
-    """Détecte un filtre de jeu que l'on ne doit pas supprimer silencieusement."""
-    return bool(re.search(
-        r"(?:^|-)(?:dans|in|version|versions|jeu|jeux|(?:en|sur)-pokemon)(?:-|$)",
-        _normalize(question),
-    ))
+    return has_explicit_game(question)
 
 
 def _fast_level_bounds(question: str) -> tuple[int | None, int | None] | None:
-    normalized = _normalize(question)
-    # Une alternative n'est pas un intervalle continu.
-    if re.search(r"(?:^|-)(?:ou|or)(?:-|$)", normalized):
-        return None
-    patterns = [
-        (r"(?:apres|after)-(?:le-)?(?:niveau|level)-(\d+)", "min", 1),
-        (r"(?:a-partir-du|a-partir-de|from)-(?:niveau|level)-(\d+)", "min", 0),
-        (r"(?:avant|before)-(?:le-)?(?:niveau|level)-(\d+)", "max", -1),
-        (r"(?:jusqu-au|jusqu-a|jusque-au|jusque-a)-(?:niveau|level)-(\d+)", "max", 0),
-        (r"(?:au|a|at)-(?:niveau|level)-(\d+)", "exact", 0),
-    ]
-    lower, upper, spans = [], [], []
-    for pattern, kind, offset in patterns:
-        for match in re.finditer(r"(?:^|-)(?:" + pattern + r")(?=-|$)", normalized):
-            if any(start <= match.start(1) < end for start, end in spans):
-                continue  # « au niveau » fait déjà partie de « jusqu'au niveau ».
-            spans.append(match.span())
-            value = int(match.group(1)) + offset
-            if kind in {"min", "exact"}:
-                lower.append(value)
-            if kind in {"max", "exact"}:
-                upper.append(value)
-    if not spans:
-        return None
-    # Ne jamais conserver une seule borne d'une formulation partiellement comprise.
-    remaining = list(normalized)
-    for start, end in spans:
-        remaining[start:end] = " " * (end - start)
-    if re.search(r"\d|\b(?:niveau|niveaux|level|levels)\b", "".join(remaining)):
-        return None
-    minimum = max(lower) if lower else None
-    maximum = min(upper) if upper else None
-    if maximum is not None and (maximum < 0 or (minimum is not None and minimum > maximum)):
-        raise ValueError("Intervalle de niveaux impossible.")
-    return minimum, maximum
+    return extract_level_bounds(question)
 
 
 def parse_pokedex_query(question: str) -> dict[str, Any] | None:
@@ -860,6 +801,7 @@ def get_evolutions(
 def _resolve_move(conn: sqlite3.Connection, name: str) -> sqlite3.Row:
     fr_id, en_id = _language_ids(conn)
     normalized = _normalize(name)
+    internal_identifier = _MOVE_INTERNAL_ALIASES.get(normalized)
     rows = conn.execute(
         """
         SELECT DISTINCT
@@ -881,7 +823,7 @@ def _resolve_move(conn: sqlite3.Connection, name: str) -> sqlite3.Row:
             _normalize(row["identifier"]),
             _normalize(row["name_fr"]),
             _normalize(row["name_en"]),
-        }
+        } or (internal_identifier is not None and row["identifier"] == internal_identifier)
     ]
     if not matches:
         raise ValueError(f"Capacité introuvable dans pokemon.db : {name!r}")
