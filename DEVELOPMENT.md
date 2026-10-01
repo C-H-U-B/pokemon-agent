@@ -724,3 +724,17 @@ preserves its existing behavior.
 Resources are closed on exit, error or cancellation. Tests with simulated
 dependencies verify cleanup and session reuse. The latency improvement with
 real models remains to be measured.
+
+## 39. [Bug fix] Explicit termination after router failure
+
+A router failure triggered a global documentary search and its diagnostic
+disappeared from the graph state. The targeted Pokémon could therefore be
+lost without being reported.
+
+Failures in fast routing, model calls and output validation now stop processing
+before retrieval. The diagnostic is retained in the state and traces, along
+with any previously validated Pokémon. Documentary fallback after valid output
+remains separate from this failure policy.
+
+Tests with simulated dependencies verify scope preservation, diagnostic tracing
+and the absence of downstream calls after a failure.

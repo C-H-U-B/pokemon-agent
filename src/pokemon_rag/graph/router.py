@@ -396,12 +396,12 @@ def _fast_route_question(question: str) -> dict[str, Any] | None:
 def route_question(question: str) -> dict[str, Any]:
     start = time.perf_counter()
 
-    fast_result = _fast_route_question(question)
-    if fast_result is not None:
-        fast_result["router_time"] = time.perf_counter() - start
-        return fast_result
-
     try:
+        fast_result = _fast_route_question(question)
+        if fast_result is not None:
+            fast_result["router_time"] = time.perf_counter() - start
+            return fast_result
+
         response = llm_client.chat.completions.create(
             model=ROUTER_MODEL,
             temperature=0,
@@ -422,14 +422,11 @@ def route_question(question: str) -> dict[str, Any]:
 
     except Exception as exc:
         return {
-            "route": "RAG",
-            "intent": "DOCUMENT_SEARCH",
-            "pokemon": None,
-            "pokemon_validated": False,
-            "single_question": True,
-            "information_need": question.strip(),
-            "reason": "Fallback déterministe après échec du routeur.",
+            # Aucune route ni entité inventée après une panne : le graphe
+            # conserve son état acquis et termine sur processing_error.
+            "reason": "Arrêt après échec du routeur.",
             "router_error": f"{type(exc).__name__}: {exc}",
-            "router_mode": "FALLBACK",
+            "router_error_type": type(exc).__name__,
+            "router_mode": "ERROR",
             "router_time": time.perf_counter() - start,
         }

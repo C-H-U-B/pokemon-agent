@@ -118,7 +118,7 @@ def test_fast_router_is_robust_to_common_formulations(
     assert result["pokemon_validated"] is True
     assert result["router_mode"] == "FAST"
 
-def test_route_question_falls_back_to_rag_when_llm_fails() -> None:
+def test_route_question_reports_failure_without_global_rag() -> None:
     with patch(
         "pokemon_rag.graph.router.llm_client.chat.completions.create",
         side_effect=RuntimeError("LLM unavailable"),
@@ -127,16 +127,14 @@ def test_route_question_falls_back_to_rag_when_llm_fails() -> None:
             "Pourquoi les joues de Pikachu produisent-elles de l'électricité ?"
         )
 
-    assert result["route"] == "RAG"
-    assert result["intent"] == "DOCUMENT_SEARCH"
-    assert result["pokemon"] is None
-    assert result["pokemon_validated"] is False
-    assert result["router_mode"] == "FALLBACK"
+    assert "route" not in result
+    assert "pokemon" not in result
+    assert result["router_mode"] == "ERROR"
     assert result["router_error"] is not None
     assert result["router_time"] >= 0
 
 
-def test_route_question_falls_back_to_rag_on_invalid_llm_output() -> None:
+def test_route_question_reports_invalid_llm_output() -> None:
     fake_response = type(
         "Response",
         (),
@@ -165,7 +163,6 @@ def test_route_question_falls_back_to_rag_on_invalid_llm_output() -> None:
             "Pourquoi les joues de Pikachu produisent-elles de l'électricité ?"
         )
 
-    assert result["route"] == "RAG"
-    assert result["intent"] == "DOCUMENT_SEARCH"
-    assert result["router_mode"] == "FALLBACK"
+    assert "route" not in result
+    assert result["router_mode"] == "ERROR"
     assert result["router_error"] is not None

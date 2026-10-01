@@ -47,6 +47,18 @@ def route_query(state: dict) -> dict:
     start = time.perf_counter()
     result = route_question(state["question"])
     elapsed = time.perf_counter() - start
+    if result.get("router_error"):
+        # Ne pas écraser le Pokémon ou la route précédemment acquis par None/RAG.
+        return {
+            "router_error": result["router_error"],
+            "router_mode": "ERROR",
+            "router_reason": result.get("reason", "Échec du routeur."),
+            "router_time": elapsed,
+            "execution_status": "ERROR",
+            "failed_step": "router",
+            "error_type": result.get("router_error_type") or "RouterError",
+            "failed_step_time": elapsed,
+        }
     route = str(result.get("route", "RAG")).upper()
     if route not in {"RAG", "STRUCTURED", "HYBRID"}:
         route = "RAG"
@@ -57,6 +69,7 @@ def route_query(state: dict) -> dict:
         "information_need": result.get("information_need", "") or state["question"],
         "intent": str(result.get("intent", "DOCUMENT_SEARCH")).upper(),
         "router_mode": result.get("router_mode"),
+        "router_error": None,
         "pokemon": result.get("pokemon"),
         "pokemon_validated": bool(result.get("pokemon_validated", False)),
         "router_time": elapsed,

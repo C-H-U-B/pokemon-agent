@@ -42,6 +42,7 @@ class PokemonState(TypedDict, total=False):
     route: str
     intent: str
     router_mode: str | None
+    router_error: str | None
     information_need: str
     pokemon: str | None
     pokemon_validated: bool
@@ -110,6 +111,7 @@ def finalize_observability(state: PokemonState) -> dict:
     set_trace_value(trace, "route", state.get("route"))
     set_trace_value(trace, "intent", state.get("intent"))
     set_trace_value(trace, "router_mode", state.get("router_mode"))
+    set_trace_value(trace, "router_error", state.get("router_error"))
     set_trace_value(trace, "pokemon", state.get("pokemon"))
     set_trace_value(trace, "single_question", state.get("single_question"))
     set_trace_value(
@@ -250,6 +252,8 @@ def protect_node(name: str, node: Callable) -> Callable:
                 "error_type": type(exc).__name__,
                 "failed_step_time": time.perf_counter() - start,
             }
+            if name == "router":
+                result.update(router_mode="ERROR", router_error=f"{type(exc).__name__}: {exc}")
         if name != "initialize_trace":
             result["attempts"] = record_attempt(name, state, result, time.perf_counter() - start)
         return result
