@@ -75,7 +75,6 @@ See the [constraints guide](src/pokemon_rag/constraints/README.md) for the share
 Create and activate a Python environment, then install the dependencies:
 
 ```bash
-pip install -r requirements.txt
 pip install -e .
 ```
 
