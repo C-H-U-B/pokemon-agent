@@ -55,7 +55,8 @@ pour les présentations générales ; le tableur n'est pas lu à l'exécution.
 
 `client.mcp_client.open_client` démarre un sous-processus serveur, découvre les schémas
 une fois et partage la session entre les questions. Pour chacune, le client
-demande à Qwen un nom d'outil et des arguments, exécute cet outil puis demande à
+demande à Qwen un nom d'outil et des arguments, les réconcilie avec les contraintes
+explicites, exécute l'outil autorisé puis demande à
 Qwen une réponse. La fonction ponctuelle `ask` ouvre son propre contexte.
 Le client sélectionne un seul outil par question : il n'orchestre pas
 les trois routes du graphe et n'en applique pas le grounding, les reprises ou les traces.
@@ -69,6 +70,7 @@ ni par `query_structured_data` ni par `run_graph`. Voir les
 | Comportement | Emplacement principal | Frontière à préserver |
 | --- | --- | --- |
 | Choisir une route et identifier le Pokémon | `graph/router.py` | Ne pas y exécuter une requête métier ou générer la réponse finale |
+| Extraire les formes, jeux et niveaux explicites | `constraints/query_constraints.py` | Extraction pure partagée entre moteur structuré et client MCP ; ni SQLite ni choix d'outil. Voir le [guide des contraintes](src/pokemon_rag/constraints/README.md) |
 | Ajouter une opération structurée, comprendre un jeu ou un niveau | `structured/query_engine.py` | Plan validé et SQL prédéfini ; adapter aussi routeur, formatage et éventuellement outil MCP |
 | Construire les contextes, profils, réponses et prompts de génération | `graph/nodes.py` | Le profil SQLite y est actuellement construit ; ne pas y ajouter le nettoyage wiki ou la construction d'index |
 | Modifier transitions, budgets, erreurs terminales, finalisation | `graph/graph.py` | Ne pas cacher une politique de reprise dans le retrieval ou un outil MCP |
@@ -98,7 +100,8 @@ au [guide de performance](docs/PERFORMANCE.md).
   conservé dans l'état et la trace. Le repli sémantique après une sortie valide
   est distingué des pannes dans le [contrat du graphe](src/pokemon_rag/graph/README.md).
 - Le serveur MCP expose les fonctions sous-jacentes sans validation du plan complet.
-  Les pertes de contraintes du client sont décrites dans son guide, pas corrigées ici.
+  Le client réconcilie les contraintes reconnues avant exécution ; les limites
+  d'extraction sont décrites dans le [guide des contraintes](src/pokemon_rag/constraints/README.md).
 - Les versions des dépendances ne sont pas verrouillées dans `requirements.txt`.
   La compatibilité du SDK MCP doit être vérifiée dans l'environnement installé.
 

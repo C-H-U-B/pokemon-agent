@@ -11,6 +11,7 @@ les données locales. Chaque guide ci-dessous est la référence de son périmè
 | Transmettre une tâche à un humain ou un agent | [Collaboration](COLLABORATION.md) |
 | Comprendre le graphe et ses sorties | [Graphe](../src/pokemon_rag/graph/README.md) |
 | Ajouter une requête structurée | [Moteur structuré](../src/pokemon_rag/structured/README.md) |
+| Extraire les contraintes communes de forme, jeu et niveau | [Contraintes](../src/pokemon_rag/constraints/README.md) |
 | Modifier la recherche documentaire ou le grounding | [RAG](../src/pokemon_rag/rag/README.md) |
 | Utiliser les outils et le client MCP | [MCP](../src/pokemon_rag/mcp/README.md) |
 | Comprendre les sources et scripts | [Scripts](../scripts/README.md) |

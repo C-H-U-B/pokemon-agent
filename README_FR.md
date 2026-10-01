@@ -67,6 +67,7 @@ Le pipeline RAG utilise une recherche hybride, une recherche tenant compte de la
 ```text
 pokemon-rag/
 ├── src/pokemon_rag/    # application Python
+│   └── constraints/    # extraction commune des formes, jeux et niveaux
 ├── scripts/            # préparation des données, batch et analyse
 ├── tests/              # tests isolés et validations avec ressources locales
 ├── benchmarks/         # évaluations et références factuelles
@@ -78,6 +79,8 @@ pokemon-rag/
 Les bases de données générées, les pages Poképédia téléchargées et les index vectoriels ne sont pas stockés dans le dépôt Git.
 
 ## Installation
+
+Le [guide des contraintes](src/pokemon_rag/constraints/README.md) décrit les extracteurs partagés et leurs limites.
 
 Créer et activer un environnement Python, puis installer les dépendances :
 

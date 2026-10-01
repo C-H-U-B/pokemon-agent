@@ -738,3 +738,28 @@ remains separate from this failure policy.
 
 Tests with simulated dependencies verify scope preservation, diagnostic tracing
 and the absence of downstream calls after a failure.
+
+## 40. [Bug fix] Checking constraints before an MCP call
+
+The MCP client and the structured engine need to interpret the same form, game
+and level mentions. The `constraints` package now groups their deterministic
+extraction rules, without data access or model calls.
+
+The engine retains plan validation and SQLite access; the client retains argument
+reconciliation before tool execution. The module guide documents this separation
+and recognition limits, so shared extraction is not mistaken for complete request
+validation.
+
+The client restores recognized filters and rejects constraints that cannot be
+resolved or supported by the tool. Level ranges expressed with “between” in French
+are recognized, and the engine maps Tonnerre to its internal `thunderbolt`
+identifier without changing the interface language. Deterministic tests cover
+reconciliation; full validation with Qwen remains pending. Restrictions on general
+documentary questions are described in the MCP guide.
+
+## 41. [Architecture] Separating MCP validation paths
+
+Scenarios using real Qwen calls are grouped under `tests/long`, separately from
+simulated client journeys. A server integration test checks tool discovery and a
+structured query over stdio without LLM generation. This separation allows
+validation to be selected according to its actual dependencies.
