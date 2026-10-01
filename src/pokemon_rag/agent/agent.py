@@ -5,6 +5,7 @@ from google.adk.agents import Agent
 from google.adk.models.lite_llm import LiteLlm
 from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams
 from mcp import StdioServerParameters
+from pokemon_rag.agent.tool_guard import before_tool_guard
 
 
 LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
@@ -51,4 +52,5 @@ root_agent = Agent(
     tools=[
         pokemon_mcp,
     ],
+    before_tool_callback=before_tool_guard,
 )

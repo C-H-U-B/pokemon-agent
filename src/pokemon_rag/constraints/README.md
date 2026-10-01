@@ -43,6 +43,8 @@ un texte destiné à l'utilisateur.
 `ExplicitConstraints` contient `form`, `version_group`, `version_ambiguous`,
 `explicit_game`, `level_bounds` et `level_explicit`. Les indicateurs de présence
 permettent de distinguer une mention non résolue d'une absence de contrainte.
+`level_explicit` exige un mot de niveau et un nombre dans la question ; une
+demande générale « en montant de niveau » ne constitue pas une borne explicite.
 `version_ambiguous` couvre aussi une mention de jeu non reconnue, pas seulement
 plusieurs groupes possibles. Il n'existe pas d'indicateur équivalent pour les
 formes : `form=None` peut signifier absence, forme inconnue ou plusieurs formes.

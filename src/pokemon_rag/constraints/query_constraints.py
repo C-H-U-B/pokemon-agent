@@ -181,6 +181,7 @@ def extract_explicit_constraints(
     normalized = normalize(question)
     level_explicit = bool(
         re.search(r"(?:^|-)(?:niveau|niveaux|level|levels)(?:-|$)", normalized)
+        and re.search(r"(?:^|-)\d+(?:-|$)", normalized)
     )
     version_group, version_ambiguous = extract_version_group(
         question,
