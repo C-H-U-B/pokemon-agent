@@ -11,6 +11,8 @@ from openai import OpenAI
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from pokemon_rag.constraints.query_constraints import extract_explicit_constraints, normalize
+
 
 SERVER_MODULE = "pokemon_rag.mcp.server"
 
@@ -145,6 +147,95 @@ def choose_tool(
     return tool_name, arguments
 
 
+
+class ConstraintResolutionError(ValueError):
+    """Empêche l'exécution d'une requête MCP qui perd une contrainte explicite."""
+
+
+def _tool_by_name(tools: list[Any], name: str) -> Any | None:
+    return next((tool for tool in tools if tool.name == name), None)
+
+
+def _tool_properties(tool: Any) -> set[str]:
+    schema = tool.input_schema or {}
+    properties = schema.get("properties") or {}
+    return set(properties)
+
+
+def reconcile_tool_call(
+    question: str,
+    tool_name: str,
+    arguments: dict[str, Any],
+    tools: list[Any],
+) -> tuple[str, dict[str, Any]]:
+    """Réconcilie le choix du LLM avec les contraintes certaines de la question."""
+    constraints = extract_explicit_constraints(question)
+    reconciled = dict(arguments)
+
+    # Un Pokémon fourni par le modèle doit réellement apparaître dans la question.
+    # S'il est absent, on bloque plutôt que d'exécuter une question simplifiée.
+    pokemon = reconciled.get("pokemon")
+    if not isinstance(pokemon, str) or not pokemon.strip():
+        raise ConstraintResolutionError(
+            "Je ne peux pas exécuter la demande sans identifier avec certitude le Pokémon concerné."
+        )
+    if normalize(pokemon) not in normalize(question):
+        raise ConstraintResolutionError(
+            "Le Pokémon sélectionné ne correspond pas clairement à celui demandé ; précisez le Pokémon concerné."
+        )
+
+    if constraints.level_explicit:
+        if constraints.level_bounds is None:
+            raise ConstraintResolutionError(
+                "La contrainte de niveau est ambiguë ; précisez la borne ou l'intervalle souhaité."
+            )
+        if tool_name != "pokemon_level_up_moves":
+            level_tool = _tool_by_name(tools, "pokemon_level_up_moves")
+            if level_tool is None:
+                raise ConstraintResolutionError(
+                    "La contrainte de niveau est explicite, mais aucun outil disponible ne peut la respecter."
+                )
+            tool_name = "pokemon_level_up_moves"
+            allowed = _tool_properties(level_tool)
+            reconciled = {key: value for key, value in reconciled.items() if key in allowed}
+            reconciled["pokemon"] = pokemon.strip()
+
+        minimum, maximum = constraints.level_bounds
+        reconciled["min_level"] = minimum
+        reconciled["max_level"] = maximum
+
+    tool = _tool_by_name(tools, tool_name)
+    if tool is None:
+        raise ConstraintResolutionError(f"Le tool sélectionné n'est plus disponible : {tool_name}")
+    properties = _tool_properties(tool)
+
+    if constraints.form is not None:
+        if "form" not in properties:
+            raise ConstraintResolutionError(
+                "La forme demandée est explicite, mais l'outil sélectionné ne permet pas de la respecter."
+            )
+        reconciled["form"] = constraints.form
+
+    if constraints.explicit_game:
+        if constraints.version_ambiguous or constraints.version_group is None:
+            raise ConstraintResolutionError(
+                "Le jeu demandé n'est pas reconnu sans ambiguïté ; précisez la version souhaitée."
+            )
+        if "version_group" not in properties:
+            raise ConstraintResolutionError(
+                "Le jeu demandé est explicite, mais cette information n'est pas filtrable par version."
+            )
+        reconciled["version_group"] = constraints.version_group
+
+    unknown = set(reconciled) - properties
+    if unknown:
+        raise ConstraintResolutionError(
+            "Les arguments sélectionnés ne sont pas compatibles avec l'outil choisi : "
+            + ", ".join(sorted(unknown))
+        )
+
+    return tool_name, reconciled
+
 def extract_result(result: Any) -> Any:
     if result.structured_content is not None:
         return result.structured_content
@@ -210,6 +301,12 @@ class MCPConversation:
     async def ask(self, question: str) -> str:
         # Les questions restent indépendantes : aucun historique de conversation.
         tool_name, arguments = choose_tool(question, self.tools, self.llm)
+        try:
+            tool_name, arguments = reconcile_tool_call(
+                question, tool_name, arguments, self.tools
+            )
+        except ConstraintResolutionError as exc:
+            return str(exc)
         result = await self.session.call_tool(tool_name, arguments=arguments)
         if result.is_error:
             raise RuntimeError(f"Le tool MCP {tool_name!r} a retourné une erreur.")
