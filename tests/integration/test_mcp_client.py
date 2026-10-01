@@ -181,7 +181,18 @@ def test_selected_constraints_are_forwarded_without_loss(journey):
     arguments = {"pokemon": "Noadkoko", "form": "alola", "version_group": "sun-moon",
                  "min_level": 21, "max_level": 39}
     journey.session.list_tools.return_value = SimpleNamespace(tools=[Tool(
-        name="pokemon_level_up_moves", input_schema={"type": "object"}
+        name="pokemon_level_up_moves",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "pokemon": {"type": "string"},
+                "form": {"type": ["string", "null"]},
+                "version_group": {"type": ["string", "null"]},
+                "min_level": {"type": ["integer", "null"]},
+                "max_level": {"type": ["integer", "null"]},
+            },
+            "required": ["pokemon"],
+        },
     )])
     journey.create.side_effect = [response(json.dumps({
         "tool": "pokemon_level_up_moves", "arguments": arguments
