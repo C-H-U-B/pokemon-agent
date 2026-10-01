@@ -24,6 +24,7 @@ dependencies = [
     "openpyxl",
     "mcp",
     "pytest",
+    "gradio>=6.29,<7",
 ]
 
 [tool.setuptools.packages.find]
