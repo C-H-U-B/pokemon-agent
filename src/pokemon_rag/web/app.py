@@ -11,6 +11,54 @@ from pokemon_rag.agent.agent import root_agent
 
 
 REFRESH_INTERVAL = 0.1
+APP_CSS = """
+.gradio-container { padding: 12px !important; }
+.gradio-container footer { display: none; }
+#app-shell { height: calc(100dvh - 24px); min-height: 0; gap: 12px; }
+#app-heading { flex-shrink: 0; }
+#workspace { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 16px; flex: 1 1 0; height: 0; min-height: 0; }
+#workspace > div { min-width: 0 !important; min-height: 0; }
+#agent-panel { border: 1px solid var(--border-color-primary); border-radius: 18px;
+    padding: 18px; background: var(--background-fill-secondary); overflow-y: auto; }
+#agent-panel h3 { margin-top: 20px; }
+#agent-panel code { overflow-wrap: anywhere; white-space: pre-wrap; }
+#conversation-panel { display: grid; grid-template-rows: minmax(0, 1fr) auto auto auto;
+    gap: 4px; overflow-y: auto; }
+#chat-history { height: 100% !important; min-height: 0; overflow: hidden; }
+#chat-history .bubble.user-row, #chat-history .user { align-self: flex-start; }
+#chat-history .bubble.bot-row, #chat-history .bot { align-self: flex-end; }
+#chat-history .bubble .user-row { justify-content: flex-start; }
+#chat-history .bubble .bot-row { justify-content: flex-end; }
+#chat-history .user { border-bottom-left-radius: 0;
+    border-bottom-right-radius: var(--radius-md); }
+#chat-history .bot { border-bottom-right-radius: 0;
+    border-bottom-left-radius: var(--radius-md); }
+#question-row, #question-actions { flex: 0 0 auto !important; gap: 8px; }
+#question-row { align-items: center; }
+#question-row > div { min-width: 0 !important; }
+#question-actions button { min-height: 30px; }
+#question-hint { font-size: 12px; }
+#question-hint p { margin: 0; }
+#app-heading { padding: 0; }
+#app-heading h1 { margin: 0; font-size: 26px; }
+#question-box textarea { font-size: 16px; }
+@media (max-width: 760px) {
+    #workspace { grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 3fr) minmax(0, 2fr); }
+    #agent-panel { padding: 12px; }
+}
+"""
+TOOL_LABELS = {
+    "pokemon_types": "Types du Pokémon",
+    "pokemon_pokedex_identity": "Identité Pokédex",
+    "pokemon_evolutions": "Évolutions",
+    "pokemon_level_up_moves": "Capacités par niveau",
+    "pokemon_move_learning_methods": "Méthodes d'apprentissage",
+    "pokemon_machine_moves": "CT et CS",
+    "pokemon_signature_moves": "Capacités signature",
+    "pokemon_rag_search": "Recherche documentaire Poképédia",
+}
 EXAMPLE_QUESTIONS_PATH = Path(__file__).with_name("example_questions.txt")
 
 
@@ -22,6 +70,34 @@ class WebSession:
 
 
 runner = InMemoryRunner(agent=root_agent)
+
+
+@dataclass
+class ActivityTiming:
+    """Durées côté interface ; association FIFO des appels portant le même nom."""
+
+    phase: str = "analysis"
+    phase_start: float = 0.0
+    durations: dict[str, float] = field(default_factory=dict)
+    calls: list[tuple[str, float, float | None]] = field(default_factory=list)
+
+    def transition(self, phase: str, elapsed: float) -> None:
+        if phase != self.phase:
+            self.durations[self.phase] = self.durations.get(self.phase, 0.0) + elapsed - self.phase_start
+            self.phase, self.phase_start = phase, elapsed
+
+    def observe(self, calls: list[tuple[str, dict]], responses: list[str], elapsed: float) -> None:
+        self.calls.extend((name, elapsed, None) for name, _ in calls)
+        for name in responses:
+            for index, (called, start, end) in enumerate(self.calls):
+                if called == name and end is None:
+                    self.calls[index] = (called, start, elapsed)
+                    break
+        if self.calls:
+            self.transition("tools" if any(end is None for _, _, end in self.calls) else "generation", elapsed)
+
+    def duration(self, phase: str, elapsed: float) -> float:
+        return self.durations.get(phase, 0.0) + (elapsed - self.phase_start if self.phase == phase else 0.0)
 
 
 def _load_example_questions() -> list[str]:
@@ -110,20 +186,33 @@ def _format_activity(
     completed_tools: list[str],
     elapsed_seconds: float,
     status: str,
+    timing: ActivityTiming | None = None,
 ) -> str:
     """Construit le panneau d'activité temps réel."""
 
     lines = [
-        "## Agent activity",
+        "## Agent et outils en action",
         "",
-        f"### ⏱ {elapsed_seconds:.1f} s",
+        "**Agent Pokémon — ADK + Qwen local**",
+        "ADK orchestre les échanges ; Qwen interprète la question et rédige la réponse.",
+        "",
+        f"**⏱ {elapsed_seconds:.1f} s · {len(tool_calls)} appel(s) d'outil**",
         "",
         status,
         "",
     ]
 
+    if timing is not None:
+        lines.extend([
+            "**Temps par étape**",
+            f"- Analyse / choix des outils : {timing.duration('analysis', elapsed_seconds):.1f} s",
+            f"- Attente des outils : {timing.duration('tools', elapsed_seconds):.1f} s",
+            f"- Préparation de la réponse : {timing.duration('generation', elapsed_seconds):.1f} s",
+            "",
+        ])
+
     if not tool_calls:
-        lines.append("**Tool :** aucun pour le moment")
+        lines.append("**Outils sollicités :** aucun pour le moment.")
         return "\n".join(lines)
 
     completed_counts: dict[str, int] = {}
@@ -133,17 +222,45 @@ def _format_activity(
 
     displayed_counts: dict[str, int] = {}
 
+    lines.extend([
+        "### 1. Analyse de la question · Qwen",
+        "L'agent a demandé les outils ci-dessous pour traiter la question.",
+        "",
+    ])
+
     for index, (name, arguments) in enumerate(tool_calls, start=1):
         displayed_counts[name] = displayed_counts.get(name, 0) + 1
 
         is_completed = displayed_counts[name] <= completed_counts.get(name, 0)
 
-        icon = "✅" if is_completed else "🔧"
-
-        if len(tool_calls) > 1:
-            lines.append(f"### {icon} Appel {index} — `{name}`")
+        label = TOOL_LABELS.get(name, name)
+        lines.append(f"### 1.{index} {label} · outil MCP")
+        lines.append(f"`{name}` · " + (
+            "Réponse reçue" if is_completed else "Appel observé · réponse en attente"
+        ))
+        lines.append("")
+        if timing is not None and index <= len(timing.calls):
+            _, call_start, call_end = timing.calls[index - 1]
+            end = call_end if call_end is not None else (
+                timing.phase_start if timing.phase == "finished" else elapsed_seconds
+            )
+            lines.append(f"**⏱ {end - call_start:.1f} s**" + (" · en attente" if call_end is None else ""))
+        if name == "pokemon_rag_search":
+            lines.append(
+                "**Recherche RAG — Poképédia / index Chroma.** "
+                + ("La recherche a retourné son résultat à l'agent."
+                   if is_completed else
+                   "Recherche de passages textuels pertinents pour documenter la réponse.")
+            )
+        elif name in TOOL_LABELS:
+            lines.append(
+                "**Requête structurée — base SQLite.** "
+                + ("L'outil a retourné le résultat de la consultation à l'agent."
+                   if is_completed else
+                   "Consultation des données Pokémon dans la base locale.")
+            )
         else:
-            lines.append(f"### {icon} `{name}`")
+            lines.append("L'agent échange avec cet outil via le protocole MCP.")
 
         if arguments:
             lines.append("")
@@ -152,6 +269,13 @@ def _format_activity(
                 lines.append(f"- `{key}` : `{value}`")
 
         lines.append("")
+
+    if completed_tools:
+        lines.extend([
+            "### 2. Préparation de la réponse · Qwen",
+            "Qwen dispose des retours d'outils pour préparer une réponse textuelle en français.",
+            "",
+        ])
 
     return "\n".join(lines)
 
@@ -204,7 +328,7 @@ async def chat(
         yield (
             history,
             state,
-            "## Agent activity\n\nAucune requête envoyée.",
+            _format_activity([], [], 0.0, "Aucune requête envoyée."),
         )
         return
 
@@ -216,10 +340,15 @@ async def chat(
     )
 
     start = time.perf_counter()
+    pending_history = history + [
+        {"role": "user", "content": message},
+        {"role": "assistant", "content": "…"},
+    ]
 
     events = []
     tool_calls: list[tuple[str, dict]] = []
     completed_tools: list[str] = []
+    timing = ActivityTiming()
 
     queue: asyncio.Queue = asyncio.Queue()
 
@@ -231,19 +360,20 @@ async def chat(
         )
     )
 
-    status = "🧠 **L'agent analyse la question...**"
+    status = "🧠 **Qwen analyse la question et choisit les outils adaptés…**"
     finished = False
     error: Exception | None = None
 
     # Affichage immédiat.
     yield (
-        history,
+        pending_history,
         state,
         _format_activity(
             tool_calls,
             completed_tools,
             0.0,
             status,
+            timing,
         ),
     )
 
@@ -260,14 +390,23 @@ async def chat(
 
                 new_calls = _extract_function_calls(event)
                 new_responses = _extract_function_responses(event)
+                timing.observe(new_calls, new_responses, time.perf_counter() - start)
 
                 if new_calls:
                     tool_calls.extend(new_calls)
-                    status = "🔧 **Exécution d'un outil...**"
+                    sources = []
+                    for name, _ in new_calls:
+                        source = ("recherche de passages textuels dans Poképédia"
+                                  if name == "pokemon_rag_search" else
+                                  "consultation de la base SQLite" if name in TOOL_LABELS else
+                                  "appel d'un outil MCP")
+                        if source not in sources:
+                            sources.append(source)
+                    status = "🔎 **En cours : " + " ; ".join(sources) + ".**"
 
                 if new_responses:
                     completed_tools.extend(new_responses)
-                    status = "🧠 **Résultat reçu — génération de la réponse...**"
+                    status = "🧠 **Retour d'outil reçu — Qwen prépare la réponse textuelle…**"
 
             elif item_type == "error":
                 error = payload
@@ -275,6 +414,7 @@ async def chat(
 
             elif item_type == "done":
                 finished = True
+                timing.transition("finished", time.perf_counter() - start)
 
         except asyncio.TimeoutError:
             # Aucun nouvel événement ADK :
@@ -284,13 +424,14 @@ async def chat(
         elapsed = time.perf_counter() - start
 
         yield (
-            history,
+            pending_history,
             state,
             _format_activity(
                 tool_calls,
                 completed_tools,
                 elapsed,
                 status,
+                timing,
             ),
         )
 
@@ -311,8 +452,9 @@ async def chat(
 
         if not response:
             response = "L'agent n'a produit aucune réponse finale."
-
-        status = "✅ **Terminé**"
+            status = "⚠️ **Aucune réponse finale**"
+        else:
+            status = "✅ **Réponse disponible**"
 
     updated_history = history + [
         {
@@ -333,6 +475,7 @@ async def chat(
             completed_tools,
             elapsed,
             status,
+            timing,
         ),
     )
 
@@ -343,8 +486,8 @@ def new_conversation():
     return (
         [],
         WebSession(),
-        "## Agent activity\n\nNouvelle conversation.",
-        _random_example_question(),
+        _format_activity([], [], 0.0, "En attente d'une question."),
+        "",
     )
 
 
@@ -355,111 +498,118 @@ def build_app() -> gr.Blocks:
         title="Pokémon Agent",
         fill_height=True,
     ) as app:
-        state = gr.State(WebSession())
+        with gr.Column(elem_id="app-shell"):
+            state = gr.State(WebSession())
 
-        gr.Markdown(
-            """
-            # Pokémon Agent
-            Assistant Pokémon local — **Qwen · ADK · MCP**
-            """
-        )
+            gr.Markdown(
+                """
+                # Pokémon Agent
+                Posez une question et observez comment l'agent utilise ses outils.
+                """,
+                elem_id="app-heading",
+            )
 
-        with gr.Row(equal_height=True):
-            # Conversation
-            with gr.Column(scale=3):
-                with gr.Row():
-                    message = gr.Textbox(
-                        value=_random_example_question(),
-                        placeholder="Posez une question sur un Pokémon...",
-                        label=None,
-                        lines=1,
-                        scale=6,
+            with gr.Row(equal_height=True, elem_id="workspace"):
+                # Conversation
+                with gr.Column(scale=3, min_width=320, elem_id="conversation-panel"):
+                    chatbot = gr.Chatbot(
+                        show_label=False,
+                        height="100%",
+                        elem_id="chat-history",
+                    )
+                    gr.Markdown(
+                        "Chaque question est indépendante : précisez le Pokémon, "
+                        "sa forme et le jeu si nécessaire.",
+                        elem_id="question-hint",
+                    )
+                    with gr.Row(elem_id="question-row"):
+                        message = gr.Textbox(
+                            value="",
+                            placeholder="Quelles CT Bruyverne apprend-il dans Pokémon Écarlate et Violet ?",
+                            label="Votre question",
+                            show_label=False,
+                            container=False,
+                            lines=1,
+                            max_lines=2,
+                            scale=6,
+                            elem_id="question-box",
+                        )
+
+                        send = gr.Button(
+                            "Envoyer",
+                            variant="primary",
+                            scale=1,
+                        )
+
+                    with gr.Row(elem_id="question-actions"):
+                        example = gr.Button(
+                            "🎲 Question d'exemple",
+                            size="sm",
+                        )
+
+                        clear = gr.Button(
+                            "Nouvelle conversation",
+                            size="sm",
+                        )
+
+                # Activité
+                with gr.Column(scale=2, min_width=320, elem_id="agent-panel"):
+                    activity = gr.Markdown(
+                        _format_activity([], [], 0.0, "En attente d'une question."),
                     )
 
-                    send = gr.Button(
-                        "Envoyer",
-                        variant="primary",
-                        scale=1,
-                    )
+            # Envoi avec le bouton.
+            send.click(
+                fn=chat,
+                inputs=[
+                    message,
+                    chatbot,
+                    state,
+                ],
+                outputs=[
+                    chatbot,
+                    state,
+                    activity,
+                ],
+            ).then(
+                fn=lambda: "",
+                outputs=message,
+            )
 
-                with gr.Row():
-                    example = gr.Button(
-                        "🎲 Autre exemple",
-                        size="sm",
-                    )
+            # Envoi avec Entrée.
+            message.submit(
+                fn=chat,
+                inputs=[
+                    message,
+                    chatbot,
+                    state,
+                ],
+                outputs=[
+                    chatbot,
+                    state,
+                    activity,
+                ],
+            ).then(
+                fn=lambda: "",
+                outputs=message,
+            )
 
-                    clear = gr.Button(
-                        "Nouvelle conversation",
-                        size="sm",
-                    )
+            # Nouvelle question d'exemple.
+            example.click(
+                fn=_random_example_question,
+                outputs=message,
+            )
 
-                chatbot = gr.Chatbot(
-                    label="Conversation",
-                    height=480,
-                )
-
-            # Activité
-            with gr.Column(scale=2):
-                activity = gr.Markdown(
-                    """
-                    ## Agent activity
-
-                    En attente d'une question.
-                    """
-                )
-
-        # Envoi avec le bouton.
-        send.click(
-            fn=chat,
-            inputs=[
-                message,
-                chatbot,
-                state,
-            ],
-            outputs=[
-                chatbot,
-                state,
-                activity,
-            ],
-        ).then(
-            fn=lambda: "",
-            outputs=message,
-        )
-
-        # Envoi avec Entrée.
-        message.submit(
-            fn=chat,
-            inputs=[
-                message,
-                chatbot,
-                state,
-            ],
-            outputs=[
-                chatbot,
-                state,
-                activity,
-            ],
-        ).then(
-            fn=lambda: "",
-            outputs=message,
-        )
-
-        # Nouvelle question d'exemple.
-        example.click(
-            fn=_random_example_question,
-            outputs=message,
-        )
-
-        # Nouvelle conversation.
-        clear.click(
-            fn=new_conversation,
-            outputs=[
-                chatbot,
-                state,
-                activity,
-                message,
-            ],
-        )
+            # Nouvelle conversation.
+            clear.click(
+                fn=new_conversation,
+                outputs=[
+                    chatbot,
+                    state,
+                    activity,
+                    message,
+                ],
+            )
 
     return app
 
@@ -470,4 +620,6 @@ demo = build_app()
 if __name__ == "__main__":
     demo.launch(
         inbrowser=True,
+        theme=gr.themes.Soft(primary_hue="red", secondary_hue="slate"),
+        css=APP_CSS,
     )

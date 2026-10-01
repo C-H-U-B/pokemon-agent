@@ -893,3 +893,31 @@ answer limited to retrieved passages or an explicit unavailable-information
 response. The types tool description states this limit. The guard retains its
 constraint-protection responsibility; Qwen's adherence still requires manual
 validation.
+
+## 52. [Feature] Web interface highlighting agent activity
+
+The interface keeps a prominent activity panel to show how the ADK agent uses
+MCP tools. It presents the request path, readable tool labels, technical names,
+arguments and received or pending responses. Receiving a tool response is not
+presented as proof of success.
+
+The question appears immediately in the history, with input below the answers
+and a reminder that questions are independent. The initial input is empty;
+an example button fills it without running the agent. A missing final response
+has its own status. A Soft theme and responsive panel styles improve readability.
+The workspace fits the window with scrolling inside the panels. A temporary
+ellipsis bubble indicates that a response is being prepared and is replaced by
+the final answer or error, without persisting in the conversation history.
+The redundant conversation heading is removed, and input and action rows keep
+their natural height so that the remaining space is allocated to the answers.
+The conversation is placed on the left and the agent panel on the right.
+User bubbles are aligned on the left and assistant bubbles on the right. A grid
+allocates all remaining height to the chat above the compact input controls.
+Activity now explains each technology as calls occur: Qwen interprets the
+question, MCP tools query SQLite or search Poképédia text via RAG / Chroma,
+and Qwen prepares the answer from tool returns. Static explanatory text is
+replaced by this progressive account.
+Elapsed times now distinguish initial analysis, tool waiting and response
+preparation, with a timer for each call. Retries accumulate time, while parallel
+tool waits count once in the phase total. Measurements reflect events received
+by the interface, including transport and session overhead.
