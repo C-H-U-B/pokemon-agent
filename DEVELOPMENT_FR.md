@@ -840,3 +840,15 @@ de test. La découverte de `pokemon_types` par `McpToolset` et le parcours compl
 Qwen → ADK → MCP → `pokemon_types` → réponse ont été validés manuellement.
 Les tests conservent des frontières distinctes : protocole stdio, découverte
 ADK, function calling et parcours complet.
+
+## 44. [Feature] Guard déterministe des niveaux dans l'agent ADK
+
+Un callback avant l'appel d'outil réutilise l'extraction commune des contraintes
+pour restaurer les bornes numériques dans `pokemon_level_up_moves`. Il bloque
+les niveaux ambigus ou invalides et les outils qui ne peuvent pas les respecter.
+Cette première protection porte uniquement sur les niveaux, sans remplacer
+les contrôles du graphe ou du client MCP.
+
+La détection `level_explicit` exige désormais un nombre en plus du mot niveau,
+pour laisser passer une demande générale comme « en montant de niveau ».
+Des tests unitaires avec le contexte ADK simulé vérifient ces décisions sans LLM.

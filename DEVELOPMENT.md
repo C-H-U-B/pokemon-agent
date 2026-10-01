@@ -800,3 +800,14 @@ thresholds. Discovery of `pokemon_types` through `McpToolset` and the complete
 Qwen → ADK → MCP → `pokemon_types` → response path were validated manually.
 Tests retain distinct boundaries: stdio protocol, ADK discovery, function
 calling and the complete path.
+
+## 44. [Feature] Deterministic level guard in the ADK agent
+
+A callback before tool execution reuses shared constraint extraction to restore
+numeric bounds in `pokemon_level_up_moves`. It blocks ambiguous or invalid
+levels and tools that cannot preserve them. This initial protection covers
+levels only, without replacing graph or MCP client checks.
+
+Detection through `level_explicit` now requires a number alongside the word
+level, allowing general requests such as the French “en montant de niveau”.
+Unit tests with a simulated ADK context verify these decisions without an LLM.
