@@ -19,7 +19,6 @@ class WebSession:
     """État propre à une conversation Gradio."""
 
     user_id: str = field(default_factory=lambda: f"web_{uuid.uuid4().hex}")
-    session_id: str | None = None
 
 
 runner = InMemoryRunner(agent=root_agent)
@@ -157,33 +156,21 @@ def _format_activity(
     return "\n".join(lines)
 
 
-async def _ensure_adk_session(state: WebSession) -> WebSession:
-    """Crée la session ADK au premier message uniquement."""
-
-    if state.session_id is not None:
-        return state
-
-    session = await runner.session_service.create_session(
-        app_name=runner.app_name,
-        user_id=state.user_id,
-    )
-
-    state.session_id = session.id
-
-    return state
-
-
 async def _run_agent_into_queue(
     state: WebSession,
     content: types.Content,
     queue: asyncio.Queue,
 ) -> None:
-    """Exécute ADK et transmet chaque événement à la file temps réel."""
+    """Exécute une question dans une session ADK indépendante et temporaire."""
 
+    session = None
     try:
+        session = await runner.session_service.create_session(
+            app_name=runner.app_name, user_id=state.user_id,
+        )
         async for event in runner.run_async(
             user_id=state.user_id,
-            session_id=state.session_id,
+            session_id=session.id,
             new_message=content,
         ):
             await queue.put(("event", event))
@@ -192,7 +179,16 @@ async def _run_agent_into_queue(
         await queue.put(("error", exc))
 
     finally:
-        await queue.put(("done", None))
+        try:
+            if session is not None:
+                await runner.session_service.delete_session(
+                    app_name=runner.app_name, user_id=state.user_id,
+                    session_id=session.id,
+                )
+        except Exception as exc:
+            await queue.put(("error", exc))
+        finally:
+            await queue.put(("done", None))
 
 
 async def chat(
@@ -211,8 +207,6 @@ async def chat(
             "## Agent activity\n\nAucune requête envoyée.",
         )
         return
-
-    state = await _ensure_adk_session(state)
 
     content = types.Content(
         role="user",

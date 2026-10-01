@@ -89,7 +89,8 @@ python -m pokemon_rag.web.app
 ```
 
 The browser opens automatically. The interface reuses the ADK agent, retains
-the conversation and displays tool activity and elapsed time.
+the conversation on screen and displays tool activity and elapsed time.
+Each question is sent to the agent without previous message history.
 
 ## Build the data
 

@@ -12,7 +12,7 @@ Lire ensuite uniquement le [guide spécialisé](docs/README.md) de la tâche.
 
 | Entrée | Usage et effets |
 | --- | --- |
-| `python -m pokemon_rag.web.app` | Interface Gradio, navigateur automatique, session ADK conservée et activité progressive ; appelle Qwen lors d'une question |
+| `python -m pokemon_rag.web.app` | Interface Gradio, navigateur automatique, historique affiché et activité progressive ; session ADK indépendante par question |
 | `adk run src/pokemon_rag/agent` | Agent ADK unique via LiteLLM et LM Studio ; huit outils MCP, guard avant appel, réponses en français, sans grounding |
 | `python -m pokemon_rag.graph.graph` | Terminal interactif ; appelle `run_graph`, peut utiliser LM Studio et écrit une trace |
 | `graph.graph.run_graph(initial_state)` | Entrée Python du graphe ; état contenant au minimum `question` |
@@ -39,7 +39,8 @@ flowchart TD
     M --> R[Recherche RAG : Poképédia et Chroma]
 ```
 
-La Web UI réutilise la session ADK entre messages et affiche les événements
+La Web UI conserve l'historique à l'écran, sans le transmettre à ADK : chaque
+question utilise une session temporaire distincte. Elle affiche les événements
 d'outils ainsi que le temps écoulé. Elle conserve les limites du parcours ADK.
 Voir le [guide Web](src/pokemon_rag/web/README.md) pour l'utilisation, les exemples
 et les points non vérifiés concernant l'isolation des navigateurs.

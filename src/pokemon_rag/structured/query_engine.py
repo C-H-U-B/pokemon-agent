@@ -1009,6 +1009,7 @@ def get_machine_moves(
     form: str | None = None,
     version_group: str | None = None,
 ) -> dict[str, Any]:
+    """CT du jeu demandé, ou du plus récent avec des données de CT pour la forme."""
     start = time.perf_counter()
     conn = _connect()
     try:
@@ -1016,6 +1017,27 @@ def get_machine_moves(
         pokemon_ids = [row["pokemon_id"] for row in forms]
         placeholders = ",".join("?" for _ in pokemon_ids)
         params: list[Any] = [*pokemon_ids]
+        version_selection = "explicit" if version_group else "latest_available"
+        if not version_group:
+            latest = conn.execute(
+                f"""SELECT DISTINCT vg.identifier
+                    FROM pokemon_moves pm
+                    JOIN version_groups vg ON vg.id = pm.version_group_id
+                    JOIN pokemon_move_methods pmm ON pmm.id = pm.pokemon_move_method_id
+                    WHERE pm.pokemon_id IN ({placeholders})
+                      AND pmm.identifier = 'machine'
+                    ORDER BY vg."order" DESC, vg.id DESC LIMIT 1""",
+                pokemon_ids,
+            ).fetchone()
+            if latest is None:
+                return {
+                    "operation": "get_machine_moves", "pokemon": pokemon,
+                    "form": form, "version_group": None,
+                    "version_selection": version_selection,
+                    "count": 0, "moves": [],
+                    "execution_time": time.perf_counter() - start,
+                }
+            version_group = latest["identifier"]
         version_sql = ""
         if version_group:
             version_sql = " AND vg.identifier = ?"
@@ -1066,6 +1088,7 @@ def get_machine_moves(
             "pokemon": pokemon,
             "form": form,
             "version_group": version_group,
+            "version_selection": version_selection,
             "count": len(moves),
             "moves": moves,
             "execution_time": time.perf_counter() - start,
@@ -1082,12 +1105,27 @@ def _pokedex_entry(pokemon: str, form: str | None) -> dict[str, Any]:
     conn = _connect()
     try:
         rows = [dict(row) for row in conn.execute("SELECT * FROM custom_pokedex")]
+        # Les noms d'espèce peuvent différer du nom complet de l'entrée de forme.
+        # Réutiliser le catalogue canonique, sans retirer des suffixes heuristiques.
+        species_id = None
+        if conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE name = ?", ("pokemon_species",)
+        ).fetchone():
+            try:
+                species_id = _resolve_species(conn, pokemon)["species_id"]
+            except ValueError:
+                pass
     finally:
         conn.close()
     wanted = _normalize(pokemon)
     matches = [row for row in rows if wanted in {
         _normalize(row.get(key)) for key in ("name_fr", "name_en", "pokemon_identifier", "form_identifier")
     }]
+    if not matches and species_id is not None:
+        matches = [row for row in rows if row["species_id"] == species_id]
+        if not form:
+            # Ne choisir la forme par défaut que pour un vrai nom d'espèce.
+            matches = [row for row in matches if row.get("is_default")]
     if form:
         # Accepte une espèce de base + un libellé explicite de forme, sans fallback.
         species = {row["species_id"] for row in matches}

@@ -99,12 +99,13 @@ def pokemon_machine_moves(
     form: str | None = None,
     version_group: str | None = None,
 ) -> dict[str, Any]:
-    """Retourne les capacités apprises par CT ou CS par un Pokémon.
+    """Retourne les CT/CS du jeu demandé ou du plus récent dans les données locales.
 
     Args:
         pokemon: Nom français, anglais ou identifiant PokéAPI du Pokémon.
         form: Forme particulière du Pokémon, si nécessaire.
-        version_group: Groupe de versions PokéAPI à utiliser comme filtre.
+        version_group: Groupe PokéAPI ; si absent, sélection du plus récent
+            avec des données de CT/CS pour le Pokémon et sa forme.
     """
     return get_machine_moves(
         pokemon=pokemon,
@@ -118,7 +119,10 @@ def pokemon_types(
     pokemon: str,
     form: str | None = None,
 ) -> dict[str, Any]:
-    """Retourne les types d'une entrée du Pokédex personnalisé.
+    """Retourne seulement les types d'une entrée du Pokédex personnalisé.
+
+    Ne fournit ni apparence ni description physique, comportement ou habitat.
+    Pour ces sujets, utiliser pokemon_rag_search.
 
     Args:
         pokemon: Nom du Pokémon ou de l'entrée du Pokédex.
