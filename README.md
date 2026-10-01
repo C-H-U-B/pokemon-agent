@@ -49,6 +49,7 @@ The RAG pipeline uses hybrid retrieval, section-aware retrieval and reranking be
 ```text
 pokemon-rag/
 ├── src/pokemon_rag/    # application Python
+│   └── constraints/    # shared extraction of form, game and level constraints
 ├── scripts/            # préparation des données, batch et analyse
 ├── tests/              # tests isolés et validations avec ressources locales
 ├── benchmarks/         # évaluations et références factuelles
@@ -60,6 +61,8 @@ pokemon-rag/
 Generated databases, Poképédia pages and vector indexes are not stored in the repository.
 
 ## Setup
+
+See the [constraints guide](src/pokemon_rag/constraints/README.md) for the shared extractors and their limits.
 
 Create and activate a Python environment, then install the dependencies:
 

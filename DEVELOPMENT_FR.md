@@ -778,3 +778,28 @@ après une sortie valide reste distinct de cette gestion des pannes.
 
 Des tests simulés vérifient la conservation du scope, la trace du diagnostic
 et l'absence d'appel aux étapes suivantes après une panne.
+
+## 40. [Bug fix] Contrôle des contraintes avant un appel MCP
+
+Le client MCP et le moteur structuré doivent interpréter les mêmes mentions de
+forme, de jeu et de niveau. Le dossier `constraints` rassemble désormais leurs
+règles d'extraction déterministes, sans accès aux données ni appel au modèle.
+
+Le moteur conserve la validation des plans et l'accès à SQLite ; le client
+conserve la réconciliation des arguments avant l'appel d'outil. Le guide du
+module précise cette séparation et les limites de reconnaissance, pour ne pas
+confondre extraction partagée et validation complète d'une demande.
+
+Le client rétablit les filtres reconnus et refuse les contraintes non résolues
+ou incompatibles avec l'outil. Les intervalles « entre les niveaux » sont reconnus,
+et le moteur associe Tonnerre à son identifiant interne `thunderbolt` sans changer
+la langue de l'interface. Les tests déterministes couvrent la réconciliation ;
+la validation complète avec Qwen reste à effectuer. Les restrictions sur les
+questions documentaires générales sont décrites dans le guide MCP.
+
+## 41. [Architecture] Séparation des validations MCP
+
+Les scénarios qui utilisent réellement Qwen sont regroupés dans `tests/long`,
+séparément des parcours client simulés. Un test d'intégration du serveur vérifie
+la découverte des outils et une requête structurée via stdio sans génération LLM.
+Cette séparation permet de choisir une validation selon ses dépendances réelles.

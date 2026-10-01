@@ -52,7 +52,10 @@ décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 | Reprises ou erreurs terminales | `integration/test_graph_retry_policy.py`, `integration/test_graph_errors.py` |
 | Retrieval ou grounding | `unit/test_retrieval_logic.py`, `unit/test_grounding_logic.py` |
 | Traces et coûts | `unit/test_metrics.py`, `unit/test_tracing.py` |
-| Client MCP | Partie simulée de `integration/test_mcp_client_e2e.py`, puis E2E réel exécuté par l'utilisateur |
+| Client MCP | `integration/test_mcp_client.py`, puis `long/test_mcp_client_e2e.py` exécuté par l'utilisateur |
+| Contraintes MCP | `unit/test_mcp_constraint_preservation.py` : extraction et réconciliation sans LLM |
+| Serveur MCP | `integration/test_mcp_server.py` : vrai transport stdio et outil structuré, sans Qwen |
+| Résolution de Tonnerre | `integration/test_structured_constraint_preservation.py` : parsing et vraie base |
 
 Les jeux inconnus explicitement mentionnés sont rejetés avant le recours au LLM,
 sans supprimer le filtre demandé. Ce comportement et les bornes de niveau
@@ -60,7 +63,7 @@ sans supprimer le filtre demandé. Ce comportement et les bornes de niveau
 
 ## Client MCP : intégration et bout en bout
 
-`integration/test_mcp_client_e2e.py` couvre le parcours question → découverte des
+`integration/test_mcp_client.py` couvre le parcours question → découverte des
 outils → sélection → exécution → réponse. Les tests isolés simulent les frontières
 MCP et LLM pour vérifier les erreurs, les formats de résultats, l'interface terminal
 et la fermeture des contextes. Ils utilisent les objets du SDK MCP installé.
@@ -73,11 +76,13 @@ et doit être exécutée par l'utilisateur. Transmettre la sortie pytest et le r
 JUnit, en distinguant les erreurs techniques des contraintes métier non respectées.
 
 ```powershell
-conda run -n langgraph-agent python -m pytest tests/integration/test_mcp_client_e2e.py -m "not llm" -q -p no:cacheprovider
-conda run -n langgraph-agent python -m pytest tests/integration/test_mcp_client_e2e.py -m llm -q -p no:cacheprovider --junitxml=traces/mcp-e2e.xml -o junit_family=legacy
+python -m pytest tests/integration/test_mcp_client.py -q -p no:cacheprovider
+python -m pytest tests/long/test_mcp_client_e2e.py -q -p no:cacheprovider --junitxml=traces/mcp-e2e.xml -o junit_family=legacy
 ```
 
-Les scénarios réels démarrent le serveur MCP en sous-processus et utilisent les
+Ces commandes supposent l'environnement `langgraph-agent` déjà activé.
+Les scénarios réels sont regroupés dans `long/test_mcp_client_e2e.py`.
+Ils démarrent le serveur MCP en sous-processus et utilisent les
 vrais outils et Qwen. Ils nécessitent le projet installé dans `langgraph-agent`,
 un SDK MCP compatible, LM Studio sur `localhost:1234` avec `qwen/qwen3-vl-8b`,
 la base `pokemon.db`, le corpus et les modèles de recherche déjà disponibles.
@@ -93,7 +98,41 @@ ses arguments, son résultat et la réponse pour relecture. Le succès de ces te
 ne garantit pas la fidélité du texte généré : le client n'applique pas le contrôle
 de grounding du graphe et aucun LLM juge n'est utilisé ici.
 
+## Contraintes et serveur MCP
+
+Les tests unitaires de contraintes vérifient les filtres restaurés, les refus
+et l'intervalle « entre les niveaux 10 et 20 ». Ils appellent la réconciliation
+directement : ils ne prouvent pas à eux seuls le comportement complet de `ask`.
+
+```powershell
+python -m pytest tests/unit/test_mcp_constraint_preservation.py tests/integration/test_mcp_client.py -q -p no:cacheprovider
+python -m pytest tests/integration/test_mcp_server.py -q -p no:cacheprovider
+```
+
+Le test serveur nécessite la base locale et le SDK MCP compatible. Il découvre
+les huit outils et appelle réellement `pokemon_types`, sans Qwen ni recherche RAG.
+Il utilise `asyncio.run` et ne nécessite pas `pytest-asyncio`.
+
+Le test de Tonnerre appelle `query_structured_data`, dont le parseur peut se
+replier vers un LLM. Son marqueur `real_data` ne garantit donc pas une exécution
+sans modèle. Commande à exécuter par l'utilisateur avec la base locale et, si le
+repli est nécessaire, LM Studio configuré pour le parseur :
+
+```powershell
+python -m pytest tests/integration/test_structured_constraint_preservation.py -q -p no:cacheprovider
+```
+
+Il vérifie le nom français du plan, le groupe Rouge/Bleu et l'identifiant interne
+`thunderbolt`. Transmettre la sortie pytest, y compris tout échec de parsing.
+
+Pour les tests simulés du client, le catalogue doit déclarer les propriétés
+réellement acceptées : un schéma réduit à `{"type": "object"}` ne suffit plus
+au contrôle de compatibilité. Les E2E enregistrent actuellement le choix brut
+de `choose_tool`, avant réconciliation ; leurs assertions sur ce choix ne valident
+donc pas directement les arguments corrigés envoyés au serveur.
+
 ## Évaluation factuelle
+
 
 Le benchmark suivant appelle un LLM : commande à faire exécuter par l'utilisateur,
 qui transmet ensuite le rapport JSON et la sortie terminal. `review_answers.py`

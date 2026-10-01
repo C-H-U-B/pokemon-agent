@@ -23,7 +23,8 @@ conda run -n langgraph-agent python -m pokemon_rag.client.mcp_client
 Cette commande appelle réellement un LLM : l'utilisateur doit l'exécuter lui-même.
 Le client lit une question, démarre le serveur avec le même interpréteur Python,
 initialise une session stdio et découvre les outils et leurs schémas. Qwen choisit
-un outil et ses arguments ; le client l'exécute puis transmet le résultat à Qwen
+un outil et ses arguments ; le client les réconcilie avec les contraintes
+explicites avant exécution, puis transmet le résultat à Qwen
 pour formuler une réponse en français. Il lit ensuite les questions suivantes
 dans la même session. Une ligne vide, `quit`, `/quit`, `exit` ou une fin de saisie
 termine la boucle ; une sortie avant la première question ne démarre aucun serveur.
@@ -31,7 +32,12 @@ termine la boucle ; une sortie avant la première question ne démarre aucun ser
 Les fonctions `choose_tool`, `extract_result` et `formulate_answer` sont dans
 [`client/mcp_client.py`](../client/mcp_client.py). Le client vérifie le nom de
 l'outil et le type dictionnaire des arguments, mais ne valide pas lui-même leur
-conformité complète au schéma ni leur fidélité à la question. Une erreur MCP
+conformité complète au schéma. `reconcile_tool_call` utilise les
+[extracteurs communs](../constraints/README.md) pour rétablir les formes, jeux et
+bornes reconnus. Une mention de niveau peut réorienter vers `pokemon_level_up_moves`.
+Une `ConstraintResolutionError` fait retourner à `ask` un message explicatif sans
+appel d'outil ni formulation finale. Un intervalle impossible lève une `ValueError`
+qui n'est pas convertie par ce mécanisme. Une erreur MCP
 signalée par `is_error` empêche la formulation ; une réponse finale vide lève une erreur.
 
 `open_client()` ouvre un contexte réutilisable : appeler `conversation.ask(question)`
@@ -49,14 +55,23 @@ Les appels OpenAI synchrones s'exécutent dans la coroutine ;
 le client ne configure pas les délais et reprises de `config.py`. Les limites
 ajoutées par les tests E2E ne sont donc pas celles de l'application.
 
-## Limites observées, non corrigées
+## Portée et limites du contrôle
 
-Le rapport local `traces/mcp-e2e.xml` de la validation précédente montre un filtre
-Rouge/Bleu omis, une confusion Tonnerre/Thunder et une forme d'Alola perdue lors
-de la sélection. Le client peut ensuite formuler une réponse plausible avec ces
-mauvaises données. Ces observations ne constituent pas une nouvelle exécution ni
-une garantie que le modèle reproduira toujours les mêmes erreurs. Les tests et
-les modalités de relecture sont décrits dans [tests/README.md](../../../tests/README.md).
+Les pertes de jeu, de forme et les confusions de capacité précédemment observées
+motivent les régressions existantes. Le contrôle actuel porte sur les motifs
+reconnus et les noms des paramètres des outils, sans validation sémantique complète.
+Il exige aussi que le Pokémon proposé apparaisse après normalisation dans la
+question. Les limites, notamment les formes multiples, sont décrites dans le
+[guide des contraintes](../constraints/README.md). Les appels directs au serveur
+ne passent pas par ce contrôle du client. La présence du contrôle ne prouve pas
+la réussite des E2E avec Qwen ; voir les modalités de validation dans
+[tests/README.md](../../../tests/README.md).
+
+Deux cas demandent une attention particulière : le contrôle exige actuellement
+un Pokémon même pour une recherche documentaire globale ; une question générale
+sur la reproduction est donc refusée avant l'appel MCP. De plus, « dans la nature »
+peut déclencher la détection d'un jeu non reconnu et bloquer une question de
+comportement. Ces restrictions du client ne sont pas celles de l'outil RAG du serveur.
 
 Garder stdout du serveur réservé au protocole ; envoyer les diagnostics sur stderr. La disponibilité du serveur dépend de la compatibilité de la version installée du SDK MCP avec ses imports. La recherche réelle nécessite également l'index et les modèles locaux.
 
