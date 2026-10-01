@@ -7,6 +7,7 @@ les données locales. Chaque guide ci-dessous est la référence de son périmè
 | Besoin | Document |
 | --- | --- |
 | Installer et lancer le projet | [README français](../README_FR.md) |
+| Utiliser la conversation Web Gradio et ses exemples | [Interface Web](../src/pokemon_rag/web/README.md) |
 | Comprendre les flux et choisir le module à modifier | [Architecture](../ARCHITECTURE.md) |
 | Transmettre une tâche à un humain ou un agent | [Collaboration](COLLABORATION.md) |
 | Comprendre le graphe et ses sorties | [Graphe](../src/pokemon_rag/graph/README.md) |

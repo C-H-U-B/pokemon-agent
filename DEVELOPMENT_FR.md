@@ -879,3 +879,15 @@ augmenté de 8192 à 16384 tokens.
 Des différences de temps de traitement ont été observées pour les résultats
 d'outils volumineux. Leur cause n'a pas été établie ; cette observation ne
 constitue pas une mesure isolant un composant ou expliquant son coût.
+
+## 47. [Feature] Interface conversationnelle Web avec Gradio
+
+Une interface Gradio permet d'utiliser localement le root_agent ADK existant
+depuis le navigateur, sans créer un autre agent ni contourner MCP. La session
+ADK est conservée entre messages ; une action ouvre une nouvelle conversation.
+
+Un panneau d'activité affiche progressivement les appels et arguments d'outils,
+la réception de leurs réponses et un chrono actualisé pendant l'exécution.
+Il s'appuie sur les événements function_call et function_response. Des questions
+d'exemple sont tirées au hasard depuis un fichier annexe. Le lancement local
+demande l'ouverture automatique du navigateur.

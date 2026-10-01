@@ -837,3 +837,14 @@ window: Qwen's context in LM Studio was increased from 8192 to 16384 tokens.
 Differences in processing time were observed for large tool results. Their
 cause has not been established; this observation does not isolate a component
 or explain its cost.
+
+## 47. [Feature] Gradio Web conversation interface
+
+A Gradio interface makes the existing ADK root_agent available locally in the
+browser, without creating another agent or bypassing MCP. The ADK session is
+retained between messages; an action starts a new conversation.
+
+An activity panel progressively displays tool calls and arguments, receipt of
+their responses and an elapsed-time counter updated during execution. It uses
+function_call and function_response events. Example questions are randomly
+selected from a separate file. Local startup requests automatic browser opening.

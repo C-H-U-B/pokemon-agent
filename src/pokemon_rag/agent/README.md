@@ -32,6 +32,11 @@ Le guard ne modifie pas le catalogue d'outils de l'agent.
 
 ## Utilisation manuelle
 
+L'[interface Web Gradio](../web/README.md) réutilise ce même `root_agent` et
+conserve la session ADK entre messages. Elle ajoute la présentation de l'activité
+et ne remplace ni MCP ni le guard. Son lancement et ses exemples sont décrits
+dans le guide Web.
+
 Dans l'environnement Conda `langgraph-agent`, installer le projet avec
 `pip install -e .`. Les versions déclarées sont `google-adk==2.10.0` et
 `litellm==1.103.2`. LM Studio doit déjà servir `qwen/qwen3-vl-8b` sur le port 1234.
