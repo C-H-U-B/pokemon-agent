@@ -55,7 +55,9 @@ décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 | Client MCP | `integration/test_mcp_client.py`, puis `long/test_mcp_client_e2e.py` exécuté par l'utilisateur |
 | Contraintes MCP | `unit/test_mcp_constraint_preservation.py` : extraction et réconciliation sans LLM |
 | Guard ADK | `unit/test_adk_tool_guard.py` : callback et vrais extracteurs, contexte et outils ADK simulés, sans LLM ni serveur MCP |
+| Sessions Web | `unit/test_web_request_sessions.py` : runner ADK simulé ; questions indépendantes, historique affiché conservé, suppression des sessions après succès ou erreur |
 | Serveur MCP | `integration/test_mcp_server.py` : vrai transport stdio et outil structuré, sans Qwen |
+| Alias d'espèces du Pokédex | `integration/test_pokedex_species_aliases.py` : vraie base, appels métier/MCP directs sans parseur LLM ; formes par défaut et noms français des capacités |
 | Résolution de Tonnerre | `integration/test_structured_constraint_preservation.py` : parsing et vraie base |
 
 Les jeux inconnus explicitement mentionnés sont rejetés avant le recours au LLM,
@@ -131,7 +133,8 @@ python -m pytest tests/integration/test_mcp_server.py -q -p no:cacheprovider
 ```
 
 Le test serveur nécessite la base locale et le SDK MCP compatible. Il découvre
-les huit outils et appelle réellement `pokemon_types`, sans Qwen ni recherche RAG.
+les huit outils et appelle réellement `pokemon_types` pour Pikachu et Nigirigon,
+puis vérifie qu'une espèce inexistante produit une erreur MCP, sans Qwen ni recherche RAG.
 Il utilise `asyncio.run` et ne nécessite pas `pytest-asyncio`.
 
 Le test de Tonnerre appelle `query_structured_data`, dont le parseur peut se

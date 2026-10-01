@@ -28,16 +28,16 @@ ces événements : analyse, exécution d'outil, résultat reçu et génération 
 Un résultat reçu ne prouve pas la réussite métier de l'outil. Les arguments
 affichés ne constituent pas une preuve des arguments corrigés envoyés au serveur.
 Le chrono est rafraîchi toutes les 0,1 seconde pendant l'attente ; il démarre
-après la création éventuelle de la session ADK. La conversation reçoit le texte
+avant la création de la session ADK de la requête. La conversation reçoit le texte
 final à la fin de l'exécution, sans affichage token par token de la réponse.
 
 ## Conversations et exemples
 
-`WebSession` conserve un `user_id` issu d'un UUID et un `session_id` ADK créé
-au premier message. Les messages suivants réutilisent cette session en mémoire.
-« Nouvelle conversation » efface l'historique affiché et crée un nouvel état
-avec de nouveaux identifiants ; le code ne supprime pas l'ancienne session ADK.
-Ces données ne sont pas persistées entre redémarrages du processus.
+`WebSession` conserve un `user_id` issu d'un UUID pour l'interface. Chaque question
+crée une session ADK indépendante, supprimée à la fin, y compris après une erreur.
+L'historique reste affiché dans Gradio mais n'est pas envoyé à l'agent : chaque
+question doit être autonome. « Nouvelle conversation » efface l'historique
+affiché et crée un nouvel état Web. Rien n'est persisté après redémarrage.
 
 Les exemples sont chargés à l'import depuis `example_questions.txt`, voisin
 de `app.py`, en UTF-8 : une question par ligne non vide. Un fichier manquant

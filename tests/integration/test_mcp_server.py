@@ -56,6 +56,17 @@ async def _check_server() -> None:
             assert result.structured_content is not None
 
             data = result.structured_content
+            nigirigon = await session.call_tool(
+                "pokemon_types", arguments={"pokemon": "Nigirigon"}
+            )
+            assert not nigirigon.is_error
+            assert nigirigon.structured_content["rows"][0]["type_1_fr"] == "Dragon"
+            assert nigirigon.structured_content["rows"][0]["type_2_fr"] == "Eau"
+
+            missing = await session.call_tool(
+                "pokemon_types", arguments={"pokemon": "Espèce inexistante"}
+            )
+            assert missing.is_error
 
             assert data["operation"] == "get_pokemon_types"
             assert data["pokemon"].casefold() == "pikachu"

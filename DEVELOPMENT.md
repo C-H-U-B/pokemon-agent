@@ -848,3 +848,48 @@ An activity panel progressively displays tool calls and arguments, receipt of
 their responses and an elapsed-time counter updated during execution. It uses
 function_call and function_response events. Example questions are randomly
 selected from a separate file. Local startup requests automatic browser opening.
+
+## 48. [Bug fix] Resolving species with forms and ADK response instructions
+
+Tatsugiri existed in the custom Pokédex under its complete form name, but its
+species name matched no entry. Resolution now uses the species catalog and
+default form when the complete name does not match, without replacing an
+explicitly requested form. Deterministic tests cover other species and MCP error
+propagation as well.
+
+Diagnosis for Barbaracle confirms that French and English move names are present
+in results, while games remain technical identifiers. ADK instructions prefer
+French names without unsolicited English parentheses and require reporting
+unavailable information after source retrieval fails rather than answering from
+memory. These generation instructions still require manual validation and do
+not replace graph grounding.
+
+## 49. [Bug fix] Limiting machine moves without a specified game
+
+A machine-move request without a game sent results from multiple versions,
+potentially exceeding Qwen's context. The engine now selects only the latest
+group with local machine-move data for the requested form. The result identifies
+that group, and the agent must state it in French. An explicitly requested game
+remains authoritative, even if it has no results.
+
+Tests without an LLM verify selection for Noivern and preservation of an older
+game for Oranguru. The criterion uses local machine-move data and does not claim
+exhaustive availability across games.
+
+## 50. [Bug fix] Web questions without agent memory
+
+Reusing the ADK session could mix a previous answer into the current question.
+The interface now retains history only for display. Each question uses an
+independent ADK session, deleted after success or failure. Tests with a simulated
+runner verify this isolation and preservation of visible conversation history
+without calling the model.
+
+## 51. [Bug fix] Documentary tool selection for ADK descriptions
+
+An appearance question about Bastiodon triggered the types tool, followed by an
+unsupported description. ADK instructions now distinguish documentary subjects
+from structured properties and require RAG retrieval for appearance, with an
+answer limited to retrieved passages or an explicit unavailable-information
+response. The types tool description states this limit. The guard retains its
+constraint-protection responsibility; Qwen's adherence still requires manual
+validation.

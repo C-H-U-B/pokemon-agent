@@ -144,7 +144,8 @@ python -m pokemon_rag.web.app
 ```
 
 Le navigateur s'ouvre automatiquement. L'interface réutilise l'agent ADK,
-conserve la conversation et affiche l'activité des outils et le chrono.
+conserve la conversation à l'écran et affiche l'activité des outils et le chrono.
+Chaque question est envoyée à l'agent sans l'historique des messages précédents.
 
 Lancer LM Studio, charger les modèles locaux nécessaires, puis exécuter :
 

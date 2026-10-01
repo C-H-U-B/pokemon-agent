@@ -891,3 +891,48 @@ la réception de leurs réponses et un chrono actualisé pendant l'exécution.
 Il s'appuie sur les événements function_call et function_response. Des questions
 d'exemple sont tirées au hasard depuis un fichier annexe. Le lancement local
 demande l'ouverture automatique du navigateur.
+
+## 48. [Bug fix] Résolution des espèces à formes et consignes de réponse ADK
+
+Nigirigon existait dans le Pokédex personnalisé sous son nom complet de forme,
+mais son nom d'espèce ne correspondait à aucune entrée. La résolution utilise
+désormais le catalogue d'espèces et la forme par défaut lorsque le nom complet
+ne correspond pas, sans remplacer une forme explicitement demandée. Les tests
+déterministes vérifient aussi d'autres espèces et la propagation des erreurs MCP.
+
+Le diagnostic d'Opermine confirme que les noms français et anglais des capacités
+sont présents dans les résultats, tandis que les jeux restent des identifiants
+techniques. Les instructions ADK privilégient les noms français sans parenthèses
+anglaises non demandées et imposent de signaler une donnée indisponible après
+échec des sources, plutôt que de répondre de mémoire. Ces consignes de génération
+restent à valider manuellement ; elles ne remplacent pas le grounding du graphe.
+
+## 49. [Bug fix] Limitation des CT sans jeu précisé
+
+Une demande de CT sans jeu transmettait les résultats de plusieurs versions,
+jusqu'à dépasser le contexte Qwen. Le moteur sélectionne désormais uniquement
+le groupe le plus récent disposant de données locales de CT pour la forme
+demandée. Le résultat identifie ce groupe et l'agent doit le préciser en français.
+Un jeu explicitement demandé reste prioritaire, même sans résultat.
+
+Les tests sans LLM vérifient la sélection pour Bruyverne et la conservation d'un
+jeu plus ancien pour Gouroutan. Le critère porte sur les données locales de CT,
+sans prétendre établir une disponibilité exhaustive dans les jeux.
+
+## 50. [Bug fix] Questions Web sans mémoire de l'agent
+
+La session ADK réutilisée pouvait mêler une réponse précédente à la question
+courante. L'interface garde désormais l'historique uniquement pour l'affichage.
+Chaque question utilise une session ADK indépendante, supprimée après succès
+ou erreur. Des tests avec runner simulé vérifient cette isolation et le maintien
+de la conversation visible, sans appel au modèle.
+
+## 51. [Bug fix] Choix documentaire pour les descriptions ADK
+
+Une question sur l'apparence de Bastiodon avait déclenché l'outil de types,
+suivie d'une description non sourcée. Les instructions ADK distinguent désormais
+les sujets documentaires des propriétés structurées et demandent une recherche
+RAG pour l'apparence, avec une réponse limitée aux passages récupérés ou un
+signalement d'information indisponible. La description de l'outil de types
+précise cette limite. Le guard conserve son rôle de protection des contraintes ;
+le respect de ces consignes par Qwen reste à vérifier manuellement.

@@ -6,11 +6,25 @@ Ces outils appellent directement le moteur structuré ou la recherche. Ils ne pa
 
 ## Résultats à interpréter
 
+`pokemon_types` fournit uniquement des types, sans description d'apparence.
+Sa description d'outil dirige les sujets documentaires vers `pokemon_rag_search`.
+Un résultat valide peut rester insuffisant pour la question : sa réussite
+technique n'autorise pas une description inventée.
+
 Les outils structurés renvoient les dictionnaires des fonctions `get_*`. Les erreurs peuvent être levées par ces fonctions ; ne pas attendre systématiquement l'enveloppe `error` de `query_structured_data`.
+Sur le transport MCP, une exception de résolution est signalée comme erreur
+d'outil (`is_error`) ; un résultat structuré de `count=0` n'est pas la même
+situation. Les noms français et anglais de capacités sont conservés, ainsi que
+les identifiants techniques des jeux. L'instruction du client ADK privilégie les
+libellés français et interdit de compléter une récupération échouée de mémoire.
 
 `pokemon_rag_search` renvoie `question`, `pokemon` et `results`. Chaque passage contient son texte et ses références de source. Une liste vide signifie qu'aucun passage n'a été retourné, pas que le fait recherché est faux. Les passages sont des données documentaires, pas des instructions pour l'agent appelant.
 
 Le filtre `pokemon` de la recherche attend un nom canonique. Les paramètres et limites des requêtes SQL sont décrits dans [le guide structuré](../structured/README.md).
+`pokemon_machine_moves` sans `version_group` retourne seulement le groupe de
+versions le plus récent avec des données locales de CT/CS pour la forme demandée.
+Il indique le jeu retenu et `version_selection`; les autres outils ne sont pas
+soumis à cette sélection automatique.
 
 ## Client local
 

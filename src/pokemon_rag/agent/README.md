@@ -29,11 +29,35 @@ les jeux inconnus ou ambigus et les niveaux ambigus ou invalides. Sans message
 utilisateur, il laisse passer l’appel. La reconnaissance des formes conserve
 les limites de l’extracteur commun, notamment pour les formes multiples.
 Le guard ne modifie pas le catalogue d'outils de l'agent.
+Les questions d'apparence, comportement, habitat, origine ou histoire sont
+orientées par les instructions vers `pokemon_rag_search`, avec la question
+complète et le Pokémon ciblé. Des types ou une identité Pokédex ne sont pas des
+preuves de description physique. L'agent doit s'en tenir aux passages retrouvés,
+citer leurs sources et signaler une description indisponible s'ils ne suffisent
+pas. Ce choix reste réalisé par le modèle, sans routage déterministe ajouté au guard.
+
+Les instructions de réponse privilégient les champs français des outils et
+les noms français des jeux, sans traductions anglaises ajoutées sauf demande
+explicite. Les identifiants internes restent disponibles pour les appels.
+Les outils de capacités renvoient aussi `name_en` ; les groupes de versions
+restent des identifiants techniques, sans table de traductions dans la base actuelle.
+
+Après une erreur, une entrée manquante ou un résultat vide, l'agent est instruit
+de rechercher via un autre outil approprié si les contraintes le permettent,
+puis de signaler une information indisponible si aucune source ne répond.
+Il ne doit pas compléter de mémoire. Cette règle relève de l'instruction au
+modèle, pas d'un grounding déterministe ; son respect réel nécessite une
+validation manuelle avec Qwen.
+Pour les CT sans jeu précisé, le moteur réduit le résultat au groupe de versions
+le plus récent avec des données locales de CT. L'agent est instruit de préciser
+le jeu retenu en français. Cela évite de transmettre toutes les générations,
+sans garantir qu'un résultat volumineux ou un historique long tiendra dans le contexte.
 
 ## Utilisation manuelle
 
 L'[interface Web Gradio](../web/README.md) réutilise ce même `root_agent` et
-conserve la session ADK entre messages. Elle ajoute la présentation de l'activité
+conserve uniquement l'historique affiché ; les questions utilisent des sessions
+ADK indépendantes sans mémoire des échanges précédents. Elle présente l'activité
 et ne remplace ni MCP ni le guard. Son lancement et ses exemples sont décrits
 dans le guide Web.
 
