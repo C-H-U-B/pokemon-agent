@@ -1035,3 +1035,63 @@ contenu ou schéma de base n'a été modifié.
 Les instructions et annotations de schémas ont aussi été compactées, ainsi
 que les champs techniques des classements destinés à ADK, pour transmettre
 les top 10 sans dépasser le budget existant ni réduire leur nombre de lignes.
+
+## 56. [Bug fix] Classements réconciliés avant MCP
+
+Une demande de Méga avec le moins de Défense pouvait envoyer un type Acier
+inventé et omettre le tri, puis atteindre le plafond de contexte. Les clients
+restaurent maintenant les motifs de classement reconnus et les types demandés
+avant SQL, sans comparer les valeurs. Les libellés statistiques sont partagés.
+
+Après un classement complet, ADK formule avec les faits et l'historique sans
+retransmettre le catalogue d'outils. Les plafonds restent inchangés. Des tests
+avec le vrai runner, MCP et SQLite, mais un modèle simulé, reproduisent les
+arguments incorrects et vérifient leur correction pour un superlatif et un
+top 10, sans inférence.
+
+## 57. [Bug fix] Copie alignée sous les messages
+
+Les bulles du chat avaient été inversées sans adapter l'alignement des
+boutons de copie de Gradio. Les boutons suivent désormais leur bulle,
+sous le texte, au lieu de rester sur le côté opposé.
+
+## 58. [Bug fix] Superlatifs pluriels et restitution des classements
+
+La campagne structurée a révélé qu'un superlatif pluriel était traité comme
+une liste et qu'une réponse pouvait perdre sa valeur statistique. L'extraction
+conserve désormais tous les gagnants sans quantité explicite ; un top N impose
+sa limite et désactive ce mode. Les instructions et descriptions MCP exigent
+le nom français, la valeur et le libellé de la statistique, avec les ex aequo.
+L'adaptation ADK masque les traductions anglaises lorsqu'un libellé français
+existe, sauf demande explicite, sans changer SQL ni les réponses MCP originales.
+
+Le rapport E2E distingue maintenant les propositions Qwen, les arguments
+après guard, les retours bruts et adaptés, puis la réponse. Une proposition
+réparée reste visible comme diagnostic sans faire échouer le verdict
+fonctionnel. Les tests déterministes vérifient les quantités, les formulations
+plurielles, les ex aequo et ces frontières de rapport ; l'inférence reste à
+relancer par l'utilisateur.
+
+## 59. [Bug fix] Entités explicites et présentation structurée compacte
+
+La nouvelle campagne a révélé des substitutions d'espèces, des confusions
+entre listes, identités et classifications, ainsi que des abandons sur de
+petites listes SQL valides. Le guard préserve désormais les noms et formes
+reconnus dans un catalogue issu de la base, refuse les cibles ambiguës et
+indique l'outil d'identité lorsqu'une recherche par nom est incompatible.
+Les listes simples et les classifications positives ont leurs invariants
+propres, sans modifier les calculs SQL de classement.
+
+L'adaptation ADK conserve les faits utiles, comptes et avertissements sans
+répéter les identifiants ni les exceptions de catalogue. La formulation des
+listes et movepools complets omet aussi le catalogue d'outils, avec les mêmes
+budgets. Les capacités par niveau et les méthodes sans jeu utilisent le
+dernier jeu disponible ; l'historique reste accessible explicitement.
+Les libellés français de jeux connus et les paires de traductions imbriquées
+sont pris en compte pour la présentation.
+
+L'instrumentation du rapport sépare les propositions des appels exécutés et
+renforce les échecs pour les erreurs, abstentions, valeurs omises, niveaux
+inventés et traductions anglaises ajoutées. Les tests avec modèle simulé
+vérifient ces frontières et les listes réelles ; la fidélité complète de
+Qwen reste à vérifier par la campagne manuelle.

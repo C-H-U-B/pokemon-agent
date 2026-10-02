@@ -16,16 +16,28 @@ Les outils historiques conservent leurs signatures et leurs résultats.
 MCP expose une enum de statistiques, `asc/desc`, `best_only` (superlatif avec
 détection des ex aequo) et `form_category="mega"` (toutes les Méga liées).
 Le modèle traduit la question en arguments ; SQL calcule totaux et gagnants.
-Un top N garde `best_only=false`, tandis qu'un superlatif singulier utilise
+Un top N explicite garde `best_only=false` avec `limit=N`, tandis qu'un superlatif
+sans quantité, singulier ou pluriel, utilise
 `best_only=true` et doit signaler `tie/tie_count`, même sur une page d'une ligne.
 Les descriptions des arguments restent visibles après l'abrègement ADK.
+Elles demandent aussi de restituer `base_stat_value` et `stat_name_fr` avec les
+noms français. L'adaptation ADK masque les traductions anglaises appariées à
+un libellé français, sauf demande explicite ; le contrat des retours MCP reste inchangé.
 Les guards et la réconciliation conservent ces arguments sans comparer de valeurs.
+Ils restaurent aussi les motifs de classement explicitement reconnus et les
+types littéraux de la question, afin qu'un type inventé ou un tri oublié ne
+change pas la recherche. Les autres filtres restent conservés. Les limites de
+reconnaissance sont dans le [guide des contraintes](../constraints/README.md).
 Les callbacks ADK
 bornent les données destinées au modèle sans changer les réponses MCP aux
 autres clients : voir le [budget ADK](../agent/README.md#budget-de-contexte).
 `pokemon_level_up_moves`, `pokemon_machine_moves` et
-`pokemon_move_learning_methods` recouvrent une partie de `pokemon_moves`, mais
-conservent notamment leurs informations spécialisées et leurs règles de versions.
+`pokemon_move_learning_methods` recouvrent une partie de `pokemon_moves` et
+conservent leurs informations spécialisées. Sans jeu, les capacités par niveau
+choisissent le dernier jeu avec ces données et les méthodes le dernier movepool
+avant le filtre de capacité. Les CT gardent le dernier jeu avec données de CT.
+Les trois outils acceptent `all_versions=true` pour l'historique multijeux,
+incompatible avec `version_group`. Le résultat indique le mode de sélection.
 
 Ces outils appellent directement le moteur structuré ou la recherche. Ils ne passent pas par `run_graph` : ils ne réalisent ni routage global, ni génération de réponse, ni contrôle de fidélité, ni finalisation des traces du graphe.
 

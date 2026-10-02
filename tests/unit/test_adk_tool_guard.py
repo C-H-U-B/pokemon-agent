@@ -5,6 +5,11 @@ import pytest
 from pokemon_rag.agent.tool_guard import before_tool_guard
 
 
+@pytest.fixture(autouse=True)
+def isolate_name_catalogue(monkeypatch):
+    monkeypatch.setattr("pokemon_rag.agent.tool_guard.pokemon_name_catalogue", lambda: [])
+
+
 @pytest.mark.parametrize("name", ["pokemon_moves", "pokemon_search"])
 def test_new_tools_preserve_all_filters_and_explicit_constraints(name):
     args = {"move_type": "Glace", "damage_class": "special", "min_level": 2, "max_level": 99}
@@ -27,7 +32,7 @@ def test_guard_preserves_stat_ranking_and_mega_category_arguments():
     original = dict(args)
     assert before_tool_guard(_tool("pokemon_search"), args, _context(
         "Quels sont les 5 Pokémon Méga Feu avec le plus d'Attaque ?")) is None
-    assert args == original
+    assert args == {**original, "types":["fire"], "type_match":"all", "best_only":False, "offset":0}
 
 
 def test_number_lookup_blocks_identity_of_guessed_pokemon():

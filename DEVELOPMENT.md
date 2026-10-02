@@ -985,3 +985,58 @@ index, database content or database schema was modified.
 Instructions and schema annotations were also compacted, along with technical
 ranking fields sent to ADK, so top 10 results fit the existing context budget
 without reducing their number of rows.
+
+## 56. [Bug fix] Rankings reconciled before MCP
+
+A request for the Mega with the lowest Defense could send an invented Steel
+filter and omit sorting, then reach the context limit. Clients now restore
+recognized ranking patterns and requested types before SQL, without comparing
+values. Statistic labels are shared.
+
+After a complete ranking, ADK formulates with the facts and history without
+resending the tool catalogue. Limits remain unchanged. Tests using the real
+runner, MCP and SQLite, but a simulated model, reproduce incorrect arguments
+and verify their correction for a superlative and a top 10, without inference.
+
+## 57. [Bug fix] Copy buttons aligned below messages
+
+Chat bubbles had been reversed without adapting the alignment of Gradio's
+copy buttons. The buttons now follow their bubble, below the text,
+instead of remaining on the opposite side.
+
+## 58. [Bug fix] Plural superlatives and ranking responses
+
+The structured campaign revealed that a plural superlative was treated as a
+list and that a response could omit its statistic value. Extraction now keeps
+all winners when no quantity is specified; an explicit top N enforces its
+limit and disables that mode. Instructions and MCP descriptions require the
+French name, statistic value and label, including ties. The ADK adaptation
+hides English translations when a French label exists, unless explicitly
+requested, without changing SQL or original MCP responses.
+
+The E2E report now separates Qwen proposals, arguments after the guard, raw
+and adapted results, and the answer. A repaired proposal remains visible as
+a diagnostic without failing the functional verdict. Deterministic tests
+verify quantities, plural formulations, ties and these reporting boundaries;
+inference remains for the user to rerun.
+
+## 59. [Bug fix] Explicit entities and compact structured presentation
+
+The new campaign revealed species substitutions, confusion between lists,
+identity and classifications, and failures on small valid SQL lists. The
+guard now preserves names and forms recognized from a database-backed
+catalogue, rejects ambiguous targets, and identifies the identity tool when
+a name-based search is incompatible. Simple lists and positive classifications
+have their own invariants, without changing SQL ranking calculations.
+
+The ADK adaptation retains useful facts, counts and warnings without repeating
+identifiers or catalogue exceptions. Formulation of complete lists and
+movepools also omits the tool catalogue, within the same budgets. Level-up
+moves and learning methods without a game use the latest available game;
+history remains explicitly accessible. Known French game labels and nested
+translation pairs are included in presentation handling.
+
+Report instrumentation separates proposals from executed calls and strengthens
+failures for errors, abstentions, omitted values, invented levels and added
+English translations. Simulated-model tests verify these boundaries and real
+lists; Qwen's full factual fidelity remains for the manual campaign to check.

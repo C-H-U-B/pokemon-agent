@@ -13,6 +13,7 @@ from openai import OpenAI
 
 from pokemon_rag.config import DB_PATH, LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES
 from pokemon_rag.constraints.query_constraints import (
+    BASE_STAT_NAMES,
     REGION_FORMS,
     VERSION_ALIASES,
     extract_form,
@@ -25,14 +26,10 @@ QUERY_MODEL = "qwen/qwen3-vl-8b"
 
 # Source unique des identifiants, colonnes et libellés des six statistiques.
 # Ces expressions SQL internes ne proviennent jamais des arguments du modèle.
-BASE_STAT_FIELDS = {
-    "hp": ("pv", "PV"),
-    "attack": ("attaque", "Attaque"),
-    "defense": ("defense", "Défense"),
-    "special-attack": ("attaque_speciale", "Attaque Spéciale"),
-    "special-defense": ("defense_speciale", "Défense Spéciale"),
-    "speed": ("vitesse", "Vitesse"),
-}
+BASE_STAT_FIELDS = {identifier: (column, BASE_STAT_NAMES[identifier]) for identifier, column in {
+    "hp":"pv", "attack":"attaque", "defense":"defense",
+    "special-attack":"attaque_speciale", "special-defense":"defense_speciale", "speed":"vitesse",
+}.items()}
 BASE_STAT_TOTAL = "base-stat-total"
 
 
@@ -519,6 +516,45 @@ def _fast_species(question: str) -> str | None:
     finally:
         conn.close()
     return _fast_find_unique(_normalize(question), candidates)
+
+
+def pokemon_name_catalogue() -> list[tuple[str, str, str | None]]:
+    """Alias disponibles dans pokemon.db, espèce canonique et forme éventuelle."""
+    with closing(_connect()) as conn:
+        entries = [(alias, name, None) for name, alias in _fast_db_names(
+            conn, "pokemon_species", "pokemon_species_names", "pokemon_species_id")]
+        fr_id, _ = _language_ids(conn)
+        rows = conn.execute("""SELECT cp.name_fr, cp.name_en, pf.identifier,
+                pf.form_identifier, names.name AS species_name
+            FROM custom_pokedex cp JOIN pokemon p ON p.id=cp.pokemon_id
+            JOIN pokemon_forms pf ON pf.id=cp.pokemon_form_id
+            JOIN pokemon_species_names names ON names.pokemon_species_id=p.species_id
+                AND names.local_language_id=?""", (fr_id,)).fetchall()
+        for row in rows:
+            for key in ("name_fr", "name_en", "identifier"):
+                alias = _normalize(row[key])
+                if alias and not any(alias == token and row["species_name"] == name
+                                     for token, name, _ in entries):
+                    entries.append((alias, row["species_name"], row["identifier"]))
+        return entries
+
+
+def _legacy_movepool_version(conn, pokemon_ids, version_group, all_versions, method=None):
+    if type(all_versions) is not bool:
+        raise ValueError("all_versions doit être un booléen.")
+    if version_group and all_versions:
+        raise ValueError("all_versions est incompatible avec un jeu unique.")
+    if version_group or all_versions:
+        return version_group, "explicit" if version_group else "all_versions"
+    placeholders = ",".join("?" for _ in pokemon_ids)
+    method_sql = " AND pmm.identifier=?" if method else ""
+    row = conn.execute(f"""SELECT vg.identifier FROM pokemon_moves pm
+        JOIN version_groups vg ON vg.id=pm.version_group_id
+        JOIN pokemon_move_methods pmm ON pmm.id=pm.pokemon_move_method_id
+        WHERE pm.pokemon_id IN ({placeholders}){method_sql}
+        ORDER BY vg.\"order\" DESC, vg.id DESC LIMIT 1""",
+        [*pokemon_ids, *([method] if method else [])]).fetchone()
+    return (row[0] if row else None), "latest_available"
 
 
 _MOVE_INTERNAL_ALIASES = {
@@ -1200,6 +1236,7 @@ def get_move_learning_methods(
     move: str,
     form: str | None = None,
     version_group: str | None = None,
+    all_versions: bool = False,
 ) -> dict[str, Any]:
     start = time.perf_counter()
     conn = _connect()
@@ -1207,6 +1244,8 @@ def get_move_learning_methods(
         species, forms = _move_pokemon_rows(conn, pokemon, form)
         pokemon_ids = [row["pokemon_id"] for row in forms]
         move_row = _resolve_move(conn, move)
+        version_group, version_selection = _legacy_movepool_version(
+            conn, pokemon_ids, version_group, all_versions)
 
         placeholders = ",".join("?" for _ in pokemon_ids)
         params: list[Any] = [*pokemon_ids, move_row["move_id"]]
@@ -1248,6 +1287,7 @@ def get_move_learning_methods(
                 "name_en": move_row["name_en"],
             },
             "version_group": version_group,
+            "version_selection": version_selection,
             "count": len(methods),
             "methods": methods,
             "execution_time": time.perf_counter() - start,
@@ -1262,6 +1302,7 @@ def get_level_up_moves(
     version_group: str | None = None,
     min_level: int | None = None,
     max_level: int | None = None,
+    all_versions: bool = False,
 ) -> dict[str, Any]:
     if min_level is not None and min_level < 0:
         raise ValueError("min_level doit être positif.")
@@ -1275,6 +1316,8 @@ def get_level_up_moves(
     try:
         species, forms = _move_pokemon_rows(conn, pokemon, form)
         pokemon_ids = [row["pokemon_id"] for row in forms]
+        version_group, version_selection = _legacy_movepool_version(
+            conn, pokemon_ids, version_group, all_versions, "level-up")
         placeholders = ",".join("?" for _ in pokemon_ids)
         params: list[Any] = [*pokemon_ids]
 
@@ -1325,6 +1368,7 @@ def get_level_up_moves(
             "pokemon": pokemon,
             "form": form,
             "version_group": version_group,
+            "version_selection": version_selection,
             "min_level": min_level,
             "max_level": max_level,
             "count": len(moves),
@@ -1339,6 +1383,7 @@ def get_machine_moves(
     pokemon: str,
     form: str | None = None,
     version_group: str | None = None,
+    all_versions: bool = False,
 ) -> dict[str, Any]:
     """CT du jeu demandé, ou du plus récent avec des données de CT pour la forme."""
     start = time.perf_counter()
@@ -1348,27 +1393,14 @@ def get_machine_moves(
         pokemon_ids = [row["pokemon_id"] for row in forms]
         placeholders = ",".join("?" for _ in pokemon_ids)
         params: list[Any] = [*pokemon_ids]
-        version_selection = "explicit" if version_group else "latest_available"
-        if not version_group:
-            latest = conn.execute(
-                f"""SELECT DISTINCT vg.identifier
-                    FROM pokemon_moves pm
-                    JOIN version_groups vg ON vg.id = pm.version_group_id
-                    JOIN pokemon_move_methods pmm ON pmm.id = pm.pokemon_move_method_id
-                    WHERE pm.pokemon_id IN ({placeholders})
-                      AND pmm.identifier = 'machine'
-                    ORDER BY vg."order" DESC, vg.id DESC LIMIT 1""",
-                pokemon_ids,
-            ).fetchone()
-            if latest is None:
-                return {
-                    "operation": "get_machine_moves", "pokemon": pokemon,
-                    "form": form, "version_group": None,
-                    "version_selection": version_selection,
-                    "count": 0, "moves": [],
-                    "execution_time": time.perf_counter() - start,
-                }
-            version_group = latest["identifier"]
+        version_group, version_selection = _legacy_movepool_version(
+            conn, pokemon_ids, version_group, all_versions, "machine")
+        if not version_group and not all_versions:
+            return {
+                "operation": "get_machine_moves", "pokemon": pokemon,
+                "form": form, "version_group": None, "version_selection": version_selection,
+                "count": 0, "moves": [], "execution_time": time.perf_counter() - start,
+            }
         version_sql = ""
         if version_group:
             version_sql = " AND vg.identifier = ?"

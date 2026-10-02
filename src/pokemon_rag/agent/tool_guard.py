@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 from typing import Any
+import re
 
-from pokemon_rag.constraints.query_constraints import extract_explicit_constraints, extract_national_pokedex_number
+from pokemon_rag.constraints.query_constraints import (
+    extract_explicit_constraints, extract_national_pokedex_number, reconcile_search_args,
+    extract_named_pokemon, is_named_identity_question,
+    normalize,
+    VERSION_ALIASES,
+)
+from pokemon_rag.structured.query_engine import pokemon_name_catalogue, get_pokedex_identity
 
 
 VERSION_GROUP_TOOLS = {
@@ -57,6 +64,7 @@ def before_tool_guard(
     - les contraintes explicites de niveaux ;
     - les contraintes explicites de jeu/version ;
     - les formes régionales reconnues par l'extracteur commun.
+    - les numéros nationaux et motifs explicites de classement reconnus.
 
     Le callback retourne :
     - None pour laisser ADK exécuter l'outil ;
@@ -69,9 +77,40 @@ def before_tool_guard(
     if not question:
         return None
 
+    tool_name = getattr(tool, "name", "")
+    historical = tool_name in {"pokemon_level_up_moves", "pokemon_machine_moves", "pokemon_move_learning_methods"} and bool(
+        re.search(r"(?:^|-)(?:historique|toutes-les-versions|tous-les-jeux|plusieurs-versions)(?:-|$)", normalize(question)))
+    padded = "-" + normalize(question) + "-"
+    historical_without_named_game = historical and not any(f"-{alias}-" in padded for alias in VERSION_ALIASES)
+
     try:
         constraints = extract_explicit_constraints(question)
         national_number = extract_national_pokedex_number(question)
+        tool_name = getattr(tool, "name", "")
+        entity = extract_named_pokemon(question, pokemon_name_catalogue()) if (
+            tool_name in FORM_TOOLS and national_number is None) else None
+        if entity:
+            identity = is_named_identity_question(question)
+            if constraints.form:
+                entity["form"] = constraints.form
+            if tool_name == "pokemon_search" and (identity or args.get("pokedex_number") is None):
+                required = {"required_tool":"pokemon_pokedex_identity"} if identity else {}
+                return {"error":"unsupported_named_pokemon_constraint", **required,
+                        "required_arguments":entity,
+                        "message":"Cet outil ne filtre pas par nom. Choisissez un outil compatible avec le Pokémon explicite."}
+            if tool_name == "pokemon_search":
+                # Conserver une recherche ciblée par numéro, même après un outil
+                # d'identité, mais ne jamais accepter un numéro d'une autre espèce.
+                known = get_pokedex_identity(**entity)
+                args["pokedex_number"] = known["rows"][0]["national_number"]
+                if entity.get("form"):
+                    args["form"] = entity["form"]
+            else:
+                args.update(entity)
+        if getattr(tool, "name", "") == "pokemon_search":
+            corrected = reconcile_search_args(question, args)
+            args.clear()
+            args.update(corrected)
     except ValueError as exc:
         return {
             "error": "invalid_explicit_constraints",
@@ -90,11 +129,17 @@ def before_tool_guard(
             }
         args["pokedex_number"] = national_number
 
+    if tool_name in {"pokemon_level_up_moves", "pokemon_machine_moves", "pokemon_move_learning_methods"}:
+        if historical or "all_versions" in args:
+            args["all_versions"] = historical
+        if historical_without_named_game:
+            args.pop("version_group", None)
+
     # ------------------------------------------------------------------
     # Contraintes de jeu / version
     # ------------------------------------------------------------------
 
-    if constraints.version_ambiguous:
+    if constraints.version_ambiguous and not historical_without_named_game:
         return {
             "error": "ambiguous_version_constraint",
             "message": (
@@ -103,7 +148,7 @@ def before_tool_guard(
             ),
         }
 
-    if constraints.explicit_game:
+    if constraints.explicit_game and not historical_without_named_game:
         if constraints.version_group is None:
             return {
                 "error": "unresolved_version_constraint",

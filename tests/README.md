@@ -156,6 +156,33 @@ validation ; les tests de découverte ADK vérifient aussi que le catalogue
 reste compatible avec le budget de contexte, sans inférence.
 Un test avec la base et le catalogue MCP réels vérifie aussi que les top 10
 par Vitesse et total restent complets dans le contexte ADK après adaptation.
+`integration/test_adk_stat_rankings.py` exécute aussi le vrai runner ADK avec
+un modèle simulé, le vrai MCP et la vraie base. Il reproduit des arguments
+inventés et un tri absent, puis vérifie leur correction et la formulation
+sans abstention de budget, pour une Méga et un top 10. Aucune inférence.
+Il couvre aussi le superlatif pluriel avec ex aequo et l'instrumentation de la
+campagne structurée : proposition, exécution, résultat brut et adaptation.
+`unit/test_stat_ranking_constraints.py` isole les motifs reconnus, ambiguïtés,
+types demandés et distinction entre type de Pokémon et type d'attaque.
+`unit/test_structured_e2e_reporting.py` vérifie les helpers du rapport sans
+exécuter d'agent : une proposition réparée reste diagnostique, mais un appel
+incorrect, un résultat en erreur ou une valeur absente de la réponse échoue.
+Les niveaux numériques absents des conditions d'évolution et les noms anglais
+ajoutés sont aussi détectés, en utilisant les retours MCP bruts pour les
+traductions masquées par ADK. Ces contrôles typés ne constituent pas une
+validation exhaustive de toutes les affirmations possibles en langage libre.
+`unit/test_explicit_pokemon_constraints.py` injecte un catalogue de noms pour
+vérifier substitutions, formes, ambiguïtés, classifications et listes simples.
+`integration/test_explicit_pokemon_and_movepool.py` utilise le catalogue réel et
+vérifie les jeux récents, anciens et historiques, sans LLM.
+Les tests du vrai runner simulant le modèle couvrent également les listes de
+huit et neuf résultats ainsi que les CT d'un Pokémon substitué par Qwen.
+
+La campagne `long/test_adk_structured_database_e2e.py` appelle réellement Qwen ;
+elle est réservée à l'utilisateur, avec LM Studio, un contexte de 16384 tokens
+et `data/pokemon.db`. Elle n'utilise pas le RAG. Son Markdown et son JSONL dans
+`test_results` séparent la qualité de proposition Qwen du verdict fonctionnel
+après guard, des retours MCP bruts et de la réponse finale.
 
 ```powershell
 conda run -n langgraph-agent python -m pytest tests/integration/test_pokedex_search_movepool.py tests/unit/test_adk_tool_guard.py tests/unit/test_mcp_constraint_preservation.py tests/integration/test_mcp_server.py tests/integration/test_adk_mcp_toolset.py -q -p no:cacheprovider --tb=short --basetemp=.pytest_tmp_pokedex

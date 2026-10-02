@@ -25,8 +25,15 @@ ne valide pas un plan SQL et ne décide pas du message à afficher à l'utilisat
   outil. Il utilise les alias sans catalogue SQLite et conserve dans le package
   `agent` la restauration des arguments et les refus selon l'outil sélectionné.
 
-La résolution des espèces et des capacités reste hors de ce module. En
-particulier, la correspondance interne `Tonnerre` → `thunderbolt` appartient à
+La résolution des espèces et des capacités reste hors de ce module.
+`extract_named_pokemon` reçoit un catalogue d'alias fourni par le
+moteur : correspondances exactes après normalisation, frontières de noms,
+priorité à un alias complet sur un nom d'espèce qu'il contient. Plusieurs
+espèces ou formes détectées sont refusées ; aucune mention ne produit `None`.
+L'extracteur conserve séparément l'espèce et la forme et ne déduit aucun nom.
+`is_named_identity_question` reconnaît le motif numéro national / identité
+Pokédex ; le guard garde la responsabilité du refus d'outil incompatible.
+La correspondance interne `Tonnerre` → `thunderbolt` appartient à
 `structured/query_engine.py`. L'interface du projet reste française ; les alias
 anglais présents dans le code ne constituent pas un contrat d'interface bilingue.
 
@@ -39,6 +46,8 @@ un texte destiné à l'utilisateur.
 | Fonction | Résultat et limites |
 | --- | --- |
 | `extract_form(question)` | Une forme parmi `alola`, `galar`, `hisui`, `paldea` si une seule est reconnue ; sinon `None` |
+| `extract_stat_ranking_args(question)` | Arguments de tri pour des superlatifs explicites (`moins de Défense`, `meilleure Attaque Spéciale`, `plus rapide/lent`) et top N ; `None` hors motifs reconnus, comparaisons nommées et pagination explicite ; ambiguïtés ou N invalide refusés |
+| `reconcile_stat_ranking_args(question, arguments)` | Copie les arguments, restaure le classement reconnu et les types littéraux demandés ; retire un type ou une catégorie Méga inventés ; conserve les autres filtres |
 | `extract_national_pokedex_number(question)` | Numéro explicite après numéro/n°/no, dans un contexte Pokémon ou Pokédex ; `None` sans mention reconnue ; `ValueError` pour plusieurs numéros, zéro, une valeur négative reconnue ou un Pokédex régional explicite |
 | `has_explicit_game(question)` | Détection heuristique d'un alias ou d'une mention de jeu ; ne prouve pas que le jeu est valide |
 | `extract_version_group(question, known_version_groups=None)` | Couple `(groupe, ambiguïté)` ; les alias sont examinés avant les identifiants optionnels fournis par l'appelant |
@@ -56,6 +65,25 @@ Le motif ne couvre pas les nombres écrits en lettres ou les numéros isolés.
 
 Les indicateurs de présence permettent de distinguer une mention non résolue
 d'une absence de contrainte.
+
+`BASE_STAT_NAMES` centralise les libellés français et identifiants statistiques.
+Le moteur conserve les colonnes SQL et tous les calculs. Les deux clients
+appliquent la réconciliation de classement uniquement à `pokemon_search`.
+Elle distingue top N et superlatif, reconnaît les Méga (et X/Y/Z explicites),
+les types monotypes et ne confond pas un type d'attaque avec un type de Pokémon.
+Sans quantité explicite, un superlatif singulier ou pluriel conserve tous les
+ex aequo (`best_only=true`) ; avec N explicite, `best_only=false` et `limit=N`.
+Les formulations « Défense la plus basse » et « PV les plus élevés » sont aussi
+reconnues, ainsi que les libellés pluriels d'Attaque et de Défense.
+Elle ne calcule ni valeur, ni maximum, ni total. La reconnaissance reste limitée
+aux motifs documentés ; les autres contraintes sont traitées comme auparavant.
+`reconcile_search_args` ajoute les invariants des listes : pas de `best_only=true`
+sans optimum reconnu, et classifications positives indépendantes (`légendaire`
+→ `legendary=true`, `fabuleux` → `mythical=true`). Un filtre de l'autre catégorie
+inventé par le modèle est retiré. Les négations reconnues et alternatives entre
+classifications sont refusées plutôt que traduites en une intersection incorrecte.
+`VERSION_GROUP_NAMES_FR` fournit des libellés de présentation des jeux connus,
+sans modifier leurs identifiants internes.
 `level_explicit` exige un mot de niveau et un nombre dans la question ; une
 demande générale « en montant de niveau » ne constitue pas une borne explicite.
 `version_ambiguous` couvre aussi une mention de jeu non reconnue, pas seulement

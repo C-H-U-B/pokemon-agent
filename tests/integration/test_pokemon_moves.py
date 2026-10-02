@@ -115,8 +115,8 @@ def test_version_isolation() -> None:
     assert old_signature != new_signature
 
 
-def test_no_version_filter() -> None:
-    result = get_level_up_moves("Pikachu")
+def test_explicit_historical_versions() -> None:
+    result = get_level_up_moves("Pikachu", all_versions=True)
     groups = {m["version_group"] for m in result["moves"]}
 
     assert result["count"] > 0
