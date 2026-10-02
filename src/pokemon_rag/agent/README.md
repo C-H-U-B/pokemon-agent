@@ -30,6 +30,15 @@ les jeux inconnus ou ambigus et les niveaux ambigus ou invalides. Sans message
 utilisateur, il laisse passer l’appel. La reconnaissance des formes conserve
 les limites de l’extracteur commun, notamment pour les formes multiples.
 Le guard ne modifie pas le catalogue d'outils de l'agent.
+Pour les outils structurés, il charge les alias via le moteur SQLite puis
+restaure une espèce explicitement nommée et sa forme reconnue. Il refuse
+plusieurs cibles au lieu d'en choisir une ; sans mention reconnue, il n'ajoute
+aucun Pokémon. `pokemon_search` ne filtre pas par nom : pour un numéro national
+d'une espèce nommée, le refus indique `pokemon_pokedex_identity` et les arguments
+requis. Qwen reste responsable du choix et de la reprise de l'outil.
+Une recherche ciblée portant déjà un numéro peut être conservée hors de cette
+intention d'identité : le guard vérifie le numéro via l'identité de l'espèce
+nommée et le restaure si nécessaire, sans calcul de statistiques.
 Un numéro national explicite reconnu exige `pokemon_search` : le guard rétablit
 `pokedex_number` si le modèle le modifie et refuse un autre outil en indiquant
 l'appel requis. `pokemon_pokedex_identity` reste destiné au numéro d'un Pokémon
@@ -41,6 +50,13 @@ les recherches croisées et comptages vers `pokemon_search`, le movepool filtré
 vers `pokemon_moves`, et exigent le signalement d'une liste partielle ou d'un
 catalogue incomplet. Les talents sont reportés. Voir les
 [contrats structurés](../structured/README.md#recherche-pokémon-et-movepool-filtrable-via-mcp).
+Pour un classement reconnu, le guard restaure statistique, ordre, mode de
+superlatif ou top N et catégorie Méga. Il retire les types inventés et conserve
+les types demandés, sans comparer de valeurs. La reconnaissance et ses limites
+sont décrites dans les [contraintes](../constraints/README.md).
+Une liste simple désactive un `best_only` inventé. Les mentions positives de
+légendaire et de fabuleux restaurent leurs filtres indépendants ; les cas
+négatifs ou alternatifs reconnus restent refusés.
 Les questions d'apparence, comportement, habitat, origine ou histoire sont
 orientées par les instructions vers `pokemon_rag_search`, avec la question
 complète et le Pokémon ciblé. Des types ou une identité Pokédex ne sont pas des
@@ -62,6 +78,12 @@ sans validation déterministe de la réponse finale ; leur respect par Qwen
 doit être vérifié manuellement.
 Les outils de capacités renvoient aussi `name_en` ; les groupes de versions
 restent des identifiants techniques, sans table de traductions dans la base actuelle.
+L'adaptation des résultats ADK masque récursivement les champs `*_en` ou `en` lorsqu'un
+champ `*_fr` correspondant est renseigné, sauf demande explicite d'anglais.
+Les noms sans traduction française sont conservés ;
+les réponses originales du serveur MCP restent inchangées.
+Les instructions exigent pour chaque classement le nom français et la valeur
+`base_stat_value` avec `stat_name_fr`, ainsi que le signalement des ex aequo.
 
 Après une erreur, une entrée manquante ou un résultat vide, l'agent est instruit
 de rechercher via un autre outil approprié si les contraintes le permettent,
@@ -81,9 +103,12 @@ borne chaque résultat destiné à ADK à 3000 octets UTF-8. Les listes sont
 réduites avec un signalement explicite et leurs totaux conservés. Un résultat
 indivisible trop grand devient une erreur, jamais une absence de données.
 Cette adaptation ne change pas les réponses de l'API MCP.
-Pour un classement trop volumineux, elle retire d'abord les noms anglais et
-identifiants internes répétés, en conservant noms français, formes et valeurs.
-Cela permet aux top 10 de la base locale de conserver leurs dix lignes.
+Les recherches Pokémon sont projetées avant le seuil : noms français et valeurs,
+numéro national lorsque demandé, comptes, pagination et signal de couverture.
+La liste des exceptions de catalogue et les identifiants techniques sont retirés.
+Les movepools perdent leurs IDs et répétitions du jeu unique ; les CT conservent
+leur libellé français sans répéter le numéro. Les libellés français des jeux connus
+sont ajoutés sans changer l'API MCP. Les seuils restent identiques.
 
 Avant chaque appel, les descriptions d'outils sont abrégées sans modifier
 leurs paramètres et la sortie est limitée à 1024 tokens. Les annotations de
@@ -95,12 +120,27 @@ supprime aucune contrainte utilisateur. Ce budget en octets est conservateur
 pour la fenêtre de 16384 tokens ; ce n'est pas un comptage exact du tokeniseur.
 
 Les classements utilisent `pokemon_search` avec les filtres demandés,
-`sort_by`, `sort_order` et `limit`. Un superlatif singulier utilise
+`sort_by`, `sort_order` et `limit`. Un superlatif sans quantité, singulier ou pluriel, utilise
 `best_only=true` et doit signaler les ex aequo ; un top N conserve
 `best_only=false`. Toutes les Méga utilisent `form_category="mega"`.
 Les six statistiques et leur total sont classés en SQL, sans modificateurs
 de combat ni calcul du modèle. Les enums et descriptions des nouveaux
 arguments restent dans le schéma après l'abrègement des descriptions d'outils.
+Une fois une première page structurée complète obtenue, la formulation
+reçoit les faits et l'historique sans le catalogue d'outils. Pour un superlatif,
+tous les gagnants doivent être présents ; pour un top N, la page demandée suffit.
+Les erreurs, les résultats tronqués par ADK et les gagnants manquants conservent
+les outils. Le plafond de contexte et le nombre maximal d'appels restent inchangés.
+Cela s'applique aussi aux listes simples et aux réponses complètes des outils
+d'identité, de types, d'évolution et de movepool historiques.
+Une demande composée reconnue ou documentaire conserve le catalogue pour les
+autres faits à obtenir ; les champs de ligne explicitement demandés restent
+dans la projection de recherche.
+Les movepools par niveau et méthodes sans jeu choisissent désormais le dernier
+jeu disponible ; une demande historique reconnue conserve `all_versions=true`.
+Les faits absents, notamment les niveaux d'évolution, restent inconnus : les
+instructions interdisent toute complétion de mémoire. Cette règle n'est pas
+un contrôle exhaustif de fidélité de la réponse réelle de Qwen.
 
 ## Utilisation manuelle
 
@@ -152,5 +192,6 @@ Les tests `tests/integration/test_adk_mcp_toolset.py` et
 ni exécuter de recherche. Le serveur importe le module RAG uniquement lors
 d'un appel à `pokemon_rag_search`, pour ne pas retarder l'initialisation MCP.
 Le test de découverte ADK vérifie exactement le catalogue des dix outils.
-Les événements de function call des E2E ne prouvent pas à eux seuls les arguments
-corrigés envoyés au serveur ; cette correction est vérifiée par les tests du guard.
+Les événements de function call ne prouvent pas à eux seuls les arguments
+corrigés envoyés au serveur. La campagne structurée instrumente les callbacks
+pour séparer proposition, arguments exécutés, MCP brut et adaptation ADK.

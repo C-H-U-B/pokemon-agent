@@ -84,10 +84,11 @@ def test_search_requires_no_individual_pokemon_and_preserves_move_filters():
 def test_client_preserves_stat_ranking_category_and_other_filters():
     args = {"types":["fire"], "generation":1, "legendary":False, "sort_by":"attack",
             "sort_order":"desc", "best_only":True, "form_category":"mega", "limit":5}
-    search = tool("pokemon_search", *args)
+    search = tool("pokemon_search", *args, "offset", "type_match")
     name, actual = reconcile_tool_call(
         "Quels sont les 5 Pokémon Méga Feu avec le plus d'Attaque ?", "pokemon_search", args, [search])
-    assert name == "pokemon_search" and actual == args
+    assert name == "pokemon_search"
+    assert actual == {**args, "type_match":"all", "best_only":False, "offset":0}
 
 
 def test_restores_game_and_max_level_before_execution() -> None:

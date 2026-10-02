@@ -11,7 +11,9 @@ from openai import OpenAI
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-from pokemon_rag.constraints.query_constraints import extract_explicit_constraints, extract_national_pokedex_number, normalize
+from pokemon_rag.constraints.query_constraints import (
+    extract_explicit_constraints, extract_national_pokedex_number, normalize, reconcile_search_args,
+)
 
 
 SERVER_MODULE = "pokemon_rag.mcp.server"
@@ -206,6 +208,8 @@ def reconcile_tool_call(
     reconciled = dict(arguments)
     try:
         national_number = extract_national_pokedex_number(question)
+        if tool_name == "pokemon_search":
+            reconciled = reconcile_search_args(question, reconciled)
     except ValueError as exc:
         raise ConstraintResolutionError(str(exc)) from exc
     if national_number is not None:

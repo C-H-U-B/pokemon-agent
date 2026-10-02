@@ -18,7 +18,14 @@ de Tonnerre vers l'identifiant interne `thunderbolt`. L'interface reste françai
   Le résultat indique `version_group` et `version_selection="latest_available"`.
   Un jeu explicite reste inchangé (`"explicit"`), même si son résultat est vide.
   La disponibilité signifie ici présence de données locales de CT, pas preuve
-  exhaustive de présence dans tous les jeux. Les autres opérations restent inchangées.
+  exhaustive de présence dans tous les jeux.
+- `get_level_up_moves` choisit aussi le dernier groupe avec des relations de
+  montée de niveau, avant d'appliquer les bornes. `get_move_learning_methods`
+  choisit le dernier movepool des formes résolues, avant le filtre de capacité.
+  Les jeux explicites restent stricts et la résolution des formes reste celle
+  des outils historiques. Les trois fonctions exposent `all_versions=True`
+  pour conserver l'historique ; ce mode est incompatible avec un jeu unique.
+  `version_selection` distingue `latest_available`, `explicit` et `all_versions`.
 - Espèce, forme et groupe de versions sont des paramètres distincts. Ne pas remplacer une forme introuvable par la forme de base.
 - Les types, l'identité Pokédex et les capacités signature viennent du Pokédex personnalisé. Ces opérations ne prennent pas en charge les filtres par jeu. Une valeur absente reste non renseignée ; les annotations de source sont conservées.
   Lorsque le nom d'espèce n'est pas un nom complet d'entrée, le moteur utilise
@@ -26,6 +33,11 @@ de Tonnerre vers l'identifiant interne `thunderbolt`. L'interface reste françai
   par défaut. Une forme explicite reste prioritaire ; aucune forme manquante
   n'est remplacée par défaut, et plusieurs entrées possibles restent une erreur.
 - La protection contre certaines mentions de jeux inconnus appartient au parseur de questions. Ne pas supposer que les appels directs aux fonctions SQL bénéficient de ce contrôle de langage naturel.
+
+`pokemon_name_catalogue()` fournit au guard les alias d'espèces et d'entrées
+de formes réellement présents dans `pokemon.db`, avec l'espèce canonique et
+l'identifiant éventuel de forme. L'extraction des mentions se fait ensuite
+sans SQLite dans les contraintes ; elle n'utilise pas le parseur LLM.
 
 ## Recherche Pokémon et movepool filtrable via MCP
 
@@ -69,7 +81,8 @@ contraintes, `ORDER BY` pour la statistique, `LIMIT/OFFSET` pour la page.
 | `speed` | Vitesse | `vitesse` |
 | `base-stat-total` | Total des statistiques | somme SQL des six colonnes |
 
-`BASE_STAT_FIELDS` centralise colonnes et libellés. Les appels directs au moteur
+`BASE_STAT_NAMES` dans les contraintes centralise les identifiants et libellés ;
+`BASE_STAT_FIELDS` dans le moteur associe les colonnes SQL. Les appels directs au moteur
 acceptent aussi ces libellés français ; MCP expose les identifiants canoniques
 dans une enum. Aucune expression SQL utilisateur n'est acceptée. `sort_order`
 accepte uniquement `asc` ou `desc`. Il s'agit de statistiques de base, sans

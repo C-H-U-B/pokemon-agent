@@ -32,22 +32,25 @@ mcp = MCPServer("Pokemon RAG")
 def pokemon_search(
     pokedex_number: int | None = None, generation: int | None = None,
     types: list[str] | None = None, type_match: str = "all",
-    legendary: bool | None = None, mythical: bool | None = None,
+    legendary: Annotated[bool | None, Field(description="Légendaire uniquement ; indépendant de mythical.")] = None,
+    mythical: Annotated[bool | None, Field(description="Fabuleux = true ; ne pas remplacer par legendary.")] = None,
     form: str | None = None, version_group: str | None = None,
     move_type: str | None = None, damage_class: str | None = None,
     min_power: int | None = None, max_power: int | None = None,
     learning_method: str | None = None, min_level: int | None = None,
-    max_level: int | None = None, limit: int = 30, offset: int = 0,
+    max_level: int | None = None,
+    limit: Annotated[int, Field(description="Quantité explicite top N : limit=N et best_only=false ; défaut 30, 0 pour compter, maximum 100.")] = 30,
+    offset: int = 0,
     sort_by: Annotated[Literal["national_number", "hp", "attack", "defense", "special-attack",
                               "special-defense", "speed", "base-stat-total"],
                        Field(description="Tri SQL : numéro national ou statistique de base ; total = somme des six stats.")] = "national_number",
     sort_order: Annotated[Literal["asc", "desc"],
                           Field(description="asc : minimum/plus lent ; desc : maximum/meilleur/plus rapide.")] = "asc",
-    best_only: Annotated[bool, Field(description="Superlatif singulier : true conserve les ex aequo au min/max SQL. Top N : false, limit=N. Vérifier tie et tie_count.")] = False,
+    best_only: Annotated[bool, Field(description="Superlatif sans quantité, singulier ou pluriel : true conserve tous les ex aequo au min/max SQL. Top N explicite : false, limit=N.")] = False,
     form_category: Annotated[Literal["mega"] | None,
                              Field(description="mega : toutes les Méga et leurs statistiques, y compris X/Y/Z. null : sémantique de form inchangée.")] = None,
 ) -> dict[str, Any]:
-    """Recherche et classement SQL par statistiques de base avec tous les filtres. Superlatif : best_only=true ; top N : limit=N. Méga : form_category=mega. Aucun tri, maximum ou total à calculer par le modèle.
+    """Recherche et classement SQL filtrés. Superlatif sans N, singulier ou pluriel : best_only=true ; top N : best_only=false, limit=N. Méga : form_category=mega. Restituer name_fr et base_stat_value avec stat_name_fr ; égalités via tie/tie_count. Aucun calcul du modèle.
 
     pokedex_number est le numéro national ; generation est l'origine de l'espèce.
     legendary et mythical sont distincts. types accepte les noms français ou les
@@ -140,8 +143,9 @@ def pokemon_level_up_moves(
     version_group: str | None = None,
     min_level: int | None = None,
     max_level: int | None = None,
+    all_versions: bool = False,
 ) -> dict[str, Any]:
-    """Retourne les capacités apprises par montée de niveau par un Pokémon.
+    """Capacités par niveau : jeu explicite ou dernier jeu avec données ; all_versions=true pour une demande historique multijeux.
 
     Args:
         pokemon: Nom français, anglais ou identifiant PokéAPI du Pokémon.
@@ -156,6 +160,7 @@ def pokemon_level_up_moves(
         version_group=version_group,
         min_level=min_level,
         max_level=max_level,
+        all_versions=all_versions,
     )
 
 
@@ -165,8 +170,9 @@ def pokemon_move_learning_methods(
     move: str,
     form: str | None = None,
     version_group: str | None = None,
+    all_versions: bool = False,
 ) -> dict[str, Any]:
-    """Retourne les méthodes permettant à un Pokémon d'apprendre une capacité.
+    """Méthodes d'apprentissage : jeu demandé ou dernier movepool disponible ; all_versions=true pour l'historique multijeux.
 
     Args:
         pokemon: Nom français, anglais ou identifiant PokéAPI du Pokémon.
@@ -179,6 +185,7 @@ def pokemon_move_learning_methods(
         move=move,
         form=form,
         version_group=version_group,
+        all_versions=all_versions,
     )
 
 
@@ -187,8 +194,9 @@ def pokemon_machine_moves(
     pokemon: str,
     form: str | None = None,
     version_group: str | None = None,
+    all_versions: bool = False,
 ) -> dict[str, Any]:
-    """Retourne les CT/CS du jeu demandé ou du plus récent dans les données locales.
+    """CT/CS : jeu demandé ou plus récent avec données de CT ; all_versions=true pour l'historique multijeux.
 
     Args:
         pokemon: Nom français, anglais ou identifiant PokéAPI du Pokémon.
@@ -200,6 +208,7 @@ def pokemon_machine_moves(
         pokemon=pokemon,
         form=form,
         version_group=version_group,
+        all_versions=all_versions,
     )
 
 
@@ -228,7 +237,7 @@ def pokemon_pokedex_identity(
     pokemon: str,
     form: str | None = None,
 ) -> dict[str, Any]:
-    """Retourne l'identité Pokédex d'un Pokémon.
+    """Nom → numéro national : pokemon_pokedex_identity(pokemon=nom). Ne pas utiliser pokemon_search pour le numéro d'un Pokémon nommé.
 
     L'identité comprend notamment son numéro national et sa génération
     d'introduction.
