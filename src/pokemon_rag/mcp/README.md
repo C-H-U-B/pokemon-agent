@@ -68,8 +68,11 @@ soumis à cette sélection automatique.
 L'[agent ADK](../agent/README.md) constitue un autre client du serveur. Son
 catalogue expose les dix outils du serveur, y compris `pokemon_rag_search`.
 Son callback préserve les
-contraintes reconnues de niveaux, de jeux et de formes ou refuse un outil
+contraintes reconnues de niveaux, puissance, jeux, formes, catégories/types de
+capacités, types de Pokémon, génération, classifications et classements ou refuse un outil
 incompatible ; il ne passe pas par `reconcile_tool_call` du client ci-dessous.
+Le refus conserve les arguments d'origine et indique les contraintes à reprendre.
+Qwen choisit la suite ; le guard ne remplace pas automatiquement l'outil.
 Ces protections appartiennent aux clients : un appel direct au serveur ne les
 applique pas. Le guard ne remplace pas le grounding du graphe.
 

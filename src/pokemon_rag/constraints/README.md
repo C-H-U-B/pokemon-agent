@@ -3,7 +3,9 @@
 `query_constraints.py` rassemble les règles déterministes utilisées par le
 [moteur structuré](../structured/README.md), le [client MCP](../mcp/README.md)
 et le [guard ADK](../agent/README.md)
-pour extraire les formes régionales, groupes de versions et bornes de niveau.
+pour extraire les contraintes explicitement reconnaissables : formes, jeux,
+niveaux, numéro national, génération, types, catégorie et puissance de
+capacités, classifications et classements.
 Il utilise uniquement la bibliothèque standard : aucun accès SQLite, appel LLM
 ou appel MCP. `__init__.py` ne réexporte actuellement aucune fonction.
 
@@ -22,8 +24,10 @@ ne valide pas un plan SQL et ne décide pas du message à afficher à l'utilisat
 - Un appel direct à un outil du serveur MCP ne passe pas par cette
   réconciliation du client.
 - Le guard ADK appelle `extract_explicit_constraints` avant l'exécution d'un
-  outil. Il utilise les alias sans catalogue SQLite et conserve dans le package
+  outil, indépendamment des arguments proposés. Il utilise les alias sans catalogue SQLite et conserve dans le package
   `agent` la restauration des arguments et les refus selon l'outil sélectionné.
+  Il applique tous les champs reconnus ; le graphe et le client MCP existant
+  conservent leurs propres opérations et sous-ensembles de réconciliation.
 
 La résolution des espèces et des capacités reste hors de ce module.
 `extract_named_pokemon` reçoit un catalogue d'alias fourni par le
@@ -52,16 +56,24 @@ un texte destiné à l'utilisateur.
 | `has_explicit_game(question)` | Détection heuristique d'un alias ou d'une mention de jeu ; ne prouve pas que le jeu est valide |
 | `extract_version_group(question, known_version_groups=None)` | Couple `(groupe, ambiguïté)` ; les alias sont examinés avant les identifiants optionnels fournis par l'appelant |
 | `extract_level_bounds(question)` | Couple inclusif `(minimum, maximum)`, avec `None` pour une borne absente ; `None` si la formulation n'est pas entièrement reconnue ; `ValueError` si l'intervalle reconnu est impossible |
-| `extract_explicit_constraints(question, known_version_groups=None)` | Objet immuable `ExplicitConstraints` regroupant les résultats ; peut propager la `ValueError` des niveaux |
+| `extract_power_bounds(question)` | Bornes inclusives de puissance : au moins/au plus, plus de/moins de, valeur exacte ou intervalle chiffré ; aucune catégorie déduite d'une puissance absente |
+| `extract_generation(question)` | Origine explicitement numérotée (`génération 4`, `4e génération`, `7G`) ou ordinal français de première à neuvième ; jamais déduite du jeu ; alternatives/intervalles reconnus refusés |
+| `extract_pokemon_types(question)` | Types littéraux après « de type » ou « Pokémon Eau/Vol » ; `all`, `any` pour un « ou » local, `exact` pour monotype/uniquement ; aucune déduction depuis résistance ou espèce |
+| `extract_move_constraints(question)` | Type et catégorie physique/spéciale/statut attachés à attaque/capacité ; ne transforme pas Attaque Spéciale en catégorie de capacité |
+| `extract_classifications(question)` | Filtres positifs indépendants légendaire et fabuleux/mythique ; négations/alternatives reconnues refusées |
+| `extract_explicit_constraints(question, known_version_groups=None)` | Objet `ExplicitConstraints` regroupant les résultats ; erreurs explicites pour les contraintes reconnues mais impossibles ou ambiguës |
 
 `ExplicitConstraints` contient `form`, `version_group`, `version_ambiguous`,
-`explicit_game`, `level_bounds` et `level_explicit`.
+`explicit_game`, `level_bounds` et `level_explicit`, ainsi que les champs
+typés des filtres ci-dessus, `form_ambiguous`, `ranking` et `form_category`.
 
-Le numéro national est extrait séparément par les deux clients : il n'est pas
-ajouté à cet objet ni utilisé par le parseur du graphe. Par exemple,
+Le numéro national est aussi disponible dans `national_number`, sans ajouter
+une opération au parseur du graphe. Par exemple,
 « Quel Pokémon numéro 369 du Pokédex national ? » retourne 369, tandis que
 « Quel est le numéro national de Lockpin ? » ne contient aucun numéro à chercher.
-Le motif ne couvre pas les nombres écrits en lettres ou les numéros isolés.
+Le motif reconnaît aussi « Pokédex national 369 », sans couvrir les nombres
+écrits en lettres ou les nombres isolés. Les nombres de niveau, puissance,
+génération et quantité n'appartiennent pas à la même contrainte numérique.
 
 Les indicateurs de présence permettent de distinguer une mention non résolue
 d'une absence de contrainte.
@@ -84,11 +96,12 @@ inventé par le modèle est retiré. Les négations reconnues et alternatives en
 classifications sont refusées plutôt que traduites en une intersection incorrecte.
 `VERSION_GROUP_NAMES_FR` fournit des libellés de présentation des jeux connus,
 sans modifier leurs identifiants internes.
-`level_explicit` exige un mot de niveau et un nombre dans la question ; une
+`level_explicit` exige un nombre attaché à un mot de niveau ; une
 demande générale « en montant de niveau » ne constitue pas une borne explicite.
 `version_ambiguous` couvre aussi une mention de jeu non reconnue, pas seulement
-plusieurs groupes possibles. Il n'existe pas d'indicateur équivalent pour les
-formes : `form=None` peut signifier absence, forme inconnue ou plusieurs formes.
+plusieurs groupes possibles. `form_ambiguous` distingue plusieurs régions
+reconnues d'une absence ; les formes complètes sont extraites séparément depuis
+le catalogue injecté. Une forme inconnue reste hors extraction.
 
 ## Exemples de niveaux et de versions
 
@@ -105,19 +118,25 @@ formes : `form=None` peut signifier absence, forme inconnue ou plusieurs formes.
 Les jeux sont ramenés aux groupes de versions du modèle de données, pas à une
 édition individuelle. La table d'alias couvre actuellement Rouge/Bleu,
 Diamant/Perle, Soleil/Lune, Épée/Bouclier et Écarlate/Violet. Elle n'est pas
-exhaustive. Des identifiants supplémentaires peuvent être fournis par l'appelant.
+exhaustive ; les titres complets comme Ultra-Soleil, Rouge Feu ou Diamant
+Étincelant ont priorité sur l'alias court qu'ils contiennent. Les identifiants
+des jeux de la table de libellés sont également reconnus. Des identifiants
+supplémentaires peuvent être fournis par l'appelant.
 
 ## Limites et évolution
 
 Ce parseur repose sur des motifs textuels, sans compréhension générale de la
-phrase. Par exemple, le mot « dans » peut signaler un jeu à tort ; plusieurs
-formes ne sont pas distinguées d'une absence de forme ; une alternative avec
-« ou » ou des nombres restant hors des motifs reconnus empêchent l'extraction
-des niveaux. Il ne faut donc pas interpréter `None` comme une autorisation
-générale de supprimer un filtre. Les formulations « entre les niveaux X et Y »
-et « entre le niveau X et le niveau Y » sont traitées en premier : le premier
-intervalle reconnu est retourné sans vérifier les autres contraintes de niveau
-de la phrase, ni les alternatives éventuelles qui suivent.
+phrase. Par exemple, le mot « dans » peut signaler un jeu à tort. Les nombres
+en lettres, comparaisons entre espèces, pagination de classement, propriétés
+implicites, génération déduite d'un jeu et formes inconnues ne sont pas extraits.
+Les opérateurs numériques symboliques ne sont pas normalisés en une valeur
+exacte : ils sont refusés lorsqu'ils sont attachés à une quantité reconnue.
+Les bornes reconnues d'une même quantité sont intersectées, y compris après
+un intervalle ; les alternatives locales et bornes incomplètes empêchent son
+extraction. Un « ou » sans rapport avec cette quantité ne change pas l'intervalle
+ou le double type. `None` n'autorise pas à supprimer arbitrairement un filtre.
+Une borne explicitement présente mais ambiguë est refusée par le guard ; une
+formulation sans motif fiable ne produit pas de contrainte inventée.
 
 Ajouter ici les règles d'extraction communes, puis vérifier leurs consommateurs.
 Garder dans le moteur structuré les accès aux données et la validation des plans,

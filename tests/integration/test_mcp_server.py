@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from types import SimpleNamespace
 
 import pytest
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from pokemon_rag.agent.tool_guard import before_tool_guard
 
 
 SERVER_MODULE = "pokemon_rag.mcp.server"
@@ -113,3 +115,67 @@ async def _check_server() -> None:
             assert row["name_fr"].casefold() == "pikachu"
             assert row["type_1_fr"] == "Électrik"
             assert row["type_2_fr"] is None
+
+
+@pytest.mark.real_data
+def test_guard_constraints_reach_real_mcp_and_sql_without_model():
+    """Guard réel → client/stdio/serveur réels → SQLite, sans génération.
+
+    Risque distinct des unités : noms canoniques et arguments réparés doivent
+    être acceptés par les signatures MCP et produire des lignes filtrées.
+    """
+    async def run():
+        server = StdioServerParameters(command=sys.executable,args=["-m",SERVER_MODULE])
+        async with stdio_client(server) as (read,write):
+            async with ClientSession(read,write,read_timeout_seconds=60) as session:
+                await session.initialize()
+                tools = {tool.name:tool for tool in (await session.list_tools()).tools}
+
+                async def guarded_call(question,name,args):
+                    context = SimpleNamespace(user_content=SimpleNamespace(parts=[SimpleNamespace(text=question)]))
+                    refusal = before_tool_guard(tools[name],args,context)
+                    assert refusal is None, refusal
+                    assert set(args) <= set(tools[name].input_schema["properties"])
+                    result = await session.call_tool(name,arguments=args)
+                    assert not result.is_error, result
+                    return result.structured_content
+
+                moves = await guarded_call(
+                    "Quelles capacités physiques de type Eau d'au moins 80 de puissance Krakos peut-il apprendre dans Pokémon Épée ?",
+                    "pokemon_moves",{"pokemon":"Gourgeist","damage_class":"special","move_type":"fire","min_power":120})
+                assert moves["pokemon"] == "Krakos" and moves["results"]
+                assert {row["name_fr"] for row in moves["results"]} == {"Aqua-Brèche","Cascade","Plongée"}
+                assert all(row["damage_class_id"] == 2 and row["type_fr"] == "Eau" and row["power"] >= 80
+                           for row in moves["results"])
+
+                special = await guarded_call(
+                    "Quelles capacités spéciales de type Eau d'au moins 80 de puissance Nigirigon peut-il apprendre dans Pokémon Écarlate ?",
+                    "pokemon_moves",{"pokemon":"Wrong species","damage_class":"physical","max_power":80})
+                assert special["results"] and all(row["damage_class_id"] == 3 and row["power"] >= 80
+                                                   for row in special["results"])
+                assert special["total_count"] == 3
+
+                question = "Quel Pokémon porte le numéro 618 du Pokédex national ?"
+                context = SimpleNamespace(user_content=SimpleNamespace(parts=[SimpleNamespace(text=question)]))
+                rejected = before_tool_guard(tools["pokemon_pokedex_identity"],{"pokemon":"Gigalith"},context)
+                assert rejected["error"] == "unsupported_pokedex_number_constraint"
+                identity = await guarded_call(question,rejected["required_tool"],rejected["required_arguments"])
+                assert identity["results"][0]["national_number"] == 618
+                assert identity["results"][0]["name_fr"] == "Limonde"
+
+                mythical = await guarded_call("Les Pokémon mythiques de cinquième génération",
+                    "pokemon_search",{"generation":4,"legendary":True,"mythical":False})
+                assert mythical["results"]
+                assert all(row["generation"] == 5 and row["mythical"] and not row["legendary"]
+                           for row in mythical["results"])
+
+                top = await guarded_call("Quels sont les 5 Pokémon les plus rapides ?",
+                    "pokemon_search",{"sort_by":"defense","best_only":True,"limit":1})
+                assert top["returned_count"] == 5 and not top["best_only"]
+                assert top["results"][0]["name_fr"] == "Regieleki"
+
+                form = await guarded_call("Quels sont les types de Motisma Lavage ?",
+                    "pokemon_types",{"pokemon":"Gourgeist","form":"heat"})
+                assert form["rows"][0]["type_1_fr"] == "Électrik"
+                assert form["rows"][0]["type_2_fr"] == "Eau"
+    asyncio.run(run())

@@ -1095,3 +1095,21 @@ renforce les échecs pour les erreurs, abstentions, valeurs omises, niveaux
 inventés et traductions anglaises ajoutées. Les tests avec modèle simulé
 vérifient ces frontières et les listes réelles ; la fidélité complète de
 Qwen reste à vérifier par la campagne manuelle.
+
+## 60. [Bug fix] Contraintes explicites indépendantes de Qwen
+
+La campagne a montré qu'une catégorie spéciale pouvait disparaître d'un
+movepool pourtant correctement ciblé. Les contraintes reconnaissables sont
+désormais extraites avant de comparer les arguments : génération d'origine,
+types de Pokémon et de capacités, catégorie physique/spéciale/statut et
+bornes de puissance rejoignent les protections existantes. Un titre de jeu
+complet prime sur ses alias courts ; les nombres de domaines distincts ne
+se confondent plus, et les bornes supplémentaires d'un intervalle sont examinées.
+
+Le guard restaure les valeurs explicites sur un outil compatible et refuse
+un outil incapable de les représenter, avec les arguments à reprendre.
+Les propositions refusées restent intactes et Qwen conserve le choix et la
+reprise des outils. Les tests déterministes vérifient omissions, contradictions,
+ambiguïtés et combinaisons, puis la transmission des arguments réparés au vrai
+serveur MCP et à SQLite. La reprise effective par Qwen après un refus reste
+à vérifier dans la campagne manuelle.

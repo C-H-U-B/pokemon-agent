@@ -24,11 +24,13 @@ Ce parcours n'applique ni le grounding du graphe ni la réconciliation des
 contraintes du client MCP existant. Ces deux parcours restent disponibles.
 
 Le callback `before_tool_callback` applique le guard de `tool_guard.py` aux
-contraintes reconnues de niveaux, de jeux et de formes régionales. Il rétablit
+contraintes reconnues de niveaux, de puissance, de jeux, de formes, de catégorie
+et type de capacité, de types de Pokémon, de génération et de classification. Il rétablit
 les arguments pour les outils compatibles et bloque les outils incompatibles,
 les jeux inconnus ou ambigus et les niveaux ambigus ou invalides. Sans message
 utilisateur, il laisse passer l’appel. La reconnaissance des formes conserve
-les limites de l’extracteur commun, notamment pour les formes multiples.
+les limites de l’extracteur commun ; plusieurs régions ou formes reconnues
+sont refusées au lieu de devenir une absence de forme.
 Le guard ne modifie pas le catalogue d'outils de l'agent.
 Pour les outils structurés, il charge les alias via le moteur SQLite puis
 restaure une espèce explicitement nommée et sa forme reconnue. Il refuse
@@ -91,6 +93,20 @@ puis de signaler une information indisponible si aucune source ne répond.
 Il ne doit pas compléter de mémoire. Cette règle relève de l'instruction au
 modèle, pas d'un grounding déterministe ; son respect réel nécessite une
 validation manuelle avec Qwen.
+
+L'extraction précède la comparaison avec la proposition : oubli et contradiction
+sont réparés avec la même valeur explicite sur un outil compatible. Les deux
+bornes d'un intervalle sont rétablies ensemble, y compris une borne absente,
+pour enlever une limite contradictoire inventée. Les types de Pokémon et de
+capacités ont des contextes distincts ; une Attaque Spéciale de classement ne
+devient pas `damage_class=special`. Les filtres non explicitement reconnus restent
+du ressort du modèle, sous réserve des invariants existants des listes/classements.
+Un outil incompatible reçoit une erreur avec `selected_tool` et
+`required_arguments` ; le numéro national ajoute `required_tool=pokemon_search`.
+Aucun outil n'est changé automatiquement. La proposition n'est modifiée qu'après
+validation complète, et reste intacte sur refus. Le guard n'exécute pas de SQL
+et ne calcule pas de statistiques ; il conserve les appels au moteur existants
+pour le catalogue de noms et la vérification d'une identité nommée.
 Pour les CT sans jeu précisé, le moteur réduit le résultat au groupe de versions
 le plus récent avec des données locales de CT. L'agent est instruit de préciser
 le jeu retenu en français. Cela évite de transmettre toutes les générations,
