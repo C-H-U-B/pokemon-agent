@@ -1,92 +1,115 @@
-Quels sont les types de Hexagel ?
 Quels sont les types de Limonde ?
-Quels sont les types de Sorcilence ?
-Quels sont les types de Dolman ?
-Quels sont les types de Craparoi ?
-Quels sont les types de Floréclat ?
-Quels sont les types de Bekaglaçon ?
-Quels sont les types de Forgelina ?
-Quels sont les types de Miascarade ?
-Quels sont les types de Scalpereur ?
-
-Quel est le numéro national de Sinistrail ?
-Quel est le numéro national de Draïeul ?
-Quel est le numéro national de Wimessir ?
-Quel est le numéro national de Pohmarmotte ?
-Quel est le numéro national de Bargantua ?
-Quel est le numéro national de Dunaconda ?
-Quel est le numéro national de Compagnol ?
-Quel est le numéro national de Lestombaile ?
-Quel est le numéro national de Ferdeter ?
-Quel est le numéro national de Tapatoès ?
-
-Quelles sont les évolutions de Viskuse ?
+Quel est le numéro du Pokédex national de Sinistrail ?
 Comment Sovkipou évolue-t-il ?
-Comment Opermine évolue-t-il ?
-Comment Brocélôme évolue-t-il ?
-Comment Sepiatop évolue-t-il ?
-Comment Crabagarre évolue-t-il ?
-Comment Charbambin évolue-t-il ?
-Comment Mordudor évolue-t-il ?
-Comment Colimucus évolue-t-il ?
-Comment Verpom évolue-t-il ?
-Comment Tritox évolue-t-il ?
-Comment Debugant évolue-t-il ?
-Comment Ningale évolue-t-il ?
-Comment Pandespiègle évolue-t-il ?
-Comment Tutafeh de Galar évolue-t-il ?
+Quelles capacités signature possède Concombaffe ?
+Quels sont les types de Malamandre ?
+Quel est le numéro du Pokédex national de Hexagel ?
+Comment Théffroi évolue-t-il ?
+Quelles capacités signature possède Morpeko ?
+Quels sont les types de Draïeul ?
+Quel est le numéro du Pokédex national de Krakos ?
 
-Quelles capacités Krakos apprend-il entre les niveaux 20 et 40 ?
-Quelles capacités Concombaffe apprend-il en montant de niveau ?
-Quelles capacités Froussardine apprend-il entre les niveaux 10 et 30 ?
-Quelles capacités Bacabouh apprend-il en montant de niveau ?
-Quelles capacités Prédastérie apprend-il entre les niveaux 20 et 40 ?
-Quelles capacités Tiboudet apprend-il en montant de niveau ?
-Quelles capacités Sovkipou apprend-il entre les niveaux 15 et 30 ?
-Quelles capacités Chrysapile apprend-il en montant de niveau ?
-Quelles capacités Bombydou apprend-il entre les niveaux 10 et 25 ?
-Quelles capacités Mimantis apprend-il en montant de niveau ?
+Quels Pokémon sont de type Spectre ?
+Quels Pokémon sont à la fois Eau et Vol ?
+Quels Pokémon sont de type Glace ?
+Quels Pokémon sont à la fois Roche et Fée ?
+Quels Pokémon sont de type Dragon ?
+Quels Pokémon sont à la fois Insecte et Acier ?
+Quels Pokémon sont de type Ténèbres ?
+Quels Pokémon sont à la fois Feu et Spectre ?
+Quels Pokémon sont de type Sol ?
+Quels Pokémon sont à la fois Électrik et Fée ?
 
-Quelles CT Quartermac peut-il apprendre dans Pokémon Soleil et Lune ?
-Quelles CT Météno peut-il apprendre ?
-Quelles CT Tarenbulle peut-il apprendre ?
-Quelles CT Boumata peut-il apprendre ?
-Quelles CT Dodoala peut-il apprendre ?
-Quelles CT Denticrisse peut-il apprendre ?
-Quelles CT Bourrinos peut-il apprendre ?
-Quelles CT Malamandre peut-il apprendre ?
-Quelles CT Gamblast peut-il apprendre ?
-Quelles CT Bruyverne peut-il apprendre ?
+Quel est le Pokémon numéro 369 du Pokédex national ?
+Quel est le Pokémon numéro 626 du Pokédex national ?
+Quel est le Pokémon numéro 781 du Pokédex national ?
+Quel est le Pokémon numéro 870 du Pokédex national ?
+Quel est le Pokémon numéro 977 du Pokédex national ?
 
-Comment Momartik peut-il apprendre Ball'Ombre ?
-Comment Iguolta peut-il apprendre Tonnerre ?
-Comment Strassie peut-il apprendre Pouvoir Lunaire ?
-Comment Brutalibré peut-il apprendre Aéropique ?
-Comment Muplodocus peut-il apprendre Draco-Choc ?
-Comment Rexillius peut-il apprendre Mâchouille ?
-Comment Cocotine peut-il apprendre Pouvoir Lunaire ?
-Comment Sépiatroce peut-il apprendre Coupe Psycho ?
-Comment Kravarech peut-il apprendre Bomb-Beurk ?
-Comment Chevroum peut-il apprendre Encornebois ?
+Quels sont les Pokémon légendaires introduits en première génération ?
+Quels sont les Pokémon légendaires introduits en deuxième génération ?
+Quels sont les Pokémon légendaires introduits en troisième génération ?
+Quels sont les Pokémon légendaires introduits en quatrième génération ?
+Quels sont les Pokémon légendaires introduits en cinquième génération ?
+Quels sont les Pokémon légendaires introduits en sixième génération ?
+Quels sont les Pokémon légendaires introduits en septième génération ?
+Quels sont les Pokémon légendaires introduits en huitième génération ?
+Quels sont les Pokémon légendaires introduits en neuvième génération ?
+Quels sont les Pokémon fabuleux introduits en quatrième génération ?
 
-Quelles capacités signature possède Nigirigon ?
-Quelles capacités signature possède Motorizard ?
-Quelles capacités signature possède Oyacata ?
-Quelles capacités signature possède Tag-Tag ?
-Quelles capacités signature possède Ampibidou ?
-Quelles capacités signature possède Cléopsytra ?
-Quelles capacités signature possède Flâmigator ?
-Quelles capacités signature possède Palmaval ?
-Quelles capacités signature possède Terracruel ?
-Quelles capacités signature possède Courrousinge ?
+Quelles attaques Feu peut apprendre Boumata ?
+Quelles attaques Vol spéciales peut apprendre Lestombaile ?
+Quelles attaques Eau physiques peut apprendre Délestin ?
+Quelles attaques Psy spéciales peut apprendre Neitram ?
+Quelles attaques Combat physiques peut apprendre Crabominable ?
+Quelles attaques Spectre spéciales peut apprendre Tutankafer ?
+Quelles attaques Sol physiques peut apprendre Bourrinos ?
+Quelles attaques Électrik spéciales peut apprendre Ohmassacre ?
+Quelles attaques Glace spéciales peut apprendre Sorbouboul ?
+Quelles attaques Roche physiques peut apprendre Gigalithe ?
 
-À quoi ressemble le comportement de Gouroutan ?
-Que sait-on de l'habitat de Vorastérie ?
-Que raconte le Pokédex à propos de Plumeline ?
-Quelles particularités sont associées à Sovkipou ?
-Que sait-on de l'apparence de Sovkipou ?
-Que sait-on de l'origine de Sovkipou ?
-Quelles informations sont connues sur le mode de vie de Sovkipou ?
-Que sait-on du comportement de Sovkipou ?
-Quelles particularités possède Sovkipou ?
-Que sait-on de l'apparence de Sovkipou ?
+Est-ce que Gouroutan peut apprendre une attaque de type Combat ?
+Est-ce que Viskuse peut apprendre une attaque de type Glace ?
+Est-ce que Aflamanoir peut apprendre une attaque de type Plante ?
+Est-ce que Fermite peut apprendre une attaque de type Roche ?
+Est-ce que Iguolta peut apprendre une attaque de type Eau ?
+Est-ce que Dunaconda peut apprendre une attaque de type Feu ?
+Est-ce que Miasmax peut apprendre une attaque de type Psy ?
+Est-ce que Bargantua peut apprendre une attaque de type Ténèbres ?
+Est-ce que Plumeline peut apprendre une attaque de type Vol ?
+Est-ce que Dolman peut apprendre une attaque de type Combat ?
+
+Quelles attaques physiques de puissance supérieure ou égale à 100 peut apprendre Séracrawl ?
+Quelles attaques spéciales de puissance supérieure ou égale à 90 peut apprendre Gamblast ?
+Quelles attaques physiques de puissance supérieure ou égale à 80 peut apprendre Excavarenne ?
+Quelles attaques spéciales de puissance supérieure ou égale à 100 peut apprendre Lucanon ?
+Quelles attaques physiques de puissance supérieure ou égale à 90 peut apprendre Rexillius ?
+Quelles attaques spéciales de puissance supérieure ou égale à 80 peut apprendre Mistigrix ?
+Quelles attaques physiques de puissance supérieure ou égale à 100 peut apprendre Golgopathe ?
+Quelles attaques spéciales de puissance supérieure ou égale à 90 peut apprendre Bruyverne ?
+Quelles attaques physiques de puissance supérieure ou égale à 90 peut apprendre Chelours ?
+Quelles attaques spéciales de puissance supérieure ou égale à 100 peut apprendre Astronelle ?
+
+Quels Pokémon Eau peuvent apprendre une attaque Glace spéciale ?
+Quels Pokémon Roche peuvent apprendre une attaque Sol physique ?
+Quels Pokémon Spectre peuvent apprendre une attaque Combat physique ?
+Quels Pokémon Plante peuvent apprendre une attaque Poison spéciale ?
+Quels Pokémon Acier peuvent apprendre une attaque Électrik spéciale ?
+Quels Pokémon Sol peuvent apprendre une attaque Roche physique ?
+Quels Pokémon Psy peuvent apprendre une attaque Fée spéciale ?
+Quels Pokémon Ténèbres peuvent apprendre une attaque Poison physique ?
+Quels Pokémon Insecte peuvent apprendre une attaque Vol physique ?
+Quels Pokémon Combat peuvent apprendre une attaque Feu physique ?
+
+Quelles capacités Opermine apprend-il entre les niveaux 10 et 25 ?
+Quelles capacités Couafarel apprend-il en montant de niveau ?
+Quelles CT peut apprendre Strassie ?
+Quelles CT peut apprendre Quartermac ?
+Comment Sepiatroce peut-il apprendre Tricherie ?
+Comment Maracachi peut-il apprendre Giga-Sangsue ?
+Quelles capacités apprend Froussardine en montant de niveau ?
+Quelles CT peut apprendre Draïeul ?
+Comment Vorastérie peut-il apprendre Soin ?
+Quelles capacités apprend Bacabouh en montant de niveau ?
+
+À quoi ressemble Sovkipou ?
+Que sait-on du comportement de Mimantis ?
+Que sait-on de l'habitat de Bacabouh ?
+Quelles particularités possède Lampignon ?
+Que sait-on de la biologie de Froussardine ?
+Que raconte le Pokédex à propos de Croquine ?
+Que sait-on de l'origine de Sarmuraï ?
+Quelles particularités physiques possède Bombydou ?
+Que sait-on du comportement de Chelours ?
+Que sait-on des apparitions de Météno ?
+
+Pourquoi le corps de Trépassable est-il constitué de sable ?
+Quelles particularités possède Boumata ?
+Que sait-on du mode de vie de Dodoala ?
+Comment Araqua utilise-t-il sa bulle d'eau ?
+Que sait-on du comportement de Gouroutan ?
+Quelles particularités possède Quartermac ?
+Que sait-on de l'origine de Sorcilence ?
+Quelles informations connaît-on sur la biologie de Nigirigon ?
+Que sait-on du comportement de Craparoi ?
+Quelles particularités possède Ferdeter ?
