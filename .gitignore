@@ -41,5 +41,6 @@ Thumbs.db
 traces/*.jsonl
 
 # Generated test and benchmark reports
+test_results/
 traces/*.xml
 traces/*.json
