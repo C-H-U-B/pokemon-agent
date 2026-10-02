@@ -173,6 +173,14 @@ traductions masquées par ADK. Ces contrôles typés ne constituent pas une
 validation exhaustive de toutes les affirmations possibles en langage libre.
 `unit/test_explicit_pokemon_constraints.py` injecte un catalogue de noms pour
 vérifier substitutions, formes, ambiguïtés, classifications et listes simples.
+`unit/test_structured_constraint_guard.py` confronte les contraintes explicites
+aux arguments corrects, oubliés et contradictoires, avec un catalogue injecté.
+Il couvre les nombres de domaines distincts, types de Pokémon/capacités,
+catégories, bornes, régions multiples et titres complets de jeux. Les refus
+doivent préserver la proposition d'origine et exposer les arguments requis.
+`integration/test_mcp_server.py` vérifie aussi guard → vrai MCP stdio → SQLite :
+contraintes réparées acceptées par le schéma, résultats effectivement filtrés
+et reprise explicite après un refus de recherche par numéro, sans modèle.
 `integration/test_explicit_pokemon_and_movepool.py` utilise le catalogue réel et
 vérifie les jeux récents, anciens et historiques, sans LLM.
 Les tests du vrai runner simulant le modèle couvrent également les listes de

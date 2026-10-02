@@ -102,7 +102,7 @@ ni par `query_structured_data` ni par `run_graph`. Voir les
 | --- | --- | --- |
 | Conversation Web, activité et exemples | `web/app.py`, `web/example_questions.txt` | Présentation et état de conversation ; réutiliser root_agent et MCP, sans dupliquer la logique métier |
 | Configurer l'agent ADK et son modèle local | `agent/agent.py` | Couche indépendante, dix outils MCP structurés et documentaires ; voir le [guide ADK](src/pokemon_rag/agent/README.md) pour le contexte local et les limites |
-| Préserver les contraintes avant un outil ADK | `agent/tool_guard.py` | Réutiliser les extracteurs communs ; restaurer les arguments compatibles ou bloquer l'appel, sans accès aux données |
+| Préserver les contraintes avant un outil ADK | `agent/tool_guard.py` | Réutiliser les extracteurs communs ; restaurer les arguments compatibles ou bloquer l'appel ; aucun SQL ni calcul, catalogue/identité via le moteur existant |
 | Choisir une route et identifier le Pokémon | `graph/router.py` | Ne pas y exécuter une requête métier ou générer la réponse finale |
 | Extraire les formes, jeux et niveaux explicites | `constraints/query_constraints.py` | Extraction pure partagée entre moteur structuré et client MCP ; ni SQLite ni choix d'outil. Voir le [guide des contraintes](src/pokemon_rag/constraints/README.md) |
 | Ajouter une opération structurée, comprendre un jeu ou un niveau | `structured/query_engine.py` | Plan validé et SQL prédéfini ; adapter aussi routeur, formatage et éventuellement outil MCP |

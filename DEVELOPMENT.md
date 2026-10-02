@@ -1040,3 +1040,19 @@ Report instrumentation separates proposals from executed calls and strengthens
 failures for errors, abstentions, omitted values, invented levels and added
 English translations. Simulated-model tests verify these boundaries and real
 lists; Qwen's full factual fidelity remains for the manual campaign to check.
+
+## 60. [Bug fix] Explicit constraints independent of Qwen
+
+The campaign showed that a special category could disappear from an otherwise
+correctly targeted movepool. Recognizable constraints are now extracted before
+comparing arguments: origin generation, Pokémon and move types, physical/special/
+status category and power bounds join the existing protections. A complete game
+title takes priority over its short aliases; numbers belonging to distinct
+domains no longer interfere, and additional bounds after an interval are checked.
+
+The guard restores explicit values on a compatible tool and refuses a tool
+that cannot represent them, with the arguments to preserve on retry.
+Rejected proposals remain intact, and Qwen retains tool selection and retry.
+Deterministic tests check omissions, contradictions, ambiguities and combinations,
+then transmission of repaired arguments to the real MCP server and SQLite.
+Qwen's actual retry after a refusal remains for the manual campaign to verify.

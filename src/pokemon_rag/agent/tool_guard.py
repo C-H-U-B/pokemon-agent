@@ -4,7 +4,8 @@ from typing import Any
 import re
 
 from pokemon_rag.constraints.query_constraints import (
-    extract_explicit_constraints, extract_national_pokedex_number, reconcile_search_args,
+    ExplicitConstraints,
+    extract_explicit_constraints, reconcile_search_args,
     extract_named_pokemon, is_named_identity_question,
     normalize,
     VERSION_ALIASES,
@@ -33,6 +34,51 @@ FORM_TOOLS = {
     "pokemon_signature_moves",
 }
 
+MOVE_FILTER_TOOLS = {"pokemon_moves", "pokemon_search"}
+LEVEL_TOOLS = MOVE_FILTER_TOOLS | {"pokemon_level_up_moves"}
+
+
+def _explicit_arguments(constraints: ExplicitConstraints) -> dict[str, Any]:
+    """Traduction des seuls champs reconnus, sans choisir d'outil."""
+    required = {key: value for key, value in (
+        ("pokedex_number", constraints.national_number),
+        ("generation", constraints.generation), ("form", constraints.form),
+        ("version_group", constraints.version_group), ("move_type", constraints.move_type),
+        ("damage_class", constraints.damage_class), ("legendary", constraints.legendary),
+        ("mythical", constraints.mythical), ("form_category", constraints.form_category),
+    ) if value is not None}
+    if constraints.pokemon_types:
+        required.update(types=list(constraints.pokemon_types), type_match=constraints.type_match)
+    if constraints.power_bounds is not None:
+        required["min_power"], required["max_power"] = constraints.power_bounds
+    if constraints.level_bounds is not None:
+        required["min_level"], required["max_level"] = constraints.level_bounds
+    if constraints.ranking:
+        required.update(constraints.ranking)
+    return required
+
+
+def _unsupported(tool_name: str, required: dict[str, Any]) -> dict[str, Any] | None:
+    """Compatibilité avec les signatures structurées ; aucune réorientation automatique."""
+    groups = (
+        ({"pokedex_number"}, {"pokemon_search"}, "unsupported_pokedex_number_constraint"),
+        ({"version_group"}, VERSION_GROUP_TOOLS, "unsupported_version_constraint"),
+        ({"form"}, FORM_TOOLS, "unsupported_form_constraint"),
+        ({"min_level", "max_level"}, LEVEL_TOOLS, "unsupported_level_constraints"),
+        ({"move_type", "damage_class", "min_power", "max_power"}, MOVE_FILTER_TOOLS, "unsupported_move_constraints"),
+        ({"generation", "types", "type_match", "legendary", "mythical", "form_category",
+          "sort_by", "sort_order", "best_only", "limit", "offset"}, {"pokemon_search"}, "unsupported_search_constraints"),
+    )
+    for fields, tools, error in groups:
+        if fields.intersection(required) and tool_name not in tools:
+            response = {"error":error, "selected_tool":tool_name,
+                        "required_arguments":required,
+                        "message":"Cet outil ne peut pas conserver les contraintes explicites. Retentez avec un outil compatible et ces arguments."}
+            if error == "unsupported_pokedex_number_constraint":
+                response["required_tool"] = "pokemon_search"
+            return response
+    return None
+
 
 def _extract_user_text(user_content: Any) -> str:
     """Extrait le texte du message utilisateur courant fourni par ADK."""
@@ -60,11 +106,10 @@ def before_tool_guard(
 ) -> dict[str, Any] | None:
     """Valide les contraintes explicites avant l'exécution d'un outil ADK.
 
-    Protège actuellement :
-    - les contraintes explicites de niveaux ;
-    - les contraintes explicites de jeu/version ;
-    - les formes régionales reconnues par l'extracteur commun.
-    - les numéros nationaux et motifs explicites de classement reconnus.
+    Les contraintes reconnues sont indépendantes de la proposition du modèle.
+    L'appel est réparé uniquement si sa signature les représente toutes ; sinon
+    une erreur structurée laisse Qwen choisir la suite. Les arguments originaux
+    ne sont modifiés qu'après validation complète.
 
     Le callback retourne :
     - None pour laisser ADK exécuter l'outil ;
@@ -83,17 +128,30 @@ def before_tool_guard(
     padded = "-" + normalize(question) + "-"
     historical_without_named_game = historical and not any(f"-{alias}-" in padded for alias in VERSION_ALIASES)
 
+    corrected = dict(args)
     try:
         constraints = extract_explicit_constraints(question)
-        national_number = extract_national_pokedex_number(question)
-        tool_name = getattr(tool, "name", "")
+        required = _explicit_arguments(constraints)
+        if historical_without_named_game:
+            required.pop("version_group", None)
+        if constraints.form_ambiguous:
+            return {"error":"ambiguous_form_constraint", "message":"Plusieurs formes régionales explicites : précisez une cible unique."}
+        if constraints.version_ambiguous and not historical_without_named_game:
+            return {"error":"ambiguous_version_constraint", "message":"Jeu explicite inconnu ou plusieurs jeux non représentables."}
+        if constraints.level_explicit and constraints.level_bounds is None:
+            return {"error":"ambiguous_level_constraints", "message":"Bornes de niveau explicites ambiguës ou non reconnues."}
+        unsupported = _unsupported(tool_name, required)
+        if unsupported:
+            return unsupported
         entity = extract_named_pokemon(question, pokemon_name_catalogue()) if (
-            tool_name in FORM_TOOLS and national_number is None) else None
+            tool_name in FORM_TOOLS) else None
         if entity:
             identity = is_named_identity_question(question)
             if constraints.form:
+                if entity.get("form") and not normalize(entity["form"]).endswith(constraints.form):
+                    raise ValueError("La forme complète et la région explicites se contredisent.")
                 entity["form"] = constraints.form
-            if tool_name == "pokemon_search" and (identity or args.get("pokedex_number") is None):
+            if tool_name == "pokemon_search" and constraints.national_number is None and (identity or corrected.get("pokedex_number") is None):
                 required = {"required_tool":"pokemon_pokedex_identity"} if identity else {}
                 return {"error":"unsupported_named_pokemon_constraint", **required,
                         "required_arguments":entity,
@@ -102,129 +160,33 @@ def before_tool_guard(
                 # Conserver une recherche ciblée par numéro, même après un outil
                 # d'identité, mais ne jamais accepter un numéro d'une autre espèce.
                 known = get_pokedex_identity(**entity)
-                args["pokedex_number"] = known["rows"][0]["national_number"]
+                number = known["rows"][0]["national_number"]
+                if constraints.national_number is not None and constraints.national_number != number:
+                    raise ValueError("Le nom et le numéro national explicites désignent des cibles différentes.")
+                corrected["pokedex_number"] = number
                 if entity.get("form"):
-                    args["form"] = entity["form"]
+                    required["form"] = entity["form"]
             else:
-                args.update(entity)
-        if getattr(tool, "name", "") == "pokemon_search":
-            corrected = reconcile_search_args(question, args)
-            args.clear()
-            args.update(corrected)
+                corrected.update(entity)
+        if tool_name == "pokemon_search":
+            corrected = reconcile_search_args(question, corrected)
+        corrected.update(required)
+        if constraints.level_bounds is not None and tool_name in MOVE_FILTER_TOOLS:
+            if corrected.get("learning_method") not in (None, "level-up"):
+                return {"error":"incompatible_learning_method", "required_arguments":required,
+                        "message":"Les bornes de niveau exigent la montée de niveau ; choisissez un outil compatible."}
+            corrected["learning_method"] = "level-up"
+        if tool_name in {"pokemon_level_up_moves", "pokemon_machine_moves", "pokemon_move_learning_methods"}:
+            if historical or "all_versions" in corrected:
+                corrected["all_versions"] = historical
+            if historical_without_named_game:
+                corrected.pop("version_group", None)
     except ValueError as exc:
         return {
             "error": "invalid_explicit_constraints",
             "message": str(exc),
         }
 
-    tool_name = getattr(tool, "name", "")
-    if national_number is not None:
-        if tool_name != "pokemon_search":
-            return {
-                "error": "unsupported_pokedex_number_constraint",
-                "message": "Recherchez ce numéro avec pokemon_search, sans deviner un nom de Pokémon.",
-                "selected_tool": tool_name,
-                "required_tool": "pokemon_search",
-                "required_arguments": {"pokedex_number": national_number},
-            }
-        args["pokedex_number"] = national_number
-
-    if tool_name in {"pokemon_level_up_moves", "pokemon_machine_moves", "pokemon_move_learning_methods"}:
-        if historical or "all_versions" in args:
-            args["all_versions"] = historical
-        if historical_without_named_game:
-            args.pop("version_group", None)
-
-    # ------------------------------------------------------------------
-    # Contraintes de jeu / version
-    # ------------------------------------------------------------------
-
-    if constraints.version_ambiguous and not historical_without_named_game:
-        return {
-            "error": "ambiguous_version_constraint",
-            "message": (
-                "La question contient une contrainte explicite de jeu/version, "
-                "mais elle ne peut pas être interprétée sans ambiguïté."
-            ),
-        }
-
-    if constraints.explicit_game and not historical_without_named_game:
-        if constraints.version_group is None:
-            return {
-                "error": "unresolved_version_constraint",
-                "message": (
-                    "La question contient une contrainte explicite de jeu/version, "
-                    "mais aucune version connue n'a pu être déterminée."
-                ),
-            }
-
-        if tool_name not in VERSION_GROUP_TOOLS:
-            return {
-                "error": "unsupported_version_constraint",
-                "message": (
-                    "La question contient une contrainte explicite de jeu/version, "
-                    "mais l'outil sélectionné ne permet pas de la respecter."
-                ),
-                "selected_tool": tool_name,
-            }
-
-        args["version_group"] = constraints.version_group
-
-    # ------------------------------------------------------------------
-    # Contraintes de forme
-    # ------------------------------------------------------------------
-
-    if constraints.form is not None:
-        if tool_name not in FORM_TOOLS:
-            return {
-                "error": "unsupported_form_constraint",
-                "message": (
-                    "La question contient une contrainte explicite de forme, "
-                    "mais l'outil sélectionné ne permet pas de la respecter."
-                ),
-                "selected_tool": tool_name,
-            }
-
-        args["form"] = constraints.form
-
-    # ------------------------------------------------------------------
-    # Contraintes de niveaux
-    # ------------------------------------------------------------------
-
-    if constraints.level_explicit:
-        if constraints.level_bounds is None:
-            return {
-                "error": "ambiguous_level_constraints",
-                "message": (
-                    "La question contient une contrainte explicite de niveau, "
-                    "mais elle ne peut pas être interprétée sans ambiguïté."
-                ),
-            }
-
-        if tool_name not in {"pokemon_level_up_moves", "pokemon_moves", "pokemon_search"}:
-            return {
-                "error": "unsupported_level_constraints",
-                "message": (
-                    "La question contient une contrainte explicite de niveau, "
-                    "mais l'outil sélectionné ne permet pas de la respecter."
-                ),
-                "selected_tool": tool_name,
-            }
-
-        minimum, maximum = constraints.level_bounds
-
-        if tool_name in {"pokemon_moves", "pokemon_search"}:
-            if args.get("learning_method") not in (None, "level-up"):
-                return {"error": "incompatible_learning_method",
-                        "message": "Les bornes de niveau exigent la montée de niveau."}
-            args["learning_method"] = "level-up"
-            args["min_level"], args["max_level"] = minimum, maximum
-            return None
-
-        if minimum is not None:
-            args["min_level"] = minimum
-
-        if maximum is not None:
-            args["max_level"] = maximum
-
+    args.clear()
+    args.update(corrected)
     return None
