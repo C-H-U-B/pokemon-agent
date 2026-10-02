@@ -11,7 +11,7 @@ from openai import OpenAI
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-from pokemon_rag.constraints.query_constraints import extract_explicit_constraints, normalize
+from pokemon_rag.constraints.query_constraints import extract_explicit_constraints, extract_national_pokedex_number, normalize
 
 
 SERVER_MODULE = "pokemon_rag.mcp.server"
@@ -35,6 +35,16 @@ Règles :
 - utilise uniquement un tool présent dans la liste fournie ;
 - respecte exactement son schéma d'entrée ;
 - n'invente pas de paramètre ;
+- utilise pokemon_search pour les listes, comptages et recherches croisées ;
+- utilise pokemon_moves pour les capacités apprenables selon leurs propriétés ;
+- pour retrouver un Pokémon par numéro national, utilise pokemon_search avec
+  pokedex_number ; ne devine pas un nom pour appeler pokemon_pokedex_identity ;
+- pokemon_pokedex_identity obtient le numéro d'un Pokémon déjà nommé ;
+- pour les classements par statistiques de base, utilise pokemon_search avec sort_by,
+  sort_order et tous les filtres ; superlatif singulier : best_only=true,
+  top N : best_only=false et limit=N ; toutes les Méga : form_category="mega" ;
+- ne calcule ni total, ni tri, ni min/max toi-même ; signale les ex aequo (tie/tie_count) ;
+- combine tous les filtres en SQL via les arguments, sans filtrer toi-même les résultats ;
 - utilise pokemon_rag_search lorsque la question demande une information documentaire
   qui n'est pas couverte par un tool structuré ;
 - pour pokemon_rag_search, renseigne "pokemon" lorsqu'un Pokémon unique est explicitement
@@ -54,6 +64,29 @@ Règles :
 - reste concis, sauf si la question demande davantage de détails ;
 - ne mentionne pas MCP, le tool, le JSON, la base de données ou le fonctionnement interne ;
 - ne recopie pas les champs techniques inutiles.
+- utilise total_count pour les nombres et questions d'existence ;
+- best_only=true : reprends best_value et signale les ex aequo avec tie/tie_count,
+  même si la page ne montre qu'un gagnant ; ne recalcule jamais les statistiques ;
+- signale les listes partielles (truncated) et leur total ;
+- précise le jeu retenu pour un movepool et utilise les noms français ;
+- movepool_available=false signifie données indisponibles, pas impossibilité d'apprendre ;
+- les propriétés des capacités sont actuelles, même pour un movepool ancien.
+- catalogue_complete=false impose de préciser que le total porte sur un catalogue incomplet.
+
+Pour les résultats structurés :
+- donne uniquement les informations demandées et attestées par le résultat disponible ;
+- pour « Quels Pokémon… ? », reprends exclusivement les name_fr des Pokémon dans
+  results, dans leur ordre ; n'ajoute, ne remplace et ne retire aucun Pokémon de mémoire ;
+- ne complète jamais une page tronquée par tes connaissances ;
+- n'ajoute pas de générations, numéros, classifications légendaires ou fabuleuses,
+  noms anglais, exemples de capacités ou explications non demandés ;
+- pokemon_search donne les Pokémon correspondants, pas les noms des capacités :
+  ne cite aucune capacité à partir de ce seul résultat ;
+- pour une liste de capacités, utilise exclusivement les name_fr des capacités retournées ;
+- ne termine pas une liste par une phrase illustrative ajoutant de nouveaux faits ;
+- avant de répondre, retire tout nom ou fait sans preuve appropriée et tout détail non demandé ;
+- garde les précisions nécessaires sur le jeu et les limites, en une courte phrase
+  pour la couverture du catalogue, sans nommer les formes manquantes sauf demande explicite.
 """
 
 
@@ -171,15 +204,30 @@ def reconcile_tool_call(
     """Réconcilie le choix du LLM avec les contraintes certaines de la question."""
     constraints = extract_explicit_constraints(question)
     reconciled = dict(arguments)
+    try:
+        national_number = extract_national_pokedex_number(question)
+    except ValueError as exc:
+        raise ConstraintResolutionError(str(exc)) from exc
+    if national_number is not None:
+        search_tool = _tool_by_name(tools, "pokemon_search")
+        if search_tool is None or "pokedex_number" not in _tool_properties(search_tool):
+            raise ConstraintResolutionError("Aucun outil disponible ne permet de rechercher ce numéro national.")
+        if tool_name not in {"pokemon_search", "pokemon_pokedex_identity"}:
+            raise ConstraintResolutionError("Utilisez pokemon_search pour rechercher ce numéro national.")
+        if tool_name == "pokemon_pokedex_identity":
+            tool_name = "pokemon_search"
+            properties = _tool_properties(search_tool)
+            reconciled = {key: value for key, value in reconciled.items() if key in properties}
+        reconciled["pokedex_number"] = national_number
 
     # Un Pokémon fourni par le modèle doit réellement apparaître dans la question.
     # S'il est absent, on bloque plutôt que d'exécuter une question simplifiée.
     pokemon = reconciled.get("pokemon")
-    if not isinstance(pokemon, str) or not pokemon.strip():
+    if tool_name != "pokemon_search" and (not isinstance(pokemon, str) or not pokemon.strip()):
         raise ConstraintResolutionError(
             "Je ne peux pas exécuter la demande sans identifier avec certitude le Pokémon concerné."
         )
-    if normalize(pokemon) not in normalize(question):
+    if pokemon is not None and normalize(pokemon) not in normalize(question):
         raise ConstraintResolutionError(
             "Le Pokémon sélectionné ne correspond pas clairement à celui demandé ; précisez le Pokémon concerné."
         )
@@ -189,7 +237,7 @@ def reconcile_tool_call(
             raise ConstraintResolutionError(
                 "La contrainte de niveau est ambiguë ; précisez la borne ou l'intervalle souhaité."
             )
-        if tool_name != "pokemon_level_up_moves":
+        if tool_name not in {"pokemon_level_up_moves", "pokemon_moves", "pokemon_search"}:
             level_tool = _tool_by_name(tools, "pokemon_level_up_moves")
             if level_tool is None:
                 raise ConstraintResolutionError(
@@ -203,6 +251,10 @@ def reconcile_tool_call(
         minimum, maximum = constraints.level_bounds
         reconciled["min_level"] = minimum
         reconciled["max_level"] = maximum
+        if tool_name in {"pokemon_moves", "pokemon_search"}:
+            if reconciled.get("learning_method") not in (None, "level-up"):
+                raise ConstraintResolutionError("Les bornes de niveau exigent la montée de niveau.")
+            reconciled["learning_method"] = "level-up"
 
     tool = _tool_by_name(tools, tool_name)
     if tool is None:

@@ -7,7 +7,9 @@ Les diagnostics du serveur doivent utiliser stderr pour préserver le stdio MCP.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any, Literal
+
+from pydantic import Field
 
 from mcp.server import MCPServer
 
@@ -19,9 +21,96 @@ from pokemon_rag.structured.query_engine import (
     get_pokedex_identity,
     get_pokemon_types,
     get_signature_moves,
+    get_pokemon_moves,
+    search_pokemon,
 )
 
 mcp = MCPServer("Pokemon RAG")
+
+
+@mcp.tool()
+def pokemon_search(
+    pokedex_number: int | None = None, generation: int | None = None,
+    types: list[str] | None = None, type_match: str = "all",
+    legendary: bool | None = None, mythical: bool | None = None,
+    form: str | None = None, version_group: str | None = None,
+    move_type: str | None = None, damage_class: str | None = None,
+    min_power: int | None = None, max_power: int | None = None,
+    learning_method: str | None = None, min_level: int | None = None,
+    max_level: int | None = None, limit: int = 30, offset: int = 0,
+    sort_by: Annotated[Literal["national_number", "hp", "attack", "defense", "special-attack",
+                              "special-defense", "speed", "base-stat-total"],
+                       Field(description="Tri SQL : numéro national ou statistique de base ; total = somme des six stats.")] = "national_number",
+    sort_order: Annotated[Literal["asc", "desc"],
+                          Field(description="asc : minimum/plus lent ; desc : maximum/meilleur/plus rapide.")] = "asc",
+    best_only: Annotated[bool, Field(description="Superlatif singulier : true conserve les ex aequo au min/max SQL. Top N : false, limit=N. Vérifier tie et tie_count.")] = False,
+    form_category: Annotated[Literal["mega"] | None,
+                             Field(description="mega : toutes les Méga et leurs statistiques, y compris X/Y/Z. null : sémantique de form inchangée.")] = None,
+) -> dict[str, Any]:
+    """Recherche et classement SQL par statistiques de base avec tous les filtres. Superlatif : best_only=true ; top N : limit=N. Méga : form_category=mega. Aucun tri, maximum ou total à calculer par le modèle.
+
+    pokedex_number est le numéro national ; generation est l'origine de l'espèce.
+    legendary et mythical sont distincts. types accepte les noms français ou les
+    identifiants anglais. type_match : all=possède tous les types (défaut),
+    any=au moins un, exact=exactement cette combinaison.
+    form absent : forme par défaut ; sinon identifiant de forme ou régional.
+    move_type, damage_class (physical/special/status), bornes de puissance,
+    learning_method et niveaux sélectionnent les Pokémon pouvant apprendre
+    au moins une capacité respectant TOUS ces filtres. Les bornes sont inclusives.
+    Sans version_group, utilise le dernier movepool disponible de chaque Pokémon,
+    jamais l'union historique. Les propriétés des capacités ne sont pas historisées.
+    limit : 0 à 100 (0 pour compter), offset : pagination. total_count est exact,
+    truncated signale une liste partielle. Aucun filtre talent n'est disponible.
+    Retourne des Pokémon, pas les noms des capacités qui justifient la sélection.
+    Pour nommer ces capacités si elles sont demandées, appeler pokemon_moves.
+    sort_by : national_number, hp, attack, defense, special-attack,
+    special-defense, speed, base-stat-total. Hors IV/EV/nature/niveau/combat.
+    best_only : filtre au minimum/maximum SQL, avec best_value et tie_count.
+    Les ex aequo restent paginés ; total_count compte les gagnants, matching_count
+    les candidats. Top N classique : best_only=false, limit=N.
+    form_category=mega utilise is_mega, pas une liste de noms ; inclut X/Y/Z.
+    """
+    return search_pokemon(
+        pokedex_number=pokedex_number, generation=generation, types=types,
+        type_match=type_match, legendary=legendary, mythical=mythical, form=form,
+        version_group=version_group, move_type=move_type, damage_class=damage_class,
+        min_power=min_power, max_power=max_power, learning_method=learning_method,
+        min_level=min_level, max_level=max_level, limit=limit, offset=offset,
+        sort_by=sort_by, sort_order=sort_order,
+        best_only=best_only, form_category=form_category,
+    )
+
+
+@mcp.tool()
+def pokemon_moves(
+    pokemon: str, form: str | None = None, version_group: str | None = None,
+    move_type: str | None = None, damage_class: str | None = None,
+    min_power: int | None = None, max_power: int | None = None,
+    learning_method: str | None = None, min_level: int | None = None,
+    max_level: int | None = None, limit: int = 30, offset: int = 0,
+) -> dict[str, Any]:
+    """Capacités uniques apprenables par un Pokémon, avec filtres SQL combinables.
+
+    pokemon : nom français, anglais ou PokéAPI ; form : forme explicite, sinon défaut.
+    move_type : type français ou identifiant ; damage_class : physical/special/status.
+    min_power/max_power inclusifs excluent les puissances inconnues (NULL).
+    Une puissance NULL ne signifie jamais statut : seule la catégorie fait foi.
+    learning_method : level-up/machine/egg/tutor ou autre identifiant de la base.
+    min_level/max_level inclusifs impliquent level-up, incompatibles avec les autres méthodes.
+    version_group explicite est strict ; sinon dernier jeu réellement disponible
+    pour cette forme, indiqué dans le résultat, avant application des filtres.
+    Propriétés actuelles des capacités, sans reconstruction de leurs anciennes valeurs.
+    Les méthodes retenues figurent dans learning sans répéter les capacités.
+    total_count>0 répond oui à une question « peut-il apprendre une capacité… ? » ;
+    total_count=0 répond non pour le movepool local uniquement si movepool_available=true.
+    limit : 0 à 100 (0 pour compter), offset : pagination ; truncated indique une liste partielle.
+    """
+    return get_pokemon_moves(
+        pokemon=pokemon, form=form, version_group=version_group, move_type=move_type,
+        damage_class=damage_class, min_power=min_power, max_power=max_power,
+        learning_method=learning_method, min_level=min_level, max_level=max_level,
+        limit=limit, offset=offset,
+    )
 
 
 @mcp.tool()
@@ -143,6 +232,10 @@ def pokemon_pokedex_identity(
 
     L'identité comprend notamment son numéro national et sa génération
     d'introduction.
+
+    Direction : nom de Pokémon connu → identité. Pour retrouver le Pokémon
+    correspondant à un numéro national, utiliser pokemon_search(pokedex_number=...).
+    Ne pas deviner un nom pour appeler cet outil lors d'une recherche par numéro.
 
     Args:
         pokemon: Nom du Pokémon ou de l'entrée du Pokédex.

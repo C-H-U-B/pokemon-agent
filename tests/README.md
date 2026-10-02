@@ -78,7 +78,7 @@ Elle ne valide pas le choix d'outil par Qwen. Les tests ADK réels de function
 calling et du parcours MCP restent dans `tests/long`, marqués `llm`, `models`
 et `long`, et doivent être exécutés par l'utilisateur.
 
-`integration/test_adk_mcp_toolset.py` vérifie la découverte exacte des huit outils
+`integration/test_adk_mcp_toolset.py` vérifie la découverte exacte des dix outils
 via le vrai serveur stdio, sans appel d'outil ni LLM. Le test stdio officiel
 reste une validation distincte du protocole. Les E2E de `long/test_adk_agent.py`
 vérifient le routage vers types, identité, CT avec version et capacités avec
@@ -133,9 +133,37 @@ python -m pytest tests/integration/test_mcp_server.py -q -p no:cacheprovider
 ```
 
 Le test serveur nécessite la base locale et le SDK MCP compatible. Il découvre
-les huit outils et appelle réellement `pokemon_types` pour Pikachu et Nigirigon,
+les dix outils et appelle réellement `pokemon_types` pour Pikachu et Nigirigon,
 puis vérifie qu'une espèce inexistante produit une erreur MCP, sans Qwen ni recherche RAG.
 Il utilise `asyncio.run` et ne nécessite pas `pytest-asyncio`.
+
+`integration/test_pokedex_search_movepool.py` vérifie le moteur avec SQLite réel
+et un catalogue temporaire contrôlé : filtres croisés, catégorie indépendante
+de la puissance NULL, formes, sélection des versions avant filtrage, absence
+d'union historique, déduplication et pagination. Les cas `real_data` vérifient
+Relicanth, les fabuleux de troisième génération, Frappe Atlas et les formes
+d'Arceus sur la base locale.
+Le test serveur appelle aussi `pokemon_search` et `pokemon_moves` via stdio,
+et distingue une erreur de filtre d'une liste vide, sans LLM. Les guards ADK et
+MCP simulés vérifient la conservation des filtres des nouveaux outils.
+
+Le même catalogue temporaire vérifie les six tris statistiques, le total SQL
+(avec un total stocké volontairement faux), les NULL, les Méga avec leurs
+propres statistiques, les ex aequo paginés et les top N combinés aux filtres.
+Les cas réels contrôlent notamment les minima partagés et les classements Méga.
+Le serveur stdio vérifie les enums, les nouveaux arguments et les erreurs de
+validation ; les tests de découverte ADK vérifient aussi que le catalogue
+reste compatible avec le budget de contexte, sans inférence.
+Un test avec la base et le catalogue MCP réels vérifie aussi que les top 10
+par Vitesse et total restent complets dans le contexte ADK après adaptation.
+
+```powershell
+conda run -n langgraph-agent python -m pytest tests/integration/test_pokedex_search_movepool.py tests/unit/test_adk_tool_guard.py tests/unit/test_mcp_constraint_preservation.py tests/integration/test_mcp_server.py tests/integration/test_adk_mcp_toolset.py -q -p no:cacheprovider --tb=short --basetemp=.pytest_tmp_pokedex
+```
+
+Le `basetemp` dédié évite les restrictions observées du répertoire temporaire
+système et du cache pytest local ; pytest remplace ce répertoire de tests à
+chaque exécution. Il contient uniquement les bases temporaires de ces tests.
 
 Le test de Tonnerre appelle `query_structured_data`, dont le parseur peut se
 replier vers un LLM. Son marqueur `real_data` ne garantit donc pas une exécution

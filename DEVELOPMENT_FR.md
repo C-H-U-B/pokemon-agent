@@ -968,3 +968,70 @@ préparation de la réponse, avec un chrono par appel. Les reprises cumulent le
 temps et les attentes parallèles comptent une fois dans le total de l'étape.
 Ces mesures reflètent les événements reçus par l'interface, délais de transport
 et de session compris.
+
+## 53. [Feature] Recherche Pokémon et movepool filtrable
+
+Les recherches structurées peuvent désormais combiner numéro national, types,
+génération d'origine, légendaire ou fabuleux et propriétés de capacités
+apprenables. Deux outils MCP exposent ces filtres SQL à ADK et au client local,
+sans demander au modèle de filtrer des listes. Les talents sont reportés.
+
+Sans forme demandée, la forme par défaut est sélectionnée. Sans jeu demandé,
+le movepool le plus récent réellement disponible est choisi avant les filtres,
+sans union historique. Les résultats dédupliquent les capacités, conservent les
+méthodes et indiquent les totaux et pages partielles. Les lacunes du catalogue
+personnalisé pour certaines formes par défaut sont signalées sans substitution.
+
+Les tests déterministes vérifient les recherches croisées, les versions, les
+formes et la distinction entre puissance inconnue et catégorie de capacité,
+ainsi que le transport MCP réel et la conservation des contraintes des clients.
+La base et les interfaces des anciens outils sont conservées.
+
+Une réponse de recherche ajoutait des noms de capacités inventés et des détails
+non demandés. Les instructions ADK et du client MCP exigent désormais les seuls
+noms français retournés pour une liste, sans génération ou classification
+supplémentaire. Une recherche Pokémon ne permet pas de nommer ses capacités
+correspondantes ; celles-ci doivent être récupérées si elles sont demandées.
+La couverture incomplète est signalée brièvement sans liste d'exceptions.
+Le respect de ces consignes par Qwen reste à vérifier manuellement.
+
+Une recherche par numéro national utilisait aussi l'outil d'identité avec un nom
+deviné. Les deux directions sont maintenant explicites : le guard ADK refuse
+cet appel et exige la recherche par numéro, tandis que le client MCP redirige
+l'appel d'identité et rétablit le numéro demandé. Des tests sans LLM vérifient
+ce cas, le maintien de l'identité par nom et le refus des numéros régionaux ou
+multiples reconnus. Le texte final reste soumis aux consignes du modèle.
+
+## 54. [Bug fix] Budget de contexte de l'agent ADK
+
+Une question simple sur le Pokémon le plus rapide pouvait dépasser la
+fenêtre de Qwen. Les instructions ont été raccourcies, les réponses MCP
+transmises au modèle ne dupliquent plus leur JSON, et les résultats trop
+volumineux sont réduits avec un signalement explicite. Un contrôle avant
+chaque appel borne le contexte sérialisé et le nombre d'appels ; un budget
+dépassé produit une abstention locale sans supprimer de contrainte.
+
+La recherche structurée dispose aussi d'un tri par vitesse de base pour
+obtenir directement le maximum avec une seule ligne, à partir des données
+existantes. Les tests sans LLM vérifient les budgets, la compatibilité du
+catalogue MCP réel et le classement SQL. Le budget en octets reste une
+estimation conservatrice ; l'inférence Qwen n'a pas été exécutée.
+
+## 55. [Feature] Classements filtrés par statistiques de base
+
+Le premier classement ne couvrait que la Vitesse et ne distinguait pas un
+superlatif avec ex aequo d'une première ligne paginée. `pokemon_search`
+combine maintenant ses filtres avec les six statistiques de base ou leur
+somme calculée en SQL. Le même tri sert aux top N ; un mode de superlatif
+sélectionne le seuil gagnant et compte tous les ex aequo avant pagination.
+
+La catégorie Méga utilise le flag des formes de la base, y compris leurs
+variantes, avec les statistiques propres à chaque entrée. Sans demande de
+forme, la sélection par défaut reste inchangée. Les schémas MCP et les
+instructions orientent Qwen vers ces calculs déterministes. Des tests sans
+LLM vérifient la composition des filtres, les égalités, les totaux, les
+formes et la conservation des arguments dans les clients. Aucun index,
+contenu ou schéma de base n'a été modifié.
+Les instructions et annotations de schémas ont aussi été compactées, ainsi
+que les champs techniques des classements destinés à ADK, pour transmettre
+les top 10 sans dépasser le budget existant ni réduire leur nombre de lignes.

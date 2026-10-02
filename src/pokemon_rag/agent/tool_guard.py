@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from pokemon_rag.constraints.query_constraints import extract_explicit_constraints
+from pokemon_rag.constraints.query_constraints import extract_explicit_constraints, extract_national_pokedex_number
 
 
 VERSION_GROUP_TOOLS = {
+    "pokemon_moves",
+    "pokemon_search",
     "pokemon_evolutions",
     "pokemon_level_up_moves",
     "pokemon_move_learning_methods",
@@ -13,6 +15,8 @@ VERSION_GROUP_TOOLS = {
 }
 
 FORM_TOOLS = {
+    "pokemon_moves",
+    "pokemon_search",
     "pokemon_evolutions",
     "pokemon_level_up_moves",
     "pokemon_move_learning_methods",
@@ -67,6 +71,7 @@ def before_tool_guard(
 
     try:
         constraints = extract_explicit_constraints(question)
+        national_number = extract_national_pokedex_number(question)
     except ValueError as exc:
         return {
             "error": "invalid_explicit_constraints",
@@ -74,6 +79,16 @@ def before_tool_guard(
         }
 
     tool_name = getattr(tool, "name", "")
+    if national_number is not None:
+        if tool_name != "pokemon_search":
+            return {
+                "error": "unsupported_pokedex_number_constraint",
+                "message": "Recherchez ce numéro avec pokemon_search, sans deviner un nom de Pokémon.",
+                "selected_tool": tool_name,
+                "required_tool": "pokemon_search",
+                "required_arguments": {"pokedex_number": national_number},
+            }
+        args["pokedex_number"] = national_number
 
     # ------------------------------------------------------------------
     # Contraintes de jeu / version
@@ -141,7 +156,7 @@ def before_tool_guard(
                 ),
             }
 
-        if tool_name != "pokemon_level_up_moves":
+        if tool_name not in {"pokemon_level_up_moves", "pokemon_moves", "pokemon_search"}:
             return {
                 "error": "unsupported_level_constraints",
                 "message": (
@@ -152,6 +167,14 @@ def before_tool_guard(
             }
 
         minimum, maximum = constraints.level_bounds
+
+        if tool_name in {"pokemon_moves", "pokemon_search"}:
+            if args.get("learning_method") not in (None, "level-up"):
+                return {"error": "incompatible_learning_method",
+                        "message": "Les bornes de niveau exigent la montée de niveau."}
+            args["learning_method"] = "level-up"
+            args["min_level"], args["max_level"] = minimum, maximum
+            return None
 
         if minimum is not None:
             args["min_level"] = minimum

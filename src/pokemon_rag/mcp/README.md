@@ -2,6 +2,31 @@
 
 `server.py` expose les évolutions, les capacités, les types, l'identité Pokédex, les capacités signature et la recherche documentaire sous forme d'outils MCP.
 
+Deux outils complètent les huit outils existants : `pokemon_search` appelle
+`search_pokemon` et `pokemon_moves` appelle `get_pokemon_moves`. Leurs signatures
+et contrats sont décrits dans le [guide structuré](../structured/README.md#recherche-pokémon-et-movepool-filtrable-via-mcp).
+Ils combinent les filtres en SQL, renvoient des pages avec total exact et
+troncature explicite, et utilisent une forme par défaut sans forme demandée.
+La recherche inverse par capacité utilise le dernier movepool de chaque Pokémon,
+sans union historique. Le catalogue personnalisé lié présente des lacunes de
+formes par défaut signalées dans `catalogue_complete` ; les talents sont reportés.
+Les outils historiques conservent leurs signatures et leurs résultats.
+`pokemon_search` classe aussi les six statistiques de base et leur somme SQL :
+`sort_by`, `sort_order`, `limit` se combinent avec tous les filtres. Le schéma
+MCP expose une enum de statistiques, `asc/desc`, `best_only` (superlatif avec
+détection des ex aequo) et `form_category="mega"` (toutes les Méga liées).
+Le modèle traduit la question en arguments ; SQL calcule totaux et gagnants.
+Un top N garde `best_only=false`, tandis qu'un superlatif singulier utilise
+`best_only=true` et doit signaler `tie/tie_count`, même sur une page d'une ligne.
+Les descriptions des arguments restent visibles après l'abrègement ADK.
+Les guards et la réconciliation conservent ces arguments sans comparer de valeurs.
+Les callbacks ADK
+bornent les données destinées au modèle sans changer les réponses MCP aux
+autres clients : voir le [budget ADK](../agent/README.md#budget-de-contexte).
+`pokemon_level_up_moves`, `pokemon_machine_moves` et
+`pokemon_move_learning_methods` recouvrent une partie de `pokemon_moves`, mais
+conservent notamment leurs informations spécialisées et leurs règles de versions.
+
 Ces outils appellent directement le moteur structuré ou la recherche. Ils ne passent pas par `run_graph` : ils ne réalisent ni routage global, ni génération de réponse, ni contrôle de fidélité, ni finalisation des traces du graphe.
 
 ## Résultats à interpréter
@@ -23,13 +48,13 @@ libellés français et interdit de compléter une récupération échouée de m�
 Le filtre `pokemon` de la recherche attend un nom canonique. Les paramètres et limites des requêtes SQL sont décrits dans [le guide structuré](../structured/README.md).
 `pokemon_machine_moves` sans `version_group` retourne seulement le groupe de
 versions le plus récent avec des données locales de CT/CS pour la forme demandée.
-Il indique le jeu retenu et `version_selection`; les autres outils ne sont pas
+Il indique le jeu retenu et `version_selection`; les autres outils historiques ne sont pas
 soumis à cette sélection automatique.
 
 ## Client local
 
 L'[agent ADK](../agent/README.md) constitue un autre client du serveur. Son
-catalogue expose les huit outils du serveur, y compris `pokemon_rag_search`.
+catalogue expose les dix outils du serveur, y compris `pokemon_rag_search`.
 Son callback préserve les
 contraintes reconnues de niveaux, de jeux et de formes ou refuse un outil
 incompatible ; il ne passe pas par `reconcile_tool_call` du client ci-dessous.
@@ -57,6 +82,20 @@ l'outil et le type dictionnaire des arguments, mais ne valide pas lui-même leur
 conformité complète au schéma. `reconcile_tool_call` utilise les
 [extracteurs communs](../constraints/README.md) pour rétablir les formes, jeux et
 bornes reconnus. Une mention de niveau peut réorienter vers `pokemon_level_up_moves`.
+Pour `pokemon_moves` et `pokemon_search`, la réconciliation conserve l'outil et
+les filtres de capacités, restaure les bornes et exige `level-up`.
+`pokemon_search` ne nécessite pas de Pokémon individuel dans la question.
+Pour un numéro national explicite reconnu, le client rétablit `pokedex_number`
+et redirige un choix de `pokemon_pokedex_identity` vers `pokemon_search`, en
+retirant le nom d'espèce deviné. Sans outil de recherche compatible, l'appel est
+refusé. L'identité conserve la direction nom → numéro ; la recherche fournit
+numéro → Pokémon. Le guard ADK refuse l'outil incompatible et indique l'appel
+à réessayer, sans le lancer lui-même.
+Les instructions de formulation imposent les seuls noms français retournés
+pour les listes structurées, sans détails non demandés ni exemples de capacités
+déduits d'une recherche Pokémon. La limite de couverture est signalée brièvement,
+sans liste d'exceptions sauf demande. Ces règles de prompt ne constituent pas
+un contrôle déterministe de la réponse générée.
 Une `ConstraintResolutionError` fait retourner à `ask` un message explicatif sans
 appel d'outil ni formulation finale. Un intervalle impossible lève une `ValueError`
 qui n'est pas convertie par ce mécanisme. Une erreur MCP

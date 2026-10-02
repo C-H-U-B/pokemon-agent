@@ -5,6 +5,7 @@ import re
 import sqlite3
 import time
 import unicodedata
+from contextlib import closing
 from typing import Any
 
 from openai import OpenAI
@@ -21,6 +22,34 @@ from pokemon_rag.constraints.query_constraints import (
 )
 LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
 QUERY_MODEL = "qwen/qwen3-vl-8b"
+
+# Source unique des identifiants, colonnes et libellés des six statistiques.
+# Ces expressions SQL internes ne proviennent jamais des arguments du modèle.
+BASE_STAT_FIELDS = {
+    "hp": ("pv", "PV"),
+    "attack": ("attaque", "Attaque"),
+    "defense": ("defense", "Défense"),
+    "special-attack": ("attaque_speciale", "Attaque Spéciale"),
+    "special-defense": ("defense_speciale", "Défense Spéciale"),
+    "speed": ("vitesse", "Vitesse"),
+}
+BASE_STAT_TOTAL = "base-stat-total"
+
+
+def _stat_sort(value: str) -> tuple[str, str | None, str | None]:
+    """Résout la whitelist de tri et les libellés français, sans SQL utilisateur."""
+    if not isinstance(value, str):
+        raise ValueError("sort_by doit désigner une statistique de base ou national_number.")
+    normalized = _normalize(value)
+    if normalized == "national-number":
+        return "national_number", None, None
+    for identifier, (column, label) in BASE_STAT_FIELDS.items():
+        if normalized in {identifier, _normalize(label)}:
+            return identifier, f"stats.{column}", label
+    if normalized in {BASE_STAT_TOTAL, "total-des-statistiques", "total-de-base"}:
+        return BASE_STAT_TOTAL, "(" + " + ".join(
+            f"stats.{column}" for column, _ in BASE_STAT_FIELDS.values()) + ")", "Total des statistiques"
+    raise ValueError("sort_by invalide : national_number, " + ", ".join(BASE_STAT_FIELDS) + ", " + BASE_STAT_TOTAL)
 
 llm_client = OpenAI(
     base_url=LM_STUDIO_BASE_URL, api_key="lm-studio",
@@ -106,6 +135,307 @@ def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _latest_movepool_sql(pokemon_expression: str) -> str:
+    """Dernier jeu contenant un movepool, avant tout filtre de capacité.
+
+    pokemon_expression est une expression interne constante, jamais une entrée utilisateur.
+    """
+    return f"""(SELECT available.version_group_id FROM pokemon_moves available
+        JOIN version_groups latest ON latest.id = available.version_group_id
+        WHERE available.pokemon_id = {pokemon_expression}
+        ORDER BY latest."order" DESC, latest.generation_id DESC, latest.id DESC LIMIT 1)"""
+
+
+def _bounded_integer(name: str, value: Any, minimum: int, maximum: int | None = None) -> None:
+    if value is not None and (
+        type(value) is not int or value < minimum or (maximum is not None and value > maximum)
+    ):
+        raise ValueError(f"{name} doit être un entier entre {minimum} et {maximum or '∞'}.")
+
+
+def _page_arguments(limit: int, offset: int) -> None:
+    _bounded_integer("limit", limit, 0, 100)
+    _bounded_integer("offset", offset, 0)
+    if limit is None or offset is None:
+        raise ValueError("limit et offset ne peuvent pas être null.")
+
+
+def _page_result(rows: list[dict[str, Any]], total: int, limit: int, offset: int) -> dict[str, Any]:
+    return {"results": rows, "total_count": total, "returned_count": len(rows),
+            "limit": limit, "offset": offset, "truncated": total > len(rows),
+            "has_more": offset + len(rows) < total}
+
+
+def _resolve_type(conn: sqlite3.Connection, value: str) -> sqlite3.Row:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("Le type doit être une chaîne non vide.")
+    matches = [row for row in conn.execute("SELECT * FROM type_display")
+               if _normalize(value) in {_normalize(row[key]) for key in ("identifier", "name_fr", "name_en")}]
+    if len(matches) != 1:
+        raise ValueError(f"Type inconnu ou ambigu : {value!r}")
+    return matches[0]
+
+
+def _resolve_version_id(conn: sqlite3.Connection, version_group: str | None) -> int | None:
+    if version_group is None:
+        return None
+    if not isinstance(version_group, str) or not version_group.strip():
+        raise ValueError("version_group doit être un identifiant non vide.")
+    row = conn.execute("SELECT id FROM version_groups WHERE identifier=?", (version_group,)).fetchone()
+    if row is None:
+        raise ValueError(f"Groupe de versions inconnu : {version_group!r}")
+    return row["id"]
+
+
+def _movepool_filters(
+    conn: sqlite3.Connection, move_type: str | None, damage_class: str | None,
+    min_power: int | None, max_power: int | None, learning_method: str | None,
+    min_level: int | None, max_level: int | None,
+) -> tuple[str, list[Any]]:
+    clauses, params = [], []
+    for name, value in (("min_power", min_power), ("max_power", max_power),
+                        ("min_level", min_level), ("max_level", max_level)):
+        _bounded_integer(name, value, 0)
+    for low, high in ((min_power, max_power), (min_level, max_level)):
+        if low is not None and high is not None and low > high:
+            raise ValueError("La borne minimale dépasse la borne maximale.")
+    if move_type is not None:
+        clauses.append("m.type_id=?")
+        params.append(_resolve_type(conn, move_type)["type_id"])
+    if damage_class is not None:
+        classes = {"status": 1, "physical": 2, "special": 3,
+                   "statut": 1, "physique": 2, "speciale": 3}
+        if not isinstance(damage_class, str) or _normalize(damage_class) not in classes:
+            raise ValueError("damage_class doit être status, physical ou special.")
+        clauses.append("m.damage_class_id=?")
+        params.append(classes[_normalize(damage_class)])
+    for value, column, operator in ((min_power, "m.power", ">="), (max_power, "m.power", "<="),
+                                    (min_level, "pm.level", ">="), (max_level, "pm.level", "<=")):
+        if value is not None:
+            clauses.append(f"{column}{operator}?")
+            params.append(value)
+    if min_level is not None or max_level is not None:
+        if learning_method not in (None, "level-up"):
+            raise ValueError("Les bornes de niveau exigent learning_method=level-up.")
+        learning_method = "level-up"
+    if learning_method is not None:
+        if not isinstance(learning_method, str):
+            raise ValueError("learning_method doit être un identifiant.")
+        method = conn.execute("SELECT id FROM pokemon_move_methods WHERE identifier=?", (learning_method,)).fetchone()
+        if method is None:
+            raise ValueError(f"Méthode inconnue : {learning_method!r}")
+        clauses.append("pm.pokemon_move_method_id=?")
+        params.append(method["id"])
+    return " AND ".join(clauses) or "1", params
+
+
+def get_pokemon_moves(
+    pokemon: str, form: str | None = None, version_group: str | None = None,
+    move_type: str | None = None, damage_class: str | None = None,
+    min_power: int | None = None, max_power: int | None = None,
+    learning_method: str | None = None, min_level: int | None = None,
+    max_level: int | None = None, limit: int = 30, offset: int = 0,
+) -> dict[str, Any]:
+    """Movepool unique d'une forme, avec propriétés actuelles, sans union historique."""
+    _page_arguments(limit, offset)
+    if not isinstance(pokemon, str) or not pokemon.strip():
+        raise ValueError("pokemon doit être un nom non vide.")
+    if form is not None and (not isinstance(form, str) or not form.strip()):
+        raise ValueError("form doit être un identifiant non vide.")
+    with closing(_connect()) as conn:
+        species, forms = _move_pokemon_rows(conn, pokemon, form)
+        if form is None:
+            forms = [row for row in forms if row["is_default"] == 1 and row["is_default_form"] == 1]
+        if not forms:
+            raise ValueError("Forme par défaut introuvable dans les données locales.")
+        pokemon_ids = {row["pokemon_id"] for row in forms}
+        if len(pokemon_ids) != 1:
+            raise ValueError("Forme ambiguë : précisez une seule forme du Pokémon.")
+        pokemon_id = pokemon_ids.pop()
+        version_id = _resolve_version_id(conn, version_group)
+        where, filter_params = _movepool_filters(conn, move_type, damage_class, min_power,
+                                               max_power, learning_method, min_level, max_level)
+        if version_id is None:
+            version_id = conn.execute(f"SELECT {_latest_movepool_sql('?')}", (pokemon_id,)).fetchone()[0]
+        selected = conn.execute("SELECT identifier FROM version_groups WHERE id=?", (version_id,)).fetchone()
+        context = {"operation": "get_pokemon_moves", "pokemon": species["name_fr"],
+                   "pokemon_id": pokemon_id, "form": form,
+                   "form_identifier": forms[0]["identifier"],
+                   "form_selection": "explicit" if form is not None else "default",
+                   "version_group": selected["identifier"] if selected else None,
+                   "version_group_explicit": version_group is not None,
+                   "version_selection": "explicit" if version_group is not None else "latest_available",
+                   "movepool_available": bool(conn.execute(
+                       "SELECT 1 FROM pokemon_moves WHERE pokemon_id=? AND version_group_id=? LIMIT 1",
+                       (pokemon_id, version_id)).fetchone()),
+                   "move_properties": "current_not_historicized"}
+        source = f"""FROM pokemon_moves pm JOIN moves m ON m.id=pm.move_id
+            WHERE pm.pokemon_id=? AND pm.version_group_id=? AND {where}"""
+        params = [pokemon_id, version_id, *filter_params]
+        total = conn.execute(f"SELECT COUNT(DISTINCT m.id) {source}", params).fetchone()[0]
+        rows = conn.execute(f"""SELECT DISTINCT m.id AS move_id, m.identifier, md.name_fr,
+            md.name_en, td.name_fr AS type_fr, m.power, m.accuracy, m.pp,
+            CASE m.damage_class_id WHEN 1 THEN 'statut' WHEN 2 THEN 'physique'
+            WHEN 3 THEN 'spéciale' END AS damage_class_fr,
+            m.damage_class_id
+            FROM pokemon_moves pm JOIN moves m ON m.id=pm.move_id
+            JOIN move_display md ON md.move_id=m.id JOIN type_display td ON td.type_id=m.type_id
+            WHERE pm.pokemon_id=? AND pm.version_group_id=? AND {where}
+            ORDER BY md.name_fr COLLATE NOCASE, m.id LIMIT ? OFFSET ?""", [*params, limit, offset]).fetchall()
+        results = [dict(row) for row in rows]
+        if results:
+            ids = [row["move_id"] for row in results]
+            placeholders = ",".join("?" for _ in ids)
+            methods = conn.execute(f"""SELECT DISTINCT pm.move_id, method.identifier AS learning_method, pm.level
+                FROM pokemon_moves pm JOIN moves m ON m.id=pm.move_id
+                JOIN pokemon_move_methods method ON method.id=pm.pokemon_move_method_id
+                WHERE pm.pokemon_id=? AND pm.version_group_id=? AND {where}
+                AND pm.move_id IN ({placeholders}) ORDER BY pm.move_id, method.identifier, pm.level""",
+                [*params, *ids]).fetchall()
+            by_move = {row["move_id"]: [] for row in results}
+            for method in methods:
+                by_move[method["move_id"]].append({"method": method["learning_method"], "level": method["level"]})
+            for row in results:
+                row["learning"] = by_move[row["move_id"]]
+        return {**context, **_page_result(results, total, limit, offset)}
+
+
+def search_pokemon(
+    pokedex_number: int | None = None, generation: int | None = None,
+    types: list[str] | None = None, type_match: str = "all",
+    legendary: bool | None = None, mythical: bool | None = None,
+    form: str | None = None, version_group: str | None = None,
+    move_type: str | None = None, damage_class: str | None = None,
+    min_power: int | None = None, max_power: int | None = None,
+    learning_method: str | None = None, min_level: int | None = None,
+    max_level: int | None = None, limit: int = 30, offset: int = 0,
+    sort_by: str = "national_number", sort_order: str = "asc",
+    best_only: bool = False, form_category: str | None = None,
+) -> dict[str, Any]:
+    """Recherche SQL sur le catalogue personnalisé lié, génération de l'espèce.
+
+    Une forme par défaut par espèce sans form ; une forme explicite ne replie
+    jamais vers la forme par défaut. Les filtres de capacités sont existentiels
+    et portent tous sur une même relation d'apprentissage.
+    """
+    _page_arguments(limit, offset)
+    _bounded_integer("pokedex_number", pokedex_number, 1)
+    _bounded_integer("generation", generation, 1)
+    sort_by, stat_expression, stat_label = _stat_sort(sort_by)
+    if not isinstance(sort_order, str) or sort_order not in {"asc", "desc"}:
+        raise ValueError("sort_order invalide : asc ou desc.")
+    if type(best_only) is not bool:
+        raise ValueError("best_only doit être un booléen.")
+    if best_only and stat_expression is None:
+        raise ValueError("best_only exige un tri par statistique de base.")
+    if form_category is not None and form_category != "mega":
+        raise ValueError("form_category invalide : mega ou null.")
+    for name, value in (("legendary", legendary), ("mythical", mythical)):
+        if value is not None and type(value) is not bool:
+            raise ValueError(f"{name} doit être un booléen ou null.")
+    if type_match not in ("all", "any", "exact"):
+        raise ValueError("type_match doit être all, any ou exact.")
+    if types is not None and (not isinstance(types, list) or not 1 <= len(types) <= 2):
+        raise ValueError("types doit contenir un ou deux types.")
+    if form is not None and (not isinstance(form, str) or not form.strip()):
+        raise ValueError("form doit être une chaîne non vide.")
+    with closing(_connect()) as conn:
+        conn.create_function("normalize", 1, _normalize, deterministic=True)
+        clauses, params = [], []
+        # Le flag custom is_default décrit parfois le Pokémon partagé par plusieurs
+        # formes (Arceus). pokemon_forms.is_default distingue alors la forme réelle.
+        if form is None and form_category is None:
+            clauses.extend(["p.is_default=1", "pf.is_default=1"])
+        elif form is not None:
+            clauses.append("(normalize(pf.form_identifier)=? OR normalize(pf.identifier)=?)")
+            params.extend([_normalize(form)] * 2)
+        if form_category == "mega":
+            clauses.append("pf.is_mega=1")
+        for value, column in ((pokedex_number, "cp.national_number"), (generation, "ps.generation_id"),
+                              (legendary, "CAST(ps.is_legendary AS INTEGER)"),
+                              (mythical, "CAST(ps.is_mythical AS INTEGER)")):
+            if value is not None:
+                clauses.append(f"{column}=?")
+                params.append(value)
+        if types:
+            resolved = list(dict.fromkeys(_resolve_type(conn, value)["name_fr"] for value in types))
+            membership = ["(? IN (cp.type_1_fr, cp.type_2_fr))" for _ in resolved]
+            clauses.append("(" + (" OR " if type_match == "any" else " AND ").join(membership) + ")")
+            params.extend(resolved)
+            if type_match == "exact":
+                clauses.append("(CASE WHEN cp.type_1_fr IS NULL THEN 0 ELSE 1 END + "
+                               "CASE WHEN cp.type_2_fr IS NULL THEN 0 ELSE 1 END)=?")
+                params.append(len(resolved))
+        version_id = _resolve_version_id(conn, version_group)
+        move_where, move_params = _movepool_filters(conn, move_type, damage_class, min_power,
+                                                  max_power, learning_method, min_level, max_level)
+        has_movepool_filter = any(value is not None for value in (
+            version_group, move_type, damage_class, min_power, max_power, learning_method, min_level, max_level))
+        if has_movepool_filter:
+            version_sql = "?" if version_id is not None else _latest_movepool_sql("p.id")
+            clauses.append(f"""EXISTS (SELECT 1 FROM pokemon_moves pm JOIN moves m ON m.id=pm.move_id
+                WHERE pm.pokemon_id=p.id AND pm.version_group_id={version_sql} AND {move_where})""")
+            if version_id is not None:
+                params.append(version_id)
+            params.extend(move_params)
+        stats_join = "JOIN custom_pokedex_fr stats ON stats.source_row=cp.source_row" if stat_expression else ""
+        if stat_expression:
+            clauses.append(f"{stat_expression} IS NOT NULL")
+        source = f"""FROM custom_pokedex cp JOIN pokemon p ON p.id=cp.pokemon_id
+            JOIN pokemon_forms pf ON pf.id=cp.pokemon_form_id AND pf.pokemon_id=p.id
+            JOIN pokemon_species ps ON ps.id=p.species_id
+            {stats_join}
+            WHERE {' AND '.join(clauses) or '1'}"""
+        ranking = {}
+        if best_only:
+            aggregate = "MAX" if sort_order == "desc" else "MIN"
+            candidates = conn.execute(
+                f"SELECT COUNT(*) AS matching_count, {aggregate}({stat_expression}) AS best_value {source}",
+                params).fetchone()
+            source += f" AND {stat_expression}=?"
+            params.append(candidates["best_value"])
+            ranking = dict(candidates)
+        total = conn.execute(f"SELECT COUNT(*) {source}", params).fetchone()[0]
+        if best_only:
+            ranking.update(tie=total > 1, tie_count=total)
+        version_projection = ("?" if version_id is not None else _latest_movepool_sql("p.id")) if has_movepool_filter else "NULL"
+        select_params = ([version_id] if has_movepool_filter and version_id is not None else [])
+        stat_projection = f", {stat_expression} AS base_stat_value" if stat_expression else ""
+        if sort_by == "speed":
+            stat_projection += ", stats.vitesse AS base_speed"  # Compatibilité du premier tri.
+        if sort_by == BASE_STAT_TOTAL:
+            stat_projection += f", {stat_expression} AS base_stat_total"
+        order_column = stat_expression or "cp.national_number"
+        rows = conn.execute(f"""SELECT cp.name_fr, cp.name_en, cp.national_number,
+            p.id AS pokemon_id, pf.id AS form_id, pf.identifier AS form_identifier,
+            cp.type_1_fr, cp.type_2_fr, ps.generation_id AS generation,
+            CAST(ps.is_legendary AS INTEGER) AS legendary,
+            CAST(ps.is_mythical AS INTEGER) AS mythical,
+            (SELECT identifier FROM version_groups WHERE id={version_projection}) AS version_group
+            {stat_projection}
+            {source} ORDER BY {order_column} {sort_order}, cp.national_number, p.id, pf.id LIMIT ? OFFSET ?""",
+            [*select_params, *params, limit, offset]).fetchall()
+        fr_id, _ = _language_ids(conn)
+        missing = conn.execute("""SELECT ps.id AS species_id, COALESCE(names.name,ps.identifier) AS name_fr
+            FROM pokemon_species ps JOIN pokemon p ON p.species_id=ps.id AND p.is_default=1
+            JOIN pokemon_forms pf ON pf.pokemon_id=p.id AND pf.is_default=1
+            LEFT JOIN pokemon_species_names names ON names.pokemon_species_id=ps.id AND names.local_language_id=?
+            WHERE NOT EXISTS (SELECT 1 FROM custom_pokedex cp
+                WHERE cp.pokemon_id=p.id AND cp.pokemon_form_id=pf.id)
+            ORDER BY ps.id""", (fr_id,)).fetchall()
+        return {"operation": "search_pokemon",
+                "form_selection": "explicit" if form else ("category" if form_category else "default"),
+                "form_category": form_category,
+                "sort_by": sort_by, "sort_order": sort_order,
+                "best_only": best_only, "stat_name_fr": stat_label, **ranking,
+                "version_selection": ("explicit" if version_group is not None else "latest_available") if has_movepool_filter else None,
+                "catalogue": "custom_pokedex_linked_forms", "type_match": type_match,
+                "catalogue_complete": not missing,
+                "catalogue_missing_default_forms": [dict(row) for row in missing],
+                "move_properties": "current_not_historicized" if has_movepool_filter else None,
+                **_page_result([dict(row) for row in rows], total, limit, offset)}
 
 
 def _normalize(text: str | None) -> str:
@@ -515,6 +845,7 @@ def _resolve_source_forms(
             pf.id AS form_id,
             pf.identifier,
             pf.form_identifier,
+            pf.is_default AS is_default_form,
             p.id AS pokemon_id,
             p.is_default
         FROM pokemon p
