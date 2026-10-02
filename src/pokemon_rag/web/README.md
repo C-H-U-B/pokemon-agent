@@ -26,6 +26,7 @@ Le panneau « Agent et outils en action » conserve deux parts sur cinq de la
 disposition sur grand écran, à droite de la conversation qui occupe les trois
 autres parts. Sur petit écran, la conversation est au-dessus de l'agent.
 Les bulles utilisateur sont alignées à gauche, celles de l'assistant à droite.
+Les boutons de copie restent sous le texte, alignés avec leur bulle.
 La hauteur est adaptée à la fenêtre et les contenus longs défilent à
 l'intérieur des panneaux, plutôt que d'allonger la page.
 Il distingue l'agent ADK / Qwen des outils MCP et présente leur parcours

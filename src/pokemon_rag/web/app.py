@@ -30,6 +30,9 @@ APP_CSS = """
 #chat-history .bubble.bot-row, #chat-history .bot { align-self: flex-end; }
 #chat-history .bubble .user-row { justify-content: flex-start; }
 #chat-history .bubble .bot-row { justify-content: flex-end; }
+#chat-history .bubble.message-buttons-left { align-self: flex-end; }
+#chat-history .bubble.message-buttons-right { align-self: flex-start; }
+#chat-history .message-buttons-right .icon-button-wrapper { margin-left: 0; }
 #chat-history .user { border-bottom-left-radius: 0;
     border-bottom-right-radius: var(--radius-md); }
 #chat-history .bot { border-bottom-right-radius: 0;
