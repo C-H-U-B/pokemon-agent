@@ -174,6 +174,30 @@ def extract_level_bounds(question: str) -> tuple[int | None, int | None] | None:
     return minimum, maximum
 
 
+def extract_national_pokedex_number(question: str) -> int | None:
+    """Numéro explicite en contexte Pokémon/Pokédex, sans résolution d'espèce.
+
+    Reconnaît numéro/n°/no suivis de chiffres, pas les nombres isolés de
+    niveau ou génération. Refuse plusieurs numéros distincts et les Pokédex
+    régionaux, qui ne doivent pas devenir un numéro national.
+    """
+    normalized = normalize(question)
+    if not re.search(r"(?:^|-)(?:pokemon|pokedex)(?=-|$)", normalized):
+        return None
+    numbers = {int(value) for value in re.findall(
+        r"(?:^|-)(?:numeros?-(?:national-)?|n-?|no-?)(\d+)(?=-|$)", normalized)}
+    if not numbers:
+        return None
+    numbers.update(int(value) for value in re.findall(r"(?:^|-)(?:ou|et|a)-(\d+)(?=-|$)", normalized))
+    if re.search(r"(?:num[eé]ros?|n[°º]|no)\s*-\s*\d", question, re.IGNORECASE):
+        raise ValueError("Le numéro national doit être strictement positif.")
+    if re.search(r"(?:^|-)pokedex-(?:regional|de|d|kanto|johto|hoenn|sinnoh|unys|kalos|alola|galar|hisui|paldea)(?=-|$)", normalized):
+        raise ValueError("Ce numéro concerne un Pokédex régional, pas le Pokédex national.")
+    if len(numbers) != 1 or 0 in numbers:
+        raise ValueError("Précisez un seul numéro national strictement positif.")
+    return numbers.pop()
+
+
 def extract_explicit_constraints(
     question: str,
     known_version_groups: set[str] | None = None,

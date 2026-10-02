@@ -921,3 +921,67 @@ Elapsed times now distinguish initial analysis, tool waiting and response
 preparation, with a timer for each call. Retries accumulate time, while parallel
 tool waits count once in the phase total. Measurements reflect events received
 by the interface, including transport and session overhead.
+
+## 53. [Feature] Pokémon search and filterable movepools
+
+Structured searches can now combine national number, types, species origin
+generation, legendary or mythical classification and properties of learnable
+moves. Two MCP tools expose these SQL filters to ADK and the local client,
+without asking the model to filter lists. Abilities are deferred.
+
+Without a requested form, the default form is selected. Without a requested
+game, the latest actually available movepool is selected before filtering,
+without a historical union. Results deduplicate moves, preserve learning
+methods and indicate totals and partial pages. Gaps in the custom catalogue
+for some default forms are reported without substituting another form.
+
+Deterministic tests verify combined searches, versions, forms and the
+distinction between unknown power and move category, as well as real MCP
+transport and client constraint preservation. The database and existing tool
+interfaces are preserved.
+
+A search response added invented move names and unrequested details. ADK and
+MCP client instructions now require only the returned French names for a list,
+without extra generations or classifications. A Pokémon search cannot identify
+its matching moves by name; those must be retrieved if requested. Incomplete
+coverage is reported briefly without listing exceptions. Qwen's adherence to
+these instructions still requires manual verification.
+
+A national-number lookup also used the identity tool with a guessed name.
+Both directions are now explicit: the ADK guard rejects that call and requires
+number-based search, while the MCP client redirects the identity call and
+restores the requested number. Tests without an LLM verify this case,
+preservation of name-based identity and rejection of recognized regional or
+multiple numbers. Final wording still depends on model instructions.
+
+## 54. [Bug fix] ADK agent context budget
+
+A simple question about the fastest Pokémon could exceed Qwen's context
+window. Instructions were shortened, MCP responses sent to the model no
+longer duplicate their JSON, and oversized results are reduced with an
+explicit truncation notice. A check before each call bounds serialized
+context and the number of calls; exceeding the budget produces a local
+abstention without removing constraints.
+
+Structured search also supports sorting by base speed to retrieve the
+maximum as a single row from existing data. Tests without an LLM verify
+budgets, compatibility with the real MCP catalogue and SQL ranking. The
+byte budget remains a conservative estimate; Qwen inference was not run.
+
+## 55. [Feature] Filtered base-stat rankings
+
+The first ranking covered only Speed and did not distinguish a tied
+superlative from a paginated first row. `pokemon_search` now combines its
+filters with the six base stats or their SQL-calculated sum. The same sort
+supports top N lists; a superlative mode selects the winning threshold and
+counts all tied winners before pagination.
+
+The Mega category uses the database form flag, including its variants,
+with statistics belonging to each entry. Without a requested form, default
+selection remains unchanged. MCP schemas and instructions direct Qwen to
+these deterministic calculations. Tests without an LLM verify filter
+composition, ties, totals, forms and preservation of client arguments. No
+index, database content or database schema was modified.
+Instructions and schema annotations were also compacted, along with technical
+ranking fields sent to ADK, so top 10 results fit the existing context budget
+without reducing their number of rows.

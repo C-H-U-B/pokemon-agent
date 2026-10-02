@@ -12,10 +12,11 @@ Des valeurs déjà présentes sont conservées : vérifier qu'elles ciblent bien
 LM Studio avant toute exécution.
 
 L'agent unique dispose désormais de `McpToolset`, qui démarre le serveur Pokémon
-en stdio avec le même interpréteur Python. Le filtre expose les huit outils :
+en stdio avec le même interpréteur Python. Le filtre expose les dix outils :
 `pokemon_evolutions`, `pokemon_level_up_moves`, `pokemon_move_learning_methods`,
 `pokemon_machine_moves`, `pokemon_types`, `pokemon_pokedex_identity`,
-`pokemon_signature_moves` et `pokemon_rag_search`. Ils réutilisent SQLite ou le
+`pokemon_signature_moves`, `pokemon_rag_search`, `pokemon_search` et
+`pokemon_moves`. Ils réutilisent SQLite ou le
 RAG existant. Les instructions demandent de choisir l'outil adapté et permettent
 au modèle de réessayer avec un outil compatible après un refus du guard.
 Ce sont des instructions au modèle, sans politique déterministe de reprise.
@@ -29,6 +30,17 @@ les jeux inconnus ou ambigus et les niveaux ambigus ou invalides. Sans message
 utilisateur, il laisse passer l’appel. La reconnaissance des formes conserve
 les limites de l’extracteur commun, notamment pour les formes multiples.
 Le guard ne modifie pas le catalogue d'outils de l'agent.
+Un numéro national explicite reconnu exige `pokemon_search` : le guard rétablit
+`pokedex_number` si le modèle le modifie et refuse un autre outil en indiquant
+l'appel requis. `pokemon_pokedex_identity` reste destiné au numéro d'un Pokémon
+déjà nommé. Les numéros régionaux ou multiples reconnus sont refusés, sans SQLite
+dans le guard. La protection porte sur l'appel d'outil, pas sur le texte final.
+Les nouveaux outils acceptent jeux, formes et niveaux ; le guard conserve leurs
+filtres et impose `level-up` avec des bornes de niveau. Les instructions dirigent
+les recherches croisées et comptages vers `pokemon_search`, le movepool filtré
+vers `pokemon_moves`, et exigent le signalement d'une liste partielle ou d'un
+catalogue incomplet. Les talents sont reportés. Voir les
+[contrats structurés](../structured/README.md#recherche-pokémon-et-movepool-filtrable-via-mcp).
 Les questions d'apparence, comportement, habitat, origine ou histoire sont
 orientées par les instructions vers `pokemon_rag_search`, avec la question
 complète et le Pokémon ciblé. Des types ou une identité Pokédex ne sont pas des
@@ -39,6 +51,15 @@ pas. Ce choix reste réalisé par le modèle, sans routage déterministe ajouté
 Les instructions de réponse privilégient les champs français des outils et
 les noms français des jeux, sans traductions anglaises ajoutées sauf demande
 explicite. Les identifiants internes restent disponibles pour les appels.
+Pour une liste structurée, elles exigent la reprise des seuls noms français
+retournés, sans ajout de Pokémon ni complétion d'une page tronquée de mémoire.
+Les générations, classifications et exemples de capacités non demandés sont
+exclus. Une recherche Pokémon n'atteste aucun nom de capacité : ces noms
+nécessitent un résultat de movepool approprié si la question les demande.
+La limite de couverture reste signalée brièvement, sans énumérer les formes
+manquantes sauf demande. Ces consignes restent une protection par prompt,
+sans validation déterministe de la réponse finale ; leur respect par Qwen
+doit être vérifié manuellement.
 Les outils de capacités renvoient aussi `name_en` ; les groupes de versions
 restent des identifiants techniques, sans table de traductions dans la base actuelle.
 
@@ -51,7 +72,35 @@ validation manuelle avec Qwen.
 Pour les CT sans jeu précisé, le moteur réduit le résultat au groupe de versions
 le plus récent avec des données locales de CT. L'agent est instruit de préciser
 le jeu retenu en français. Cela évite de transmettre toutes les générations,
-sans garantir qu'un résultat volumineux ou un historique long tiendra dans le contexte.
+avec une réduction supplémentaire des résultats destinés au modèle.
+
+## Budget de contexte
+
+`context_budget.py` retire la copie textuelle des données MCP structurées et
+borne chaque résultat destiné à ADK à 3000 octets UTF-8. Les listes sont
+réduites avec un signalement explicite et leurs totaux conservés. Un résultat
+indivisible trop grand devient une erreur, jamais une absence de données.
+Cette adaptation ne change pas les réponses de l'API MCP.
+Pour un classement trop volumineux, elle retire d'abord les noms anglais et
+identifiants internes répétés, en conservant noms français, formes et valeurs.
+Cela permet aux top 10 de la base locale de conserver leurs dix lignes.
+
+Avant chaque appel, les descriptions d'outils sont abrégées sans modifier
+leurs paramètres et la sortie est limitée à 1024 tokens. Les annotations de
+titres des schémas sont retirées ; enums, bornes, propriétés, valeurs par défaut
+et descriptions d'arguments sont conservées. Au-delà de 12000 octets
+d'instructions, messages et schémas sérialisés, ou après quatre appels
+dans la même invocation, le callback renvoie une abstention locale. Il ne
+supprime aucune contrainte utilisateur. Ce budget en octets est conservateur
+pour la fenêtre de 16384 tokens ; ce n'est pas un comptage exact du tokeniseur.
+
+Les classements utilisent `pokemon_search` avec les filtres demandés,
+`sort_by`, `sort_order` et `limit`. Un superlatif singulier utilise
+`best_only=true` et doit signaler les ex aequo ; un top N conserve
+`best_only=false`. Toutes les Méga utilisent `form_category="mega"`.
+Les six statistiques et leur total sont classés en SQL, sans modificateurs
+de combat ni calcul du modèle. Les enums et descriptions des nouveaux
+arguments restent dans le schéma après l'abrègement des descriptions d'outils.
 
 ## Utilisation manuelle
 
@@ -102,6 +151,6 @@ Les tests `tests/integration/test_adk_mcp_toolset.py` et
 `tests/integration/test_mcp_stdio.py` découvrent les outils sans appeler de LLM
 ni exécuter de recherche. Le serveur importe le module RAG uniquement lors
 d'un appel à `pokemon_rag_search`, pour ne pas retarder l'initialisation MCP.
-Le test de découverte ADK vérifie exactement le catalogue des huit outils.
+Le test de découverte ADK vérifie exactement le catalogue des dix outils.
 Les événements de function call des E2E ne prouvent pas à eux seuls les arguments
 corrigés envoyés au serveur ; cette correction est vérifiée par les tests du guard.

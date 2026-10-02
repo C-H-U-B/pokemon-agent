@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from pokemon_rag.client.mcp_client import ConstraintResolutionError, reconcile_tool_call
-from pokemon_rag.constraints.query_constraints import extract_explicit_constraints
+from pokemon_rag.constraints.query_constraints import extract_explicit_constraints, extract_national_pokedex_number
 
 
 def tool(name: str, *properties: str):
@@ -27,6 +27,67 @@ LEVEL_TOOL = tool(
     "max_level",
 )
 TYPES_TOOL = tool("pokemon_types", "pokemon", "form")
+
+
+@pytest.mark.parametrize("question,number", [
+    ("Quel est le Pokémon numéro 369 du Pokédex national ?", 369),
+    ("Quel Pokémon n° 428 ?", 428),
+    ("Pokédex national : numéro 25", 25),
+    ("Quel est le numéro national de Lockpin ?", None),
+    ("Quelles attaques Relicanth apprend au niveau 40 ?", None),
+    ("Quels Pokémon de 7G ?", None),
+    ("Quel est le numéro 369 de cette facture ?", None),
+])
+def test_extract_number_in_pokedex_context_only(question, number):
+    assert extract_national_pokedex_number(question) == number
+
+
+@pytest.mark.parametrize("question", [
+    "Pokémon numéro 0", "Pokémon numéro -1",
+    "Pokémon numéros 369 et 428", "Pokémon numéro 369 ou 428",
+    "Pokémon numéro 369 du Pokédex de Hoenn",
+])
+def test_invalid_or_regional_numbers_are_not_national(question):
+    with pytest.raises(ValueError):
+        extract_national_pokedex_number(question)
+
+
+def test_number_lookup_redirects_guessed_identity_to_search():
+    search = tool("pokemon_search", "pokedex_number", "form")
+    identity = tool("pokemon_pokedex_identity", "pokemon", "form")
+    name, args = reconcile_tool_call(
+        "Quel est le Pokémon numéro 369 du Pokédex national ?",
+        "pokemon_pokedex_identity", {"pokemon": "Lopunny", "form": None}, [search, identity])
+    assert name == "pokemon_search"
+    assert args == {"pokedex_number": 369, "form": None}
+
+
+def test_number_lookup_fails_when_search_is_unavailable():
+    with pytest.raises(ConstraintResolutionError, match="numéro national"):
+        reconcile_tool_call("Quel Pokémon numéro 369 ?", "pokemon_pokedex_identity",
+                            {"pokemon": "Lopunny"}, [tool("pokemon_pokedex_identity", "pokemon")])
+
+
+def test_search_requires_no_individual_pokemon_and_preserves_move_filters():
+    search = tool("pokemon_search", "types", "move_type", "damage_class", "version_group",
+                  "learning_method", "min_level", "max_level", "form")
+    name, args = reconcile_tool_call(
+        "Quels Pokémon Eau apprennent une attaque Glace spéciale jusqu'au niveau 30 dans Pokémon Soleil ?",
+        "pokemon_search", {"types": ["Eau"], "move_type": "Glace", "damage_class": "special"},
+        [search, LEVEL_TOOL])
+    assert name == "pokemon_search"
+    assert args["types"] == ["Eau"] and args["move_type"] == "Glace"
+    assert args["max_level"] == 30 and args["learning_method"] == "level-up"
+    assert args["version_group"] == "sun-moon"
+
+
+def test_client_preserves_stat_ranking_category_and_other_filters():
+    args = {"types":["fire"], "generation":1, "legendary":False, "sort_by":"attack",
+            "sort_order":"desc", "best_only":True, "form_category":"mega", "limit":5}
+    search = tool("pokemon_search", *args)
+    name, actual = reconcile_tool_call(
+        "Quels sont les 5 Pokémon Méga Feu avec le plus d'Attaque ?", "pokemon_search", args, [search])
+    assert name == "pokemon_search" and actual == args
 
 
 def test_restores_game_and_max_level_before_execution() -> None:

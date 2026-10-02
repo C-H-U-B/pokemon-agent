@@ -2,7 +2,7 @@
 
 `app.py` présente une conversation locale avec le `root_agent` ADK existant.
 Un `InMemoryRunner` partagé réutilise cet agent ; l'interface ne crée pas de
-second agent et n'appelle pas directement les moteurs métier. Les huit outils
+second agent et n'appelle pas directement les moteurs métier. Les dix outils
 restent accessibles via MCP et le guard avant appel. Les prérequis et limites
 de réponse sont ceux du [guide ADK](../agent/README.md), sans grounding du graphe.
 

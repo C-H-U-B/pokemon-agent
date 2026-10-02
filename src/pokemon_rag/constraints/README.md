@@ -39,14 +39,23 @@ un texte destiné à l'utilisateur.
 | Fonction | Résultat et limites |
 | --- | --- |
 | `extract_form(question)` | Une forme parmi `alola`, `galar`, `hisui`, `paldea` si une seule est reconnue ; sinon `None` |
+| `extract_national_pokedex_number(question)` | Numéro explicite après numéro/n°/no, dans un contexte Pokémon ou Pokédex ; `None` sans mention reconnue ; `ValueError` pour plusieurs numéros, zéro, une valeur négative reconnue ou un Pokédex régional explicite |
 | `has_explicit_game(question)` | Détection heuristique d'un alias ou d'une mention de jeu ; ne prouve pas que le jeu est valide |
 | `extract_version_group(question, known_version_groups=None)` | Couple `(groupe, ambiguïté)` ; les alias sont examinés avant les identifiants optionnels fournis par l'appelant |
 | `extract_level_bounds(question)` | Couple inclusif `(minimum, maximum)`, avec `None` pour une borne absente ; `None` si la formulation n'est pas entièrement reconnue ; `ValueError` si l'intervalle reconnu est impossible |
 | `extract_explicit_constraints(question, known_version_groups=None)` | Objet immuable `ExplicitConstraints` regroupant les résultats ; peut propager la `ValueError` des niveaux |
 
 `ExplicitConstraints` contient `form`, `version_group`, `version_ambiguous`,
-`explicit_game`, `level_bounds` et `level_explicit`. Les indicateurs de présence
-permettent de distinguer une mention non résolue d'une absence de contrainte.
+`explicit_game`, `level_bounds` et `level_explicit`.
+
+Le numéro national est extrait séparément par les deux clients : il n'est pas
+ajouté à cet objet ni utilisé par le parseur du graphe. Par exemple,
+« Quel Pokémon numéro 369 du Pokédex national ? » retourne 369, tandis que
+« Quel est le numéro national de Lockpin ? » ne contient aucun numéro à chercher.
+Le motif ne couvre pas les nombres écrits en lettres ou les numéros isolés.
+
+Les indicateurs de présence permettent de distinguer une mention non résolue
+d'une absence de contrainte.
 `level_explicit` exige un mot de niveau et un nombre dans la question ; une
 demande générale « en montant de niveau » ne constitue pas une borne explicite.
 `version_ambiguous` couvre aussi une mention de jeu non reconnue, pas seulement

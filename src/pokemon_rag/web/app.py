@@ -50,6 +50,8 @@ APP_CSS = """
 }
 """
 TOOL_LABELS = {
+    "pokemon_search": "Recherche de Pokémon",
+    "pokemon_moves": "Movepool filtré",
     "pokemon_types": "Types du Pokémon",
     "pokemon_pokedex_identity": "Identité Pokédex",
     "pokemon_evolutions": "Évolutions",

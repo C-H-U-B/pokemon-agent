@@ -2,8 +2,13 @@
 
 Le code applicatif est dans `src/pokemon_rag`. Le graphe et le parcours MCP
 partagent SQLite et la recherche documentaire, mais n'offrent pas les mêmes garanties.
-Un agent ADK indépendant utilise Qwen local et expose les huit outils du serveur
+Un agent ADK indépendant utilise Qwen local et expose les dix outils du serveur
 via MCP, sans les contrôles du graphe ou du client MCP existant.
+Le catalogue comprend désormais dix outils, dont une recherche Pokémon combinée
+et un movepool filtrable ; les huit outils historiques gardent leur API.
+La recherche compose aussi les filtres avec un classement SQL par statistique
+de base ou total, un mode de superlatif avec ex aequo et une catégorie de formes
+Méga. Le guard conserve ces arguments ; les calculs restent dans le moteur structuré.
 Son callback déterministe préserve les niveaux, jeux et formes reconnus avant
 l'appel d'outil ; ses limites sont décrites dans le [guide ADK](src/pokemon_rag/agent/README.md).
 Lire ensuite uniquement le [guide spécialisé](docs/README.md) de la tâche.
@@ -13,7 +18,7 @@ Lire ensuite uniquement le [guide spécialisé](docs/README.md) de la tâche.
 | Entrée | Usage et effets |
 | --- | --- |
 | `python -m pokemon_rag.web.app` | Interface Gradio, navigateur automatique, historique affiché et activité progressive ; session ADK indépendante par question |
-| `adk run src/pokemon_rag/agent` | Agent ADK unique via LiteLLM et LM Studio ; huit outils MCP, guard avant appel, réponses en français, sans grounding |
+| `adk run src/pokemon_rag/agent` | Agent ADK unique via LiteLLM et LM Studio ; dix outils MCP, guard avant appel, réponses en français, sans grounding |
 | `python -m pokemon_rag.graph.graph` | Terminal interactif ; appelle `run_graph`, peut utiliser LM Studio et écrit une trace |
 | `graph.graph.run_graph(initial_state)` | Entrée Python du graphe ; état contenant au minimum `question` |
 | `python -m pokemon_rag.client.mcp_client` | Questions successives dans une session MCP, sélection d'un outil et réponse par Qwen |
@@ -96,7 +101,7 @@ ni par `query_structured_data` ni par `run_graph`. Voir les
 | Comportement | Emplacement principal | Frontière à préserver |
 | --- | --- | --- |
 | Conversation Web, activité et exemples | `web/app.py`, `web/example_questions.txt` | Présentation et état de conversation ; réutiliser root_agent et MCP, sans dupliquer la logique métier |
-| Configurer l'agent ADK et son modèle local | `agent/agent.py` | Couche indépendante, huit outils MCP structurés et documentaires ; voir le [guide ADK](src/pokemon_rag/agent/README.md) pour le contexte local et les limites |
+| Configurer l'agent ADK et son modèle local | `agent/agent.py` | Couche indépendante, dix outils MCP structurés et documentaires ; voir le [guide ADK](src/pokemon_rag/agent/README.md) pour le contexte local et les limites |
 | Préserver les contraintes avant un outil ADK | `agent/tool_guard.py` | Réutiliser les extracteurs communs ; restaurer les arguments compatibles ou bloquer l'appel, sans accès aux données |
 | Choisir une route et identifier le Pokémon | `graph/router.py` | Ne pas y exécuter une requête métier ou générer la réponse finale |
 | Extraire les formes, jeux et niveaux explicites | `constraints/query_constraints.py` | Extraction pure partagée entre moteur structuré et client MCP ; ni SQLite ni choix d'outil. Voir le [guide des contraintes](src/pokemon_rag/constraints/README.md) |

@@ -1,11 +1,56 @@
 from types import SimpleNamespace
 
+import pytest
+
 from pokemon_rag.agent.tool_guard import before_tool_guard
+
+
+@pytest.mark.parametrize("name", ["pokemon_moves", "pokemon_search"])
+def test_new_tools_preserve_all_filters_and_explicit_constraints(name):
+    args = {"move_type": "Glace", "damage_class": "special", "min_level": 2, "max_level": 99}
+    result = before_tool_guard(_tool(name), args, _context(
+        "Quelles attaques Feunard d'Alola apprend-il entre les niveaux 10 et 20 dans Pokémon Soleil ?"))
+    assert result is None
+    assert args == {"move_type": "Glace", "damage_class": "special", "min_level": 10,
+                    "max_level": 20, "learning_method": "level-up", "form": "alola",
+                    "version_group": "sun-moon"}
 
 
 def _tool(name: str) -> SimpleNamespace:
     """Crée un faux tool ADK minimal."""
     return SimpleNamespace(name=name)
+
+
+def test_guard_preserves_stat_ranking_and_mega_category_arguments():
+    args = {"types":["Feu"], "generation":1, "legendary":False, "sort_by":"attack",
+            "sort_order":"desc", "best_only":True, "form_category":"mega", "limit":5}
+    original = dict(args)
+    assert before_tool_guard(_tool("pokemon_search"), args, _context(
+        "Quels sont les 5 Pokémon Méga Feu avec le plus d'Attaque ?")) is None
+    assert args == original
+
+
+def test_number_lookup_blocks_identity_of_guessed_pokemon():
+    args = {"pokemon": "Lopunny"}
+    result = before_tool_guard(_tool("pokemon_pokedex_identity"), args, _context(
+        "Quel est le Pokémon numéro 369 du Pokédex national ?"))
+    assert result["error"] == "unsupported_pokedex_number_constraint"
+    assert result["required_tool"] == "pokemon_search"
+    assert result["required_arguments"] == {"pokedex_number": 369}
+    assert args == {"pokemon": "Lopunny"}
+
+
+def test_number_lookup_restores_number_without_losing_form():
+    args = {"pokedex_number": 428, "form": "alola"}
+    assert before_tool_guard(_tool("pokemon_search"), args, _context(
+        "Quel est le Pokémon n° 369 du Pokédex national ?")) is None
+    assert args == {"pokedex_number": 369, "form": "alola"}
+
+
+def test_identity_of_named_pokemon_remains_allowed():
+    args = {"pokemon": "Lockpin"}
+    assert before_tool_guard(_tool("pokemon_pokedex_identity"), args, _context(
+        "Quel est le numéro national de Lockpin ?")) is None
 
 
 def _context(question: str) -> SimpleNamespace:
