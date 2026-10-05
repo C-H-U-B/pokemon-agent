@@ -341,7 +341,15 @@ def search_pokemon(
         if sort_by == BASE_STAT_TOTAL:
             stat_projection += f", {stat_expression} AS base_stat_total"
         order_column = stat_expression or "cp.national_number"
-        rows = conn.execute(f"""SELECT cp.name_fr, cp.name_en, cp.national_number,
+        name_fr, name_en = "cp.name_fr", "cp.name_en"
+        if form is None and form_category is None:
+            # Sans forme demandée, l'entrée par défaut porte le nom de son espèce (« Zygarde », pas
+            # « Zygarde Forme 50 % ») ; form_identifier garde la forme réellement retenue.
+            name_fr, name_en = (f"""COALESCE((SELECT names.name FROM pokemon_species_names names
+                WHERE names.pokemon_species_id=ps.id
+                  AND names.local_language_id=(SELECT {language} FROM language_ids)), {column})"""
+                for language, column in (("fr", name_fr), ("en", name_en)))
+        rows = conn.execute(f"""SELECT {name_fr} AS name_fr, {name_en} AS name_en, cp.national_number,
             p.id AS pokemon_id, pf.id AS form_id, pf.identifier AS form_identifier,
             cp.type_1_fr, cp.type_2_fr, ps.generation_id AS generation,
             CAST(ps.is_legendary AS INTEGER) AS legendary,
@@ -1197,12 +1205,13 @@ def _pokedex_entry(pokemon: str, form: str | None) -> dict[str, Any]:
         rows = [dict(row) for row in conn.execute("SELECT * FROM custom_pokedex")]
         # Les noms d'espèce peuvent différer du nom complet de l'entrée de forme.
         # Réutiliser le catalogue canonique, sans retirer des suffixes heuristiques.
-        species_id = None
+        species_id = species_name = None
         if conn.execute(
             "SELECT 1 FROM sqlite_master WHERE name = ?", ("pokemon_species",)
         ).fetchone():
             try:
-                species_id = _resolve_species(conn, pokemon)["species_id"]
+                species = _resolve_species(conn, pokemon)
+                species_id, species_name = species["species_id"], species["name_fr"]
             except ValueError:
                 pass
         default_form_ids = set()
@@ -1233,7 +1242,11 @@ def _pokedex_entry(pokemon: str, form: str | None) -> dict[str, Any]:
         } or (target in _REGION_FORMS and _normalize(row.get("form_identifier")).endswith("-" + target)))]
     if len(matches) != 1:
         raise ValueError("Entrée Pokédex introuvable ou ambiguë ; précisez le nom complet de la forme.")
-    return matches[0]
+    entry = matches[0]
+    if not form and species_name and entry["species_id"] == species_id:
+        # Nom d'espèce demandé sans forme : la réponse le reprend ; form_fr garde la forme retenue.
+        entry = {**entry, "name_fr": species_name}
+    return entry
 
 
 def _pokedex_result(operation: str, pokemon: str, form: str | None) -> dict[str, Any]:

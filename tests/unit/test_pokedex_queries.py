@@ -53,7 +53,7 @@ def test_forms_are_isolated_and_english_names_supported():
     assert engine.get_pokemon_types("Noadkoko", "alola")["rows"] == regional["rows"]
 
 
-@pytest.mark.parametrize("default_form_id, expected", [(10132, "Xerneas Paisible"), (716, "Xerneas Déchaîné"), (None, None)])
+@pytest.mark.parametrize("default_form_id, expected", [(10132, "Mode Paisible"), (716, "Mode Déchaîné"), (None, None)])
 def test_species_sharing_one_pokemon_resolves_to_its_default_form(monkeypatch, default_form_id, expected):
     # Deux modes, un seul pokemon_id : les deux lignes portent is_default=1.
     def connect():
@@ -68,6 +68,12 @@ def test_species_sharing_one_pokemon_resolves_to_its_default_form(monkeypatch, d
               (716,1,716,'Xerneas Déchaîné','Active Xerneas','xerneas','xerneas-active','Mode Déchaîné','Active Mode','Fée',NULL);
             CREATE TABLE pokemon_forms(id INTEGER, is_default INTEGER);
             INSERT INTO pokemon_forms VALUES (10132,0),(716,0);
+            CREATE TABLE language_ids(fr INTEGER, en INTEGER);
+            INSERT INTO language_ids VALUES (5,9);
+            CREATE TABLE pokemon_species(id INTEGER, identifier TEXT);
+            INSERT INTO pokemon_species VALUES (716,'xerneas');
+            CREATE TABLE pokemon_species_names(pokemon_species_id INTEGER, local_language_id INTEGER, name TEXT);
+            INSERT INTO pokemon_species_names VALUES (716,5,'Xerneas'),(716,9,'Xerneas');
         ''')
         conn.execute("UPDATE pokemon_forms SET is_default=1 WHERE id IS ?", (default_form_id,))
         return conn
@@ -77,10 +83,13 @@ def test_species_sharing_one_pokemon_resolves_to_its_default_form(monkeypatch, d
         with pytest.raises(ValueError):
             engine.get_pokemon_types("Xerneas")
     else:
-        assert engine.get_pokemon_types("Xerneas")["pokemon"] == expected
-    # Une forme nommée n'est jamais remplacée par la forme par défaut.
+        # L'espèce demandée sans forme garde son nom ; la forme retenue reste lisible à part.
+        result = engine.get_pokemon_types("Xerneas")
+        assert (result["pokemon"], result["form"], result["rows"][0]["name_fr"]) == ("Xerneas", expected, "Xerneas")
+    # Une forme nommée n'est jamais remplacée par la forme par défaut, ni renommée.
     assert engine.get_pokemon_types("Xerneas Déchaîné")["pokemon"] == "Xerneas Déchaîné"
     assert engine.get_pokemon_types("Xerneas", "Mode Déchaîné")["pokemon"] == "Xerneas Déchaîné"
+    assert engine.get_pokemon_types("Xerneas", "Mode Paisible")["pokemon"] == "Xerneas Paisible"
 
 
 @pytest.mark.parametrize("pokemon, form", [

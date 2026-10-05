@@ -1,7 +1,9 @@
 # Prérequis : data/pokemon.db, construite localement ou téléchargée depuis
 #   https://github.com/C-H-U-B/pokemon-rag/releases/latest/download/pokemon.db
-# API seule, sans modèle :        docker compose up --build              (http://localhost:8000/docs)
-# Avec l'interface Web et Qwen :  docker compose --profile llm up --build (http://localhost:7860)
+# Nommer les services à lancer : un seul conteneur suffit, sauf pour l'interface avec Ollama.
+#   API seule, sans modèle :     docker compose up --build api          (http://localhost:8000/docs)
+#   Interface Web et Ollama :    docker compose up --build web ollama   (http://localhost:7860, deux conteneurs)
+#   Tout arrêter :               docker compose --profile llm down
 # Hors Docker, le projet vise LM Studio (défauts de config.py) ; ici, l'interface vise le service ollama.
 services:
   api:
@@ -14,7 +16,7 @@ services:
       - ./data:/app/data:ro
 
   # Interface Web Gradio et agent ADK. Sans le service ollama (LM Studio, API distante) :
-  #   LLM_BASE_URL=http://host.docker.internal:1234/v1 LLM_MODEL=qwen/qwen3-vl-8b docker compose --profile web up
+  #   LLM_BASE_URL=http://host.docker.internal:1234/v1 LLM_MODEL=qwen/qwen3-vl-8b docker compose up web
   web:
     profiles: ["llm", "web"]
     build: .

@@ -40,6 +40,22 @@ def test_species_name_is_not_its_battle_form(species, battle_form, number):
     assert pokemon_types(battle_form)["pokemon"] == battle_form
 
 
+@pytest.mark.parametrize("asked, shown, form", [
+    ("Xerneas", "Xerneas", "Mode Paisible"),
+    ("Zygarde", "Zygarde", "Forme 50 %"),
+    ("Arceus", "Arceus", "Type : Normal"),
+    ("Tatsugiri", "Nigirigon", "Forme Courbée"),  # nom anglais → nom français de l'espèce
+    ("Pikachu", "Pikachu", None),
+    ("Xerneas Paisible", "Xerneas Paisible", "Mode Paisible"),
+    ("Zygarde Forme 10 %", "Zygarde Forme 10 %", "Forme 10 %"),
+])
+def test_species_asked_without_form_is_named_as_the_species(asked, shown, form):
+    # Régression : « Xerneas » répondait « Xerneas Paisible », « Zygarde » « Zygarde Forme 50 % ».
+    for function in (pokemon_types, get_pokedex_identity):
+        result = function(asked)
+        assert (result["pokemon"], result["rows"][0]["name_fr"], result["form"]) == (shown, shown, form)
+
+
 def test_full_form_name_and_identity_are_preserved():
     result = pokemon_types("Nigirigon Forme Courbée")
     assert result["pokemon"] == "Nigirigon Forme Courbée"

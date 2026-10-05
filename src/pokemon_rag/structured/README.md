@@ -158,6 +158,14 @@ donc toutes le flag par défaut, `pokemon_forms.is_default` les départage, comm
 pour la recherche et le movepool. Une forme nommée n'est jamais remplacée, et
 sans forme par défaut connue l'ambiguïté reste une erreur.
 
+Sans forme demandée, un résultat porte le nom de l'espèce : la recherche renvoie
+« Zygarde » et non « Zygarde Forme 50 % », et les types de « Xerneas » sont
+ceux de « Xerneas », pas de « Xerneas Paisible ». La forme retenue reste
+lisible à part, dans `form_identifier` pour la recherche et `form` pour une
+entrée nommée. Dès qu'une forme, une catégorie de formes ou le nom complet d'une
+entrée est demandé, le nom complet est renvoyé. Le nom est choisi en SQL ou dans
+le moteur, jamais laissé au modèle.
+
 Les filtres de capacités sont existentiels : au moins une capacité et relation
 d'apprentissage doivent satisfaire tous les filtres dans le même jeu. Le type
 vient de `moves.type_id`, la catégorie exclusivement de `moves.damage_class_id`
