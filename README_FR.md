@@ -16,7 +16,7 @@ Le projet tourne entièrement en local : SQLite, ChromaDB et un modèle Qwen 8B 
 | Base relationnelle | 30 tables, 51 index, 8 vues ; 638 000 lignes d'apprentissage de capacités sur 32 groupes de jeux |
 | Référentiel | 1 025 espèces, 1 351 Pokémon, 1 579 formes, 937 capacités |
 | Index documentaire | 36 280 fragments vectorisés |
-| Tests | 930 tests, dont 846 sans aucun modèle |
+| Tests | 947 tests, dont 863 sans aucun modèle |
 | Campagne de bout en bout | 31 questions sur 31 réussies avec un modèle local de 8 milliards de paramètres |
 
 ## Flux de données
@@ -159,3 +159,12 @@ ruff check .
 - [Moteur structuré](src/pokemon_rag/structured/README.md), [recherche documentaire](src/pokemon_rag/rag/README.md), [serveur MCP](src/pokemon_rag/mcp/README.md), [agent ADK](src/pokemon_rag/agent/README.md).
 - [Tests](tests/README.md) : quelle validation lancer selon la modification.
 - [Historique de développement](DEVELOPMENT_FR.md) : décisions, problèmes rencontrés et corrections, dans l'ordre chronologique.
+
+## Licence et crédits
+
+Le code et le tableur de référence sont distribués sous [licence MIT](LICENSE). Cette licence ne couvre pas les données tierces :
+
+- **PokéAPI** : les données de jeu de la base proviennent de [PokéAPI](https://github.com/PokeAPI/pokeapi).
+- **Poképédia** : les textes du corpus documentaire et l'index qui en dérive proviennent de [Poképédia](https://www.pokepedia.fr) et restent sous licence [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/deed.fr) : attribution, pas d'utilisation commerciale, partage dans les mêmes conditions.
+
+Pokémon et les noms associés sont des marques de Nintendo, Game Freak et The Pokémon Company. Ce projet est non officiel et sans but commercial.
