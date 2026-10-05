@@ -1151,3 +1151,23 @@ without any inference code.
 The same pass removes dead code and a duplicated normalisation, caches the name
 catalogue that the guard re-read from the database on every tool call, and adds
 a lint configuration limited to real errors together with uniform line endings.
+
+## 66. [Bug fix] Default forms missing from the catalogue
+
+The reference spreadsheet described Xerneas, Mimikyu and Morpeko only in their
+battle form. Their default form was therefore missing from the catalogue:
+Xerneas did not appear among the sixth-generation Legendaries, Mimikyu and
+Morpeko escaped type searches, and those two names alone matched no entry. The
+search reported this gap without being able to fill it.
+
+The three forms were added to the spreadsheet and the database rebuilt. The
+catalogue now links the default form of every species, which a test on the real
+database checks.
+
+The addition revealed a second limit. Both modes of Xerneas share the same
+Pokémon in PokéAPI, like the forms of Arceus, Silvally and Cherrim: all their
+entries are flagged as default, and a question about types or identity asked
+with the species name alone was rejected as ambiguous. The species name now
+designates the PokéAPI default form, as the search and the movepool already
+did. A named form is never replaced, and the ambiguity remains an error when no
+default form is known.

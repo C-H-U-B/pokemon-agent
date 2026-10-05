@@ -144,12 +144,19 @@ défaut reste inchangée. La génération reste celle de l'espèce, même pour u
 Méga introduite plus tard. La couverture porte sur les formes liées au catalogue,
 pas sur toutes les formes PokéAPI. Aucun schéma ou contenu de base n'est modifié.
 
-La recherche couvre les formes liées au catalogue personnalisé. Les formes par
-défaut de Xerneas, Mimiqui et Morpeko n'y sont actuellement pas représentées.
-`catalogue_complete=false` et `catalogue_missing_default_forms` signalent cette
-limite ; les totaux portent sur le catalogue lié, sans substitution d'une forme.
-Leurs movepools restent accessibles depuis PokéAPI. Cette couverture est calculée
-depuis les données, pas une liste d'exceptions codée en dur.
+La recherche couvre les formes liées au catalogue personnalisé. Si une forme par
+défaut PokéAPI n'y est pas liée, `catalogue_complete=false` et
+`catalogue_missing_default_forms` le signalent ; les totaux portent alors sur le
+catalogue lié, sans substitution d'une forme. Cette couverture est calculée
+depuis les données, pas une liste d'exceptions codée en dur. La base actuelle est
+complète, ce que vérifie un test `real_data`.
+
+Les types, l'identité et les capacités signature se résolvent par entrée du
+catalogue. Un nom d'espèce seul désigne l'entrée par défaut ; lorsque plusieurs
+formes partagent un `pokemon_id` (Arceus, Silvallié, Ceriflor, Xerneas) et portent
+donc toutes le flag par défaut, `pokemon_forms.is_default` les départage, comme
+pour la recherche et le movepool. Une forme nommée n'est jamais remplacée, et
+sans forme par défaut connue l'ambiguïté reste une erreur.
 
 Les filtres de capacités sont existentiels : au moins une capacité et relation
 d'apprentissage doivent satisfaire tous les filtres dans le même jeu. Le type

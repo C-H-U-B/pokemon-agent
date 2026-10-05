@@ -450,6 +450,51 @@ def test_real_db_shared_pokemon_id_does_not_merge_arceus_types():
 
 
 @pytest.mark.real_data
+def test_real_db_catalogue_links_every_default_form():
+    result = engine.search_pokemon(pokedex_number=1)
+    assert result["catalogue_missing_default_forms"] == []
+    assert result["catalogue_complete"]
+
+
+@pytest.mark.real_data
+@pytest.mark.parametrize("species,number,form_identifier,types", [
+    ("Xerneas", 716, "xerneas-neutral", ("Fée", None)),
+    ("Mimiqui", 778, "mimikyu-disguised", ("Spectre", "Fée")),
+    ("Morpeko", 877, "morpeko-full-belly", ("Électrik", "Ténèbres")),
+])
+def test_real_db_default_form_of_battle_form_species_is_searchable(species, number, form_identifier, types):
+    # Régression : seule la forme de combat était liée, l'espèce disparaissait des recherches.
+    result = engine.search_pokemon(pokedex_number=number)
+    assert result["total_count"] == 1
+    row = result["results"][0]
+    assert row["form_identifier"] == form_identifier
+    assert (row["type_1_fr"], row["type_2_fr"]) == types
+    # Le movepool se demande par nom d'espèce : il doit désigner la même forme.
+    assert engine.get_pokemon_moves(species)["form_identifier"] == form_identifier
+
+
+@pytest.mark.real_data
+def test_real_db_generation_6_legendaries_include_xerneas():
+    result = engine.search_pokemon(generation=6, legendary=True)
+    assert [row["national_number"] for row in result["results"]] == [716, 717, 718]
+    assert result["total_count"] == 3
+    # Xerneas et Yveltal partagent le meilleur total de la génération.
+    best = engine.search_pokemon(generation=6, sort_by="base-stat-total", sort_order="desc", best_only=True)
+    assert [row["national_number"] for row in best["results"]] == [716, 717]
+    assert best["best_value"] == 680 and best["tie"]
+
+
+@pytest.mark.real_data
+@pytest.mark.parametrize("filters,number", [
+    ({"generation": 7, "types": ["Spectre", "Fée"], "type_match": "exact"}, 778),
+    ({"generation": 8, "types": ["Électrik", "Ténèbres"], "type_match": "exact"}, 877),
+])
+def test_real_db_unique_dual_type_finds_mimiqui_and_morpeko(filters, number):
+    result = engine.search_pokemon(**filters)
+    assert [row["national_number"] for row in result["results"]] == [number]
+
+
+@pytest.mark.real_data
 def test_fastest_default_pokemon_is_selected_in_sql():
     result = engine.search_pokemon(sort_by="speed", sort_order="desc", limit=1)
     assert names(result) == ["Regieleki"]

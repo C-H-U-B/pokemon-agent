@@ -53,6 +53,36 @@ def test_forms_are_isolated_and_english_names_supported():
     assert engine.get_pokemon_types("Noadkoko", "alola")["rows"] == regional["rows"]
 
 
+@pytest.mark.parametrize("default_form_id, expected", [(10132, "Xerneas Paisible"), (716, "Xerneas Déchaîné"), (None, None)])
+def test_species_sharing_one_pokemon_resolves_to_its_default_form(monkeypatch, default_form_id, expected):
+    # Deux modes, un seul pokemon_id : les deux lignes portent is_default=1.
+    def connect():
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.executescript('''
+            CREATE TABLE custom_pokedex(species_id INTEGER, is_default INTEGER, pokemon_form_id INTEGER,
+              name_fr TEXT, name_en TEXT, pokemon_identifier TEXT, form_identifier TEXT, form_fr TEXT,
+              form_en TEXT, type_1_fr TEXT, type_2_fr TEXT);
+            INSERT INTO custom_pokedex VALUES
+              (716,1,10132,'Xerneas Paisible','Neutral Xerneas','xerneas','xerneas-neutral','Mode Paisible','Neutral Mode','Fée',NULL),
+              (716,1,716,'Xerneas Déchaîné','Active Xerneas','xerneas','xerneas-active','Mode Déchaîné','Active Mode','Fée',NULL);
+            CREATE TABLE pokemon_forms(id INTEGER, is_default INTEGER);
+            INSERT INTO pokemon_forms VALUES (10132,0),(716,0);
+        ''')
+        conn.execute("UPDATE pokemon_forms SET is_default=1 WHERE id IS ?", (default_form_id,))
+        return conn
+    monkeypatch.setattr(engine, "_connect", connect)
+    if expected is None:
+        # Aucune forme par défaut connue : pas de choix arbitraire.
+        with pytest.raises(ValueError):
+            engine.get_pokemon_types("Xerneas")
+    else:
+        assert engine.get_pokemon_types("Xerneas")["pokemon"] == expected
+    # Une forme nommée n'est jamais remplacée par la forme par défaut.
+    assert engine.get_pokemon_types("Xerneas Déchaîné")["pokemon"] == "Xerneas Déchaîné"
+    assert engine.get_pokemon_types("Xerneas", "Mode Déchaîné")["pokemon"] == "Xerneas Déchaîné"
+
+
 @pytest.mark.parametrize("pokemon, form", [
     ("Inconnu", None), ("Pikachu", "alola"), ("Noadkoko d'Alola", "galar"),
     ("", None), ("---", None), (None, None), ("Pikachu", ""), ("Pikachu", 123),
