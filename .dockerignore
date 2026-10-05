@@ -1,0 +1,17 @@
+# Tout ce qui n'a pas à entrer dans l'image : historique Git, données locales, caches, résultats.
+.git
+.github
+.claude
+.agents
+.vscode
+data
+chroma_db
+traces
+test_results
+tests
+benchmarks
+docs
+**/__pycache__
+*.egg-info
+.pytest_cache
+.pytest_tmp_*
