@@ -1,0 +1,10 @@
+# Lancement : docker compose up --build   (puis http://localhost:8000/docs)
+services:
+  api:
+    build: .
+    image: pokemon-rag:dev
+    ports:
+      - "8000:8000"
+    volumes:
+      # La base reste sur la machine hôte ; le conteneur la lit sans pouvoir la modifier.
+      - ./data:/app/data:ro

@@ -25,10 +25,12 @@ dependencies = [
     "mcp",
     "pytest",
     "gradio>=6.29,<7",
+    "fastapi",
+    "uvicorn",
 ]
 
 [project.optional-dependencies]
-dev = ["ruff"]
+dev = ["ruff", "httpx"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
