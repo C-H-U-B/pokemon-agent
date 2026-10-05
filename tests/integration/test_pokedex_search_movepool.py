@@ -237,7 +237,7 @@ def test_empty_superlative_does_not_invent_a_winner(stat_catalogue):
     ({"sort_by":"defense","sort_order":"desc","generation":4}, ["Bastiodon"], 168),
     ({"sort_by":"speed","sort_order":"asc","form_category":"mega"}, ["Méga-Ténéfix","Méga-Camérupt"], 20),
     ({"sort_by":"attack","sort_order":"desc","form_category":"mega"}, ["Méga-Mewtwo X"], 190),
-    ({"sort_by":"base-stat-total","sort_order":"desc"}, ["Arceus Normal"], 720),
+    ({"sort_by":"base-stat-total","sort_order":"desc"}, ["Arceus"], 720),
     ({"sort_by":"base-stat-total","sort_order":"desc","types":["Eau","Vol"],"type_match":"exact"}, ["Léviator"], 540),
 ])
 def test_rankings_against_actual_catalogue_without_llm(filters, expected, value):
@@ -433,7 +433,7 @@ def test_unknown_forms_and_species_not_empty_success(catalogue):
 @pytest.mark.real_data
 def test_real_db_lookup_classification_and_null_power():
     assert names(engine.search_pokemon(pokedex_number=369)) == ["Relicanth"]
-    assert names(engine.search_pokemon(generation=3, mythical=True)) == ["Jirachi", "Deoxys Normal"]
+    assert names(engine.search_pokemon(generation=3, mythical=True)) == ["Jirachi", "Deoxys"]
     result = engine.get_pokemon_moves("Scarhino", version_group="scarlet-violet", damage_class="physical")
     atlas = next(row for row in result["results"] if row["identifier"] == "seismic-toss")
     assert atlas["power"] is None and atlas["damage_class_id"] == 2
@@ -442,7 +442,7 @@ def test_real_db_lookup_classification_and_null_power():
 @pytest.mark.real_data
 def test_real_db_shared_pokemon_id_does_not_merge_arceus_types():
     result = engine.search_pokemon(pokedex_number=493)
-    assert names(result) == ["Arceus Normal"]
+    assert names(result) == ["Arceus"]
     assert result["total_count"] == 1
     assert engine.search_pokemon(pokedex_number=493, types=["Eau"])["total_count"] == 0
     assert names(engine.search_pokemon(pokedex_number=493, form="water", types=["Eau"])) == ["Arceus Eau"]
@@ -477,6 +477,8 @@ def test_real_db_default_form_of_battle_form_species_is_searchable(species, numb
 def test_real_db_generation_6_legendaries_include_xerneas():
     result = engine.search_pokemon(generation=6, legendary=True)
     assert [row["national_number"] for row in result["results"]] == [716, 717, 718]
+    # Régression : la liste affichait « Xerneas Paisible » et « Zygarde Forme 50 % ».
+    assert names(result) == ["Xerneas", "Yveltal", "Zygarde"]
     assert result["total_count"] == 3
     # Xerneas et Yveltal partagent le meilleur total de la génération.
     best = engine.search_pokemon(generation=6, sort_by="base-stat-total", sort_order="desc", best_only=True)
@@ -485,13 +487,36 @@ def test_real_db_generation_6_legendaries_include_xerneas():
 
 
 @pytest.mark.real_data
-@pytest.mark.parametrize("filters,number", [
-    ({"generation": 7, "types": ["Spectre", "Fée"], "type_match": "exact"}, 778),
-    ({"generation": 8, "types": ["Électrik", "Ténèbres"], "type_match": "exact"}, 877),
+@pytest.mark.parametrize("filters,number,name", [
+    ({"generation": 7, "types": ["Spectre", "Fée"], "type_match": "exact"}, 778, "Mimiqui"),
+    ({"generation": 8, "types": ["Électrik", "Ténèbres"], "type_match": "exact"}, 877, "Morpeko"),
 ])
-def test_real_db_unique_dual_type_finds_mimiqui_and_morpeko(filters, number):
+def test_real_db_unique_dual_type_finds_mimiqui_and_morpeko(filters, number, name):
     result = engine.search_pokemon(**filters)
     assert [row["national_number"] for row in result["results"]] == [number]
+    assert names(result) == [name]
+
+
+@pytest.mark.real_data
+@pytest.mark.parametrize("number,species,form_identifier", [
+    (201, "Zarbi", "unown-a"), (386, "Deoxys", "deoxys-normal"), (487, "Giratina", "giratina-altered"),
+    (492, "Shaymin", "shaymin-land"), (718, "Zygarde", "zygarde-50"), (978, "Nigirigon", "tatsugiri-curly"),
+    (25, "Pikachu", "pikachu"),
+])
+def test_real_db_default_search_names_the_species_and_keeps_the_form_identifier(number, species, form_identifier):
+    row, = engine.search_pokemon(pokedex_number=number)["results"]
+    assert (row["name_fr"], row["form_identifier"]) == (species, form_identifier)
+
+
+@pytest.mark.real_data
+@pytest.mark.parametrize("filters,expected", [
+    ({"pokedex_number": 492, "form": "sky"}, ["Shaymin Céleste"]),
+    ({"pokedex_number": 492, "form": "land"}, ["Shaymin Terrestre"]),
+    ({"pokedex_number": 718, "form": "zygarde-10"}, ["Zygarde Forme 10 %"]),
+    ({"pokedex_number": 718, "form_category": "mega"}, ["Méga-Zygarde"]),
+])
+def test_real_db_requested_form_keeps_its_full_name(filters, expected):
+    assert names(engine.search_pokemon(**filters)) == expected
 
 
 @pytest.mark.real_data
@@ -500,6 +525,31 @@ def test_fastest_default_pokemon_is_selected_in_sql():
     assert names(result) == ["Regieleki"]
     assert result["results"][0]["base_speed"] == 200
     assert result["returned_count"] == 1 and result["has_more"]
+
+
+def test_default_search_names_the_species_and_a_requested_form_keeps_its_name(catalogue):
+    with sqlite3.connect(engine.DB_PATH) as conn:
+        conn.executescript("""
+            INSERT INTO pokemon_species VALUES (492,'shaymin',4,'0','1'),(999,'unnamed',9,'0','0');
+            INSERT INTO pokemon_species_names VALUES (492,5,'Shaymin'),(492,9,'Shaymin');
+            INSERT INTO pokemon VALUES (492,492,'shaymin-land',1),(10006,492,'shaymin-sky',0),(999,999,'unnamed',1);
+            INSERT INTO pokemon_forms VALUES (492,492,'shaymin-land','land',1),(10064,10006,'shaymin-sky','sky',1),
+                (999,999,'unnamed',NULL,1);
+            INSERT INTO custom_pokedex VALUES (492,492,492,'Shaymin Terrestre','Land Shaymin','Plante',NULL),
+                (10006,10064,492,'Shaymin Céleste','Sky Shaymin','Plante','Vol'),
+                (999,999,999,'Sans Nom Forme Unique','Unnamed','Normal',NULL);
+        """)
+    row, = engine.search_pokemon(pokedex_number=492)["results"]
+    # Sans forme demandée : nom de l'espèce dans les deux langues, forme toujours identifiable.
+    assert (row["name_fr"], row["name_en"], row["form_identifier"]) == ("Shaymin", "Shaymin", "shaymin-land")
+    assert names(engine.search_pokemon(generation=4, mythical=True)) == ["Shaymin"]
+    # Forme demandée, par défaut ou non : nom complet de l'entrée.
+    assert names(engine.search_pokemon(pokedex_number=492, form="sky")) == ["Shaymin Céleste"]
+    assert names(engine.search_pokemon(pokedex_number=492, form="land")) == ["Shaymin Terrestre"]
+    # Espèce sans nom français connu : le nom de l'entrée reste affiché, jamais une valeur vide.
+    assert names(engine.search_pokemon(pokedex_number=999)) == ["Sans Nom Forme Unique"]
+    # Le nom anglais absent du catalogue d'espèces retombe sur celui de l'entrée.
+    assert engine.search_pokemon(pokedex_number=38)["results"][0]["name_en"] == "Ninetales"
 
 
 def test_speed_order_pagination_missing_values_and_forms(catalogue):
