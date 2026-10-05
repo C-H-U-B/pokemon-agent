@@ -13,12 +13,31 @@ pytestmark = pytest.mark.real_data
     ("Tatsugiri", ("Dragon", "Eau")),
     ("Giratina", ("Spectre", "Dragon")),
     ("Shaymin", ("Plante", None)),
+    ("Xerneas", ("Fée", None)),
+    ("Arceus", ("Normal", None)),
+    ("Silvallié", ("Normal", None)),
+    ("Ceriflor", ("Plante", None)),
+    ("Mimiqui", ("Spectre", "Fée")),
+    ("Morpeko", ("Électrik", "Ténèbres")),
 ])
 def test_species_name_resolves_default_custom_form(name, types):
     result = pokemon_types(name)
     row = result["rows"][0]
     assert (row["type_1_fr"], row["type_2_fr"]) == types
     assert result["count"] == 1
+
+
+@pytest.mark.parametrize("species, battle_form, number", [
+    ("Xerneas", "Xerneas Déchaîné", 716),
+    ("Mimiqui", "Mimiqui Forme Démasquée", 778),
+    ("Morpeko", "Morpeko Affamé", 877),
+])
+def test_species_name_is_not_its_battle_form(species, battle_form, number):
+    # L'espèce seule désigne la forme par défaut ; la forme de combat reste nommable.
+    default = get_pokedex_identity(species)
+    assert default["rows"][0]["national_number"] == number
+    assert default["pokemon"] != battle_form
+    assert pokemon_types(battle_form)["pokemon"] == battle_form
 
 
 def test_full_form_name_and_identity_are_preserved():

@@ -1212,3 +1212,25 @@ La même passe retire du code mort et une normalisation dupliquée, garde en
 mémoire le catalogue des noms que le guard relisait en base à chaque appel
 d'outil, et ajoute une configuration de lint limitée aux erreurs réelles ainsi
 que des fins de ligne uniformes.
+
+## 66. [Bug fix] Formes par défaut absentes du catalogue
+
+Le tableur de référence ne décrivait Xerneas, Mimiqui et Morpeko que sous leur
+forme de combat. Leur forme par défaut manquait donc au catalogue : Xerneas
+n'apparaissait pas parmi les légendaires de sixième génération, Mimiqui et
+Morpeko échappaient aux recherches par type, et ces deux noms seuls ne
+désignaient aucune entrée. La recherche signalait cette lacune sans pouvoir la
+combler.
+
+Les trois formes ont été ajoutées au tableur et la base reconstruite. Le
+catalogue lie désormais la forme par défaut de chaque espèce, ce qu'un test sur
+la base réelle vérifie.
+
+L'ajout a révélé une seconde limite. Les deux modes de Xerneas partagent le même
+Pokémon dans PokéAPI, comme les formes d'Arceus, de Silvallié et de Ceriflor :
+toutes leurs entrées sont marquées par défaut, et une question sur les types ou
+l'identité posée avec le seul nom de l'espèce était refusée comme ambiguë. Le
+nom d'espèce désigne maintenant la forme par défaut de PokéAPI, comme le
+faisaient déjà la recherche et le movepool. Une forme nommée n'est jamais
+remplacée, et l'ambiguïté reste une erreur lorsqu'aucune forme par défaut n'est
+connue.

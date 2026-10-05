@@ -1205,6 +1205,9 @@ def _pokedex_entry(pokemon: str, form: str | None) -> dict[str, Any]:
                 species_id = _resolve_species(conn, pokemon)["species_id"]
             except ValueError:
                 pass
+        default_form_ids = set()
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE name = ?", ("pokemon_forms",)).fetchone():
+            default_form_ids = {row[0] for row in conn.execute("SELECT id FROM pokemon_forms WHERE is_default = 1")}
     finally:
         conn.close()
     wanted = _normalize(pokemon)
@@ -1216,6 +1219,10 @@ def _pokedex_entry(pokemon: str, form: str | None) -> dict[str, Any]:
         if not form:
             # Ne choisir la forme par défaut que pour un vrai nom d'espèce.
             matches = [row for row in matches if row.get("is_default")]
+    if not form and len(matches) > 1 and len({row["species_id"] for row in matches}) == 1:
+        # Formes partageant un pokemon_id (Arceus, Xerneas) : le flag custom ne les départage
+        # pas, pokemon_forms.is_default désigne la forme par défaut. Sans elle, l'ambiguïté reste.
+        matches = [row for row in matches if row.get("pokemon_form_id") in default_form_ids] or matches
     if form:
         # Accepte une espèce de base + un libellé explicite de forme, sans fallback.
         species = {row["species_id"] for row in matches}

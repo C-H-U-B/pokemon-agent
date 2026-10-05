@@ -9,8 +9,8 @@ Ils combinent les filtres en SQL, renvoient des pages avec total exact et
 troncature explicite, et utilisent une forme par défaut sans forme demandée.
 La recherche inverse par capacité utilise le dernier movepool de chaque Pokémon,
 sans union historique. Avec une méthode d'apprentissage ou des niveaux et sans
-jeu précisé, les deux outils retiennent le dernier jeu où le Pokémon a cette méthode. Le catalogue personnalisé lié présente des lacunes de
-formes par défaut signalées dans `catalogue_complete` ; les talents sont reportés.
+jeu précisé, les deux outils retiennent le dernier jeu où le Pokémon a cette méthode. Une forme par défaut absente du catalogue personnalisé lié
+est signalée dans `catalogue_complete` ; les talents sont reportés.
 Les outils historiques conservent leurs signatures et leurs résultats.
 `pokemon_search` classe aussi les six statistiques de base et leur somme SQL :
 `sort_by`, `sort_order`, `limit` se combinent avec tous les filtres. Le schéma
