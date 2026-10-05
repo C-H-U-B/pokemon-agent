@@ -1,0 +1,11 @@
+# Donne la carte NVIDIA au serveur de modèle ; sans elle, Ollama tourne sur le processeur.
+#   docker compose -f compose.yaml -f compose.gpu.yaml --profile llm up -d ollama
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
