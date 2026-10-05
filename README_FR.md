@@ -105,7 +105,7 @@ Python, SQLite, ChromaDB, Sentence Transformers, BM25, reclassement par CrossEnc
 
 ## Lancer le projet
 
-Prérequis : Python 3.10 ou plus récent, et LM Studio avec `qwen/qwen3-vl-8b` (fenêtre de contexte de 16 384 tokens) pour les parcours qui appellent un modèle.
+Prérequis : Python 3.10 ou plus récent, et un serveur de modèle compatible OpenAI pour les parcours qui appellent un modèle. Par défaut, LM Studio sur `http://localhost:1234/v1` avec `qwen/qwen3-vl-8b` (fenêtre de contexte de 16 384 tokens) ; `LLM_BASE_URL`, `LLM_MODEL` et `LLM_API_KEY` permettent d'utiliser Ollama, un autre hôte ou une API distante.
 
 ```bash
 pip install -e .

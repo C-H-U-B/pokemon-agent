@@ -4,12 +4,14 @@ Ce package ajoute une couche d'orchestration indépendante du graphe et du clien
 MCP existants. Il contient un seul agent, `agent.py:root_agent`, qui demande au
 modèle de répondre en français.
 
-Le parcours est : utilisateur → agent ADK → LiteLLM → API compatible OpenAI de
-LM Studio (`http://localhost:1234/v1`) → `qwen/qwen3-vl-8b` local. Le préfixe
-`openai/` du nom LiteLLM indique le protocole utilisé. L'agent définit par défaut
-`OPENAI_API_BASE` et la clé factice `OPENAI_API_KEY=lm-studio` avec `setdefault`.
-Des valeurs déjà présentes sont conservées : vérifier qu'elles ciblent bien
-LM Studio avant toute exécution.
+Le parcours est : utilisateur → agent ADK → LiteLLM → API compatible OpenAI du
+serveur configuré → modèle. Par défaut, il s'agit de LM Studio
+(`http://localhost:1234/v1`) avec `qwen/qwen3-vl-8b` ; `LLM_BASE_URL`, `LLM_MODEL`
+et `LLM_API_KEY` les remplacent (voir `config.py`). Le préfixe `openai/` du nom
+LiteLLM indique le protocole utilisé. L'agent reporte ces valeurs dans
+`OPENAI_API_BASE` et `OPENAI_API_KEY` avec `setdefault` : des valeurs déjà
+présentes dans l'environnement sont conservées, vérifier qu'elles ciblent bien
+le serveur voulu avant toute exécution.
 
 L'agent unique dispose désormais de `McpToolset`, qui démarre le serveur Pokémon
 en stdio avec le même interpréteur Python. Le filtre expose les dix outils :

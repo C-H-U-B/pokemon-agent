@@ -6,17 +6,16 @@ from pokemon_rag.rag.grounding import check_grounding
 from pokemon_rag.rag.retrieval import retrieve, retrieve_retry_context
 from pokemon_rag.graph.router import route_question
 from pokemon_rag.structured.query_parser import query_structured_data
-from pokemon_rag.config import DB_PATH, LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES
+from pokemon_rag.config import DB_PATH, LLM_API_KEY, LLM_BASE_URL, LLM_MAX_RETRIES, LLM_MODEL, LLM_TIMEOUT_SECONDS
 
-LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
-MAIN_MODEL = "qwen/qwen3-vl-8b"
+MAIN_MODEL = LLM_MODEL
 MAIN_MAX_TOKENS = 400
 RETRY_MAX_TOKENS = 300
 TOP_K = 5
 
 
 llm_client = OpenAI(
-    base_url=LM_STUDIO_BASE_URL, api_key="lm-studio",
+    base_url=LLM_BASE_URL, api_key=LLM_API_KEY,
     timeout=LLM_TIMEOUT_SECONDS, max_retries=LLM_MAX_RETRIES,
 )
 

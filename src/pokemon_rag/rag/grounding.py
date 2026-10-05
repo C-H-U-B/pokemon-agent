@@ -5,19 +5,18 @@ import logging
 import time
 
 from openai import OpenAI
-from pokemon_rag.config import LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES
+from pokemon_rag.config import LLM_API_KEY, LLM_BASE_URL, LLM_MAX_RETRIES, LLM_MODEL, LLM_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
 
 
-LM_STUDIO_URL = "http://localhost:1234/v1"
 
 # Checker entièrement local.
-GROUNDING_MODEL = "qwen/qwen3-vl-8b"
+GROUNDING_MODEL = LLM_MODEL
 
 client = OpenAI(
-    base_url=LM_STUDIO_URL,
-    api_key="lm-studio",
+    base_url=LLM_BASE_URL,
+    api_key=LLM_API_KEY,
     timeout=LLM_TIMEOUT_SECONDS,
     max_retries=LLM_MAX_RETRIES,
 )

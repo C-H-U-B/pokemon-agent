@@ -1,6 +1,13 @@
+import os
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# Serveur de modèle compatible OpenAI : LM Studio local par défaut ; Ollama,
+# un autre hôte ou une API distante se configurent par variables d'environnement.
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "http://localhost:1234/v1")
+LLM_MODEL = os.environ.get("LLM_MODEL", "qwen/qwen3-vl-8b")
+LLM_API_KEY = os.environ.get("LLM_API_KEY", "lm-studio")
 
 # Délai réseau par appel et reprises de transport du client LLM.
 LLM_TIMEOUT_SECONDS = 120.0
