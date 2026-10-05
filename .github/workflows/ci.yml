@@ -3,7 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
+    # Un changement limité à la documentation ne relance pas la suite.
+    paths-ignore: ["**.md", "LICENSE"]
   pull_request:
+    paths-ignore: ["**.md", "LICENSE"]
 
 jobs:
   tests:
