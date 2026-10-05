@@ -16,7 +16,7 @@ Everything runs locally: SQLite, ChromaDB and an 8B Qwen model served by LM Stud
 | Relational database | 30 tables, 51 indexes, 8 views; 638,000 move-learning rows across 32 game groups |
 | Reference data | 1,025 species, 1,351 Pokémon, 1,579 forms, 937 moves |
 | Document index | 36,280 embedded chunks |
-| Tests | 930 tests, 846 of which need no model |
+| Tests | 947 tests, 863 of which need no model |
 | End-to-end campaign | 31 of 31 questions passed with a local 8-billion-parameter model |
 
 ## Data flow
@@ -161,3 +161,12 @@ Contributor guides are written in French.
 - [Structured engine](src/pokemon_rag/structured/README.md), [document search](src/pokemon_rag/rag/README.md), [MCP server](src/pokemon_rag/mcp/README.md), [ADK agent](src/pokemon_rag/agent/README.md).
 - [Tests](tests/README.md): which validation to run for a given change.
 - [Development history](DEVELOPMENT.md): decisions, problems met and fixes, in chronological order.
+
+## License and credits
+
+The code and the reference spreadsheet are released under the [MIT license](LICENSE). That license does not cover third-party data:
+
+- **PokéAPI**: the game data in the database comes from [PokéAPI](https://github.com/PokeAPI/pokeapi).
+- **Poképédia**: the texts of the document corpus and the index derived from them come from [Poképédia](https://www.pokepedia.fr) and remain under the [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/) license: attribution, non-commercial use, share-alike.
+
+Pokémon and related names are trademarks of Nintendo, Game Freak and The Pokémon Company. This project is unofficial and non-commercial.
