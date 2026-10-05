@@ -11,6 +11,7 @@ from openai import OpenAI
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from pokemon_rag.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
 from pokemon_rag.constraints.query_constraints import (
     extract_explicit_constraints, extract_national_pokedex_number, normalize, reconcile_search_args,
     without_unnamed_learning_method,
@@ -19,8 +20,7 @@ from pokemon_rag.constraints.query_constraints import (
 
 SERVER_MODULE = "pokemon_rag.mcp.server"
 
-LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
-MODEL = "qwen/qwen3-vl-8b"
+MODEL = LLM_MODEL
 
 TOOL_SELECTION_PROMPT = """Tu sélectionnes un tool MCP pour répondre à une question sur Pokémon.
 
@@ -95,8 +95,8 @@ Pour les résultats structurés :
 
 def create_llm_client() -> OpenAI:
     return OpenAI(
-        base_url=LM_STUDIO_BASE_URL,
-        api_key="lm-studio",
+        base_url=LLM_BASE_URL,
+        api_key=LLM_API_KEY,
     )
 
 

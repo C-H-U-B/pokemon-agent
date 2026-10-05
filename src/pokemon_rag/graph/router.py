@@ -8,19 +8,18 @@ import unicodedata
 from typing import Any
 
 from openai import OpenAI
-from pokemon_rag.config import DB_PATH, LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES
+from pokemon_rag.config import DB_PATH, LLM_API_KEY, LLM_BASE_URL, LLM_MAX_RETRIES, LLM_MODEL, LLM_TIMEOUT_SECONDS
 from pokemon_rag.structured.query_parser import parse_pokedex_query
 
 
-LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
-ROUTER_MODEL = "qwen/qwen3-vl-8b"
+ROUTER_MODEL = LLM_MODEL
 
 
 VALID_ROUTES = {"RAG", "STRUCTURED", "HYBRID"}
 VALID_INTENTS = {"PROFILE", "STRUCTURED_QUERY", "DOCUMENT_SEARCH"}
 
 llm_client = OpenAI(
-    base_url=LM_STUDIO_BASE_URL, api_key="lm-studio",
+    base_url=LLM_BASE_URL, api_key=LLM_API_KEY,
     timeout=LLM_TIMEOUT_SECONDS, max_retries=LLM_MAX_RETRIES,
 )
 

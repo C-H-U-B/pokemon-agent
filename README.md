@@ -105,7 +105,7 @@ Python, SQLite, ChromaDB, Sentence Transformers, BM25, CrossEncoder reranking, L
 
 ## Running the project
 
-Requirements: Python 3.10 or later, and LM Studio with `qwen/qwen3-vl-8b` (16,384-token context window) for the paths that call a model.
+Requirements: Python 3.10 or later, and an OpenAI-compatible model server for the paths that call a model. The default is LM Studio on `http://localhost:1234/v1` with `qwen/qwen3-vl-8b` (16,384-token context window); set `LLM_BASE_URL`, `LLM_MODEL` and `LLM_API_KEY` to use Ollama, another host or a remote API.
 
 ```bash
 pip install -e .

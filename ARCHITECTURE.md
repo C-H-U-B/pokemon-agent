@@ -119,9 +119,11 @@ ni par `query_structured_data` ni par `run_graph`. Voir les
 ## Ressources et configuration
 
 [config.py](src/pokemon_rag/config.py) définit les chemins de SQLite, du tableur,
-du corpus et de Chroma, ainsi que les délais LLM utilisés par le graphe, le routeur,
-le parseur et le grounding. Les noms de modèles et URL LM Studio restent déclarés
-dans les modules appelants ; le client MCP a sa propre configuration.
+du corpus et de Chroma, les délais LLM utilisés par le graphe, le routeur, le
+parseur et le grounding, et le serveur de modèle commun à tous les parcours :
+`LLM_BASE_URL`, `LLM_MODEL` et `LLM_API_KEY`, lus dans l'environnement. Par défaut,
+ils visent LM Studio sur `http://localhost:1234/v1` avec `qwen/qwen3-vl-8b` ; tout
+serveur compatible OpenAI (Ollama, autre hôte, API distante) se configure ainsi.
 
 `pokemon.db` réunit les données PokéAPI et le Pokédex personnalisé. Chroma stocke
 les passages documentaires et leurs embeddings. Le retrieval charge les modèles,

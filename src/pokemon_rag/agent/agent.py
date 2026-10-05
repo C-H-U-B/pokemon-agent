@@ -7,6 +7,7 @@ from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams
 from mcp import StdioServerParameters
 from pokemon_rag.agent.tool_guard import before_tool_guard
 from pokemon_rag.agent.context_budget import before_model_budget, after_tool_budget
+from pokemon_rag.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
 
 
 AGENT_INSTRUCTION = """Réponds en français avec les seuls faits demandés et prouvés par les outils, jamais de mémoire, même pour compléter ou contredire. Valeur/condition absente : inconnue ; n'invente aucun niveau, jeu, type ou capacité. Erreur technique ≠ Pokémon absent.
@@ -18,13 +19,13 @@ Compte avec total_count ; liste partielle (truncated/context_truncated) : signal
 """
 
 
-LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
-MODEL_NAME = "openai/qwen/qwen3-vl-8b"
+# Le préfixe openai/ indique à LiteLLM le protocole, pas le fournisseur.
+MODEL_NAME = f"openai/{LLM_MODEL}"
 
 
-# LiteLLM utilise l'API OpenAI-compatible exposée par LM Studio.
-os.environ.setdefault("OPENAI_API_KEY", "lm-studio")
-os.environ.setdefault("OPENAI_API_BASE", LM_STUDIO_BASE_URL)
+# LiteLLM utilise l'API compatible OpenAI du serveur configuré.
+os.environ.setdefault("OPENAI_API_KEY", LLM_API_KEY)
+os.environ.setdefault("OPENAI_API_BASE", LLM_BASE_URL)
 
 
 model = LiteLlm(

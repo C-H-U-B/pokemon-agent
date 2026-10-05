@@ -12,7 +12,7 @@ from typing import Any
 
 from openai import OpenAI
 
-from pokemon_rag.config import LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES
+from pokemon_rag.config import LLM_API_KEY, LLM_BASE_URL, LLM_MAX_RETRIES, LLM_MODEL, LLM_TIMEOUT_SECONDS
 from pokemon_rag.constraints.query_constraints import (
     extract_form,
     extract_level_bounds,
@@ -23,11 +23,10 @@ from pokemon_rag.constraints.query_constraints import (
 # Référence au module et non à ses fonctions : les tests y substituent la connexion.
 from pokemon_rag.structured import query_engine as engine
 
-LM_STUDIO_BASE_URL = "http://localhost:1234/v1"
-QUERY_MODEL = "qwen/qwen3-vl-8b"
+QUERY_MODEL = LLM_MODEL
 
 llm_client = OpenAI(
-    base_url=LM_STUDIO_BASE_URL, api_key="lm-studio",
+    base_url=LLM_BASE_URL, api_key=LLM_API_KEY,
     timeout=LLM_TIMEOUT_SECONDS, max_retries=LLM_MAX_RETRIES,
 )
 
