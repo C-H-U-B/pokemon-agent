@@ -40,6 +40,7 @@ data/*.db
 # Logs / temporaires
 *.log
 *.tmp
+.pytest_tmp_pokedex/
 .DS_Store
 Thumbs.db
 

@@ -5,16 +5,27 @@ Lancement local : uvicorn pokemon_rag.api.app:app --reload
 """
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 
+from pokemon_rag.config import DB_PATH
 from pokemon_rag.structured.query_engine import get_pokemon_types
 
 app = FastAPI(title="Pokémon RAG", version="0.1.0")
 
 
+@app.exception_handler(FileNotFoundError)
+def database_missing(request: Request, exc: FileNotFoundError) -> JSONResponse:
+    """Base absente : service indisponible (503), pas une erreur interne ni un Pokémon inconnu."""
+    detail = f"{exc}. Placer pokemon.db dans data/ (voir le README)."
+    return JSONResponse(status_code=503, content={"detail": detail})
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
-    """Indique que le service répond ; ne vérifie pas encore la base."""
+    """Indique que le service répond et que la base est présente ; ne l'ouvre pas."""
+    if not DB_PATH.exists():
+        raise FileNotFoundError(f"Base introuvable : {DB_PATH}")
     return {"status": "ok"}
 
 

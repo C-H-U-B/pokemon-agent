@@ -64,6 +64,7 @@ décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 | Guard ADK | `unit/test_adk_tool_guard.py` : callback et vrais extracteurs, contexte et outils ADK simulés, sans LLM ni serveur MCP |
 | Sessions Web | `unit/test_web_request_sessions.py` : runner ADK simulé ; questions indépendantes, historique affiché conservé, suppression des sessions après succès ou erreur |
 | Serveur MCP | `integration/test_mcp_server.py` : vrai transport stdio et outil structuré, sans Qwen |
+| API HTTP | `unit/test_api.py` : vraie application FastAPI, moteur simulé ; 404 pour un nom inconnu, 503 pour une base absente |
 | Alias d'espèces du Pokédex | `integration/test_pokedex_species_aliases.py` : vraie base, appels métier/MCP directs sans parseur LLM ; formes par défaut et noms français des capacités |
 | Résolution de Tonnerre | `integration/test_structured_constraint_preservation.py` : parsing et vraie base |
 
@@ -165,7 +166,8 @@ d'union historique, déduplication et pagination. Un jeu récent à méthode uni
 vérifie qu'une méthode ou des niveaux demandés retiennent le dernier jeu qui les
 propose, sans changer de jeu pour un filtre de type ni assouplir un jeu explicite. Les cas `real_data` vérifient
 Relicanth, les fabuleux de troisième génération, Frappe Atlas et les formes
-d'Arceus sur la base locale.
+d'Arceus sur la base locale, ainsi que la présence au catalogue de toutes les
+formes par défaut (Xerneas parmi les légendaires de sixième génération, Mimiqui, Morpeko).
 Le test serveur appelle aussi `pokemon_search` et `pokemon_moves` via stdio,
 et distingue une erreur de filtre d'une liste vide, sans LLM. Les guards ADK et
 MCP simulés vérifient la conservation des filtres des nouveaux outils.

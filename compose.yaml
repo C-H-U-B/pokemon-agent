@@ -1,3 +1,5 @@
+# Prérequis : data/pokemon.db, construite localement ou téléchargée depuis
+#   https://github.com/C-H-U-B/pokemon-rag/releases/latest/download/pokemon.db
 # Lancement : docker compose up --build   (puis http://localhost:8000/docs)
 services:
   api:
