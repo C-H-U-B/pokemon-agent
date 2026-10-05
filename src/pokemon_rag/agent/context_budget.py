@@ -22,6 +22,11 @@ MAX_TOOL_RESULT_BYTES = 3_000
 MAX_MODEL_CALLS = 4
 MAX_OUTPUT_TOKENS = 1_024
 
+TOOL_FAILURE_ABSTENTION = (
+    "Aucun outil n'a renvoyé de résultat exploitable pour cette question (erreur technique, "
+    "appel refusé, donnée introuvable ou aucun passage trouvé). Je ne réponds pas de mémoire : "
+    "reformulez la question ou réessayez dans un instant.")
+
 logger = logging.getLogger(__name__)
 
 # Marqueurs posés par ADK autour des descriptions fournies par un serveur MCP.
@@ -192,11 +197,8 @@ def _presentation_data(data: dict, question: str, args: dict) -> dict:
     return data
 
 
-def bounded_tool_result(response: dict[str, Any], *, keep_english: bool = False,
-                        question: str = "", args: dict | None = None) -> dict[str, Any]:
-    """Enlève la copie MCP textuelle et réduit les listes avec troncature explicite."""
-    if response.get("isError") or response.get("is_error"):
-        return {"error": "mcp_tool_error", "message": "L'outil a signalé une erreur ; aucun fait ne peut en être déduit."}
+def _structured_content(response: dict[str, Any]) -> Any:
+    """Données structurées d'un retour MCP, ou None."""
     data = response.get("structuredContent", response.get("structured_content"))
     if data is None and isinstance(response.get("content"), list):
         content = response["content"]
@@ -205,7 +207,17 @@ def bounded_tool_result(response: dict[str, Any], *, keep_english: bool = False,
                 data = json.loads(content[0]["text"])
             except (ValueError, KeyError):
                 pass
+    return data
+
+
+def bounded_tool_result(response: dict[str, Any], *, keep_english: bool = False,
+                        question: str = "", args: dict | None = None) -> dict[str, Any]:
+    """Enlève la copie MCP textuelle et réduit les listes avec troncature explicite."""
+    if response.get("isError") or response.get("is_error"):
+        return {"error": "mcp_tool_error", "message": "L'outil a signalé une erreur ; aucun fait ne peut en être déduit."}
+    data = _structured_content(response)
     data = deepcopy(data if isinstance(data, dict) else response)
+    data.pop("timings", None)  # mesures pour l'interface, transmises par l'état de session
     if not keep_english:
         data = _french_fields(data)
     data = _presentation_data(data, question, args or {})
@@ -243,11 +255,33 @@ def after_tool_budget(tool: Any, args: dict, tool_context: Any, tool_response: d
     """Adapter uniquement la réponse destinée à ADK, sans changer l'API MCP."""
     question = _extract_user_text(getattr(tool_context, "user_content", None))
     result = bounded_tool_result(tool_response, keep_english=_english_requested(question), question=question, args=args)
+    state = getattr(tool_context, "state", None)
+    if state is not None:
+        # Une entrée par retour d'outil, dans l'ordre : l'interface l'associe à l'appel du même nom.
+        raw = _structured_content(tool_response)
+        raw = raw if isinstance(raw, dict) else {}
+        measure = {key: raw[key] for key in ("execution_time", "timings") if raw.get(key) is not None}
+        if "timings" in measure:
+            measure["passages"] = len(raw.get("results") or [])
+        state["tool_timings"] = [*state.get("tool_timings", []), {"tool": getattr(tool, "name", None), **measure}]
     if logger.isEnabledFor(logging.INFO):
         logger.info("tool_result tool=%s mcp_bytes=%d projected_bytes=%d limit=%d truncated=%s error=%s",
                     getattr(tool, "name", None), _size(tool_response), _size(result), MAX_TOOL_RESULT_BYTES,
                     bool(result.get("context_truncated")), result.get("error"))
     return result
+
+
+def _passages_received(contents: list) -> bool:
+    """Le dernier retour est une recherche documentaire avec des passages : il reste à rédiger.
+
+    Le catalogue et des passages ne tiennent pas ensemble dans le budget de requête.
+    Une recherche vide ou en erreur garde le catalogue pour une nouvelle tentative.
+    """
+    if not contents:
+        return False
+    responses = [part.function_response for part in contents[-1].parts or [] if part.function_response]
+    return (len(responses) == 1 and responses[0].name == "pokemon_rag_search"
+            and not responses[0].response.get("error") and bool(responses[0].response.get("results")))
 
 
 def _complete_structured_response(contents: list) -> bool:
@@ -293,7 +327,8 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
     compound = re.search(r"(?:^|-)(?:et|puis|ainsi-que)-(?:leurs?-|ses-|son-|sa-|les-|le-|la-)?"
                          r"(?:types?|numeros?|evolutions?|attaques?|capacites?|statistiques?|vitesse|defense)(?:-|$)",normalize(question))
     documentary = re.search(r"(?:^|-)(?:apparence|habitat|comportement|origine|histoire|description|decris)(?:-|$)",normalize(question))
-    if not compound and not documentary and _complete_structured_response(llm_request.contents):
+    if not compound and (_passages_received(llm_request.contents)
+                         or (not documentary and _complete_structured_response(llm_request.contents))):
         # Phase de formulation, comme dans le client MCP : les faits restent
         # intégralement présents, sans transmettre à nouveau le catalogue.
         config.tools = []
@@ -316,4 +351,36 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
             "Je n'ai pas pu obtenir une réponse fiable dans les limites de traitement. "
             "Précisez les filtres ou demandez une liste plus courte."))]))
     callback_context.state["temp:model_calls"] = calls + 1
+    callback_context.state["temp:every_tool_call_failed"] = _every_tool_call_failed(llm_request.contents)
     return None
+
+
+def _every_tool_call_failed(contents: list) -> bool:
+    """Au moins un retour d'outil, et aucun fait : panne, refus du guard ou recherche documentaire vide.
+
+    Une liste structurée vide reste un fait (« aucun Pokémon ne correspond ») ; une recherche
+    documentaire vide ne prouve rien et ne laisse au modèle que sa mémoire.
+    """
+    # ponytail: porte sur tout l'historique transmis ; exact avec une session par question (Web),
+    # à restreindre au dernier tour si une conversation à mémoire est rétablie.
+    responses = [part.function_response for content in contents
+                 for part in content.parts or [] if part.function_response]
+    return bool(responses) and all(
+        not isinstance(item.response, dict) or item.response.get("error")
+        or (item.name == "pokemon_rag_search" and not item.response.get("results"))
+        for item in responses)
+
+
+def after_model_abstention(callback_context: Any, llm_response: Any) -> LlmResponse | None:
+    """Remplace un texte rédigé sans aucun résultat d'outil valide ; une nouvelle tentative d'outil passe.
+
+    La consigne interdit déjà de répondre de mémoire après une erreur, mais le modèle peut
+    l'ignorer : le contrôle est donc fait ici, sur les retours d'outils réellement reçus.
+    """
+    if not callback_context.state.get("temp:every_tool_call_failed") or getattr(llm_response, "partial", False):
+        return None
+    parts = (llm_response.content.parts if llm_response.content else None) or []
+    if any(part.function_call for part in parts):
+        return None
+    logger.warning("tool_failure_abstention")
+    return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=TOOL_FAILURE_ABSTENTION)]))

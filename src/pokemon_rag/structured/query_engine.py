@@ -176,6 +176,7 @@ def get_pokemon_moves(
         raise ValueError("pokemon doit être un nom non vide.")
     if form is not None and (not isinstance(form, str) or not form.strip()):
         raise ValueError("form doit être un identifiant non vide.")
+    start = time.perf_counter()
     with closing(_connect()) as conn:
         species, forms = _move_pokemon_rows(conn, pokemon, form)
         if form is None:
@@ -232,7 +233,8 @@ def get_pokemon_moves(
                 by_move[method["move_id"]].append({"method": method["learning_method"], "level": method["level"]})
             for row in results:
                 row["learning"] = by_move[row["move_id"]]
-        return {**context, **_page_result(results, total, limit, offset)}
+        return {**context, **_page_result(results, total, limit, offset),
+                "execution_time": time.perf_counter() - start}
 
 
 def search_pokemon(
@@ -274,6 +276,7 @@ def search_pokemon(
         raise ValueError("types doit contenir un ou deux types.")
     if form is not None and (not isinstance(form, str) or not form.strip()):
         raise ValueError("form doit être une chaîne non vide.")
+    start = time.perf_counter()
     with closing(_connect()) as conn:
         conn.create_function("normalize", 1, _normalize, deterministic=True)
         clauses, params = [], []
@@ -376,7 +379,8 @@ def search_pokemon(
                 "catalogue_complete": not missing,
                 "catalogue_missing_default_forms": [dict(row) for row in missing],
                 "move_properties": "current_not_historicized" if has_movepool_filter else None,
-                **_page_result([dict(row) for row in rows], total, limit, offset)}
+                **_page_result([dict(row) for row in rows], total, limit, offset),
+                "execution_time": time.perf_counter() - start}
 
 
 def _fast_db_names(

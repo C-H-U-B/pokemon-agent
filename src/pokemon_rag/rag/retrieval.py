@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import sys
+import threading
 import time
 from collections import defaultdict
 
@@ -16,6 +17,7 @@ from tqdm import tqdm
 # CONFIGURATION
 # =============================================================================
 from pokemon_rag.config import CHROMA_PATH
+from pokemon_rag.constraints.query_constraints import normalize
 
 COLLECTION_NAME = "pokemon_documents"
 
@@ -52,6 +54,9 @@ def tokenize(text: str) -> list[str]:
 # =============================================================================
 
 _RETRIEVAL_INITIALIZED = False
+_INITIALIZATION_LOCK = threading.Lock()
+# Durées du premier chargement, en secondes : embedding, reranker, corpus, bm25, total.
+STARTUP_TIMINGS: dict[str, float] = {}
 
 client = None
 collection = None
@@ -154,7 +159,8 @@ def initialize_retrieval() -> None:
         )
 
     print(f"Sections indexées  : {len(SECTION_TO_INDICES):,}", file=sys.stderr)
-    print(f"Chargement corpus : {time.perf_counter() - load_start:.3f} s", file=sys.stderr)
+    corpus_load_time = time.perf_counter() - load_start
+    print(f"Chargement corpus : {corpus_load_time:.3f} s", file=sys.stderr)
 
     bm25_start = time.perf_counter()
     tokenized_corpus = []
@@ -170,8 +176,11 @@ def initialize_retrieval() -> None:
 
     bm25 = BM25Okapi(tokenized_corpus)
 
-    print(f"Construction BM25 : {time.perf_counter() - bm25_start:.3f} s", file=sys.stderr)
-    print(f"Startup total     : {time.perf_counter() - startup_start:.3f} s", file=sys.stderr)
+    bm25_time = time.perf_counter() - bm25_start
+    STARTUP_TIMINGS.update(embedding=embedding_load_time, reranker=reranker_load_time, corpus=corpus_load_time,
+                           bm25=bm25_time, total=time.perf_counter() - startup_start)
+    print(f"Construction BM25 : {bm25_time:.3f} s", file=sys.stderr)
+    print(f"Startup total     : {STARTUP_TIMINGS['total']:.3f} s", file=sys.stderr)
     print("=" * 84, file=sys.stderr)
     print(file=sys.stderr)
 
@@ -179,9 +188,10 @@ def initialize_retrieval() -> None:
 
 
 def ensure_retrieval_initialized() -> None:
-    """Déclenche l'initialisation RAG uniquement au premier usage réel."""
-    if not _RETRIEVAL_INITIALIZED:
-        initialize_retrieval()
+    """Initialise le RAG au premier usage ; un appel concurrent attend la fin au lieu de recharger."""
+    with _INITIALIZATION_LOCK:
+        if not _RETRIEVAL_INITIALIZED:
+            initialize_retrieval()
 
 
 # =============================================================================
@@ -748,6 +758,20 @@ def rerank_candidates(
 # INTERFACE PRINCIPALE
 # =============================================================================
 
+def canonical_pokemon(pokemon: str | None) -> str | None:
+    """Nom tel qu'il est indexé, retrouvé par comparaison exacte après normalisation.
+
+    Le filtre Chroma compare les chaînes telles quelles : « reshiram » ne trouvait aucun
+    fragment de « Reshiram ». Un nom inconnu est renvoyé inchangé : le scope reste strict
+    et la recherche vide, jamais élargie au corpus entier.
+    """
+    if not pokemon:
+        return None
+    ensure_retrieval_initialized()
+    wanted = normalize(pokemon)
+    return next((name for name in POKEMON_TO_INDICES if normalize(name) == wanted), pokemon)
+
+
 def retrieve(
     question: str,
     n_results: int = DEFAULT_N_RESULTS,
@@ -766,6 +790,7 @@ def retrieve(
         + seeds structurels du Pokémon ciblé
         -> CrossEncoder contenu -> Top-K
     """
+    pokemon = canonical_pokemon(pokemon)
     total_start = time.perf_counter()
 
     vector_start = time.perf_counter()

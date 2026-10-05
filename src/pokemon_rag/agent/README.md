@@ -208,6 +208,23 @@ Chaque abstention locale est journalisée avec sa raison (`request_too_large`
 ou `too_many_model_calls`) et les tailles mesurées, et chaque résultat d'outil
 avec sa taille MCP et sa taille projetée, sans contenu. Ces lignes passent par
 le logger `pokemon_rag.agent.context_budget`.
+
+Une réponse rédigée alors que tous les retours d'outils de la question sont en
+erreur (panne ou délai dépassé, refus du guard, résultat inutilisable) est
+remplacée par une abstention fixe, journalisée `tool_failure_abstention` : la
+consigne interdit déjà de répondre de mémoire, mais le modèle peut l'ignorer.
+Une nouvelle tentative d'outil n'est pas bloquée, et un seul résultat valide
+suffit à laisser passer la réponse. Le contrôle ne couvre pas une réponse
+donnée sans aucun appel d'outil. Le délai d'un appel d'outil est
+`MCP_TIMEOUT_SECONDS` dans `config.py` : la première recherche documentaire
+charge modèles et corpus, bien au-delà du défaut ADK de 5 secondes.
+Une recherche documentaire vide compte comme l'absence de fait : seule, elle
+déclenche la même abstention. Une liste structurée vide reste un fait.
+`after_tool_budget` retire `timings` et `execution_time` de la vue du modèle
+et les consigne dans l'état de session pour l'interface Web.
+Après une recherche documentaire qui a trouvé des passages, le catalogue est
+aussi retiré pour la rédaction : catalogue et passages ne tiennent pas ensemble
+dans le budget de requête. Une recherche vide ou en erreur le conserve.
 Une demande composée reconnue ou documentaire conserve le catalogue pour les
 autres faits à obtenir ; les champs de ligne explicitement demandés restent
 dans la projection de recherche.

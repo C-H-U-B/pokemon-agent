@@ -28,6 +28,10 @@ Des fichiers locaux anciens peuvent encore être dans `data/raw/` : leur présen
 ne change pas les chemins attendus par les scripts actuels. Ne pas déplacer ni
 recréer ces données automatiquement pour réconcilier les emplacements.
 
+Le conteneur Web lit l'index depuis un volume Docker, pas depuis `chroma_db/` :
+après une réindexation, recopier l'index avec la commande notée dans
+`compose.yaml`, sinon le conteneur continue de servir l'ancien.
+
 Le nettoyage interprète le wiki et conserve des titres structurés. L'ingestion
 découpe par section, puis par taille si nécessaire ; elle conserve le texte source
 et calcule les embeddings sur une représentation enrichie. Les métadonnées

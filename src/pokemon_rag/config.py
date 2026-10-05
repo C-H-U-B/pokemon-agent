@@ -13,6 +13,10 @@ LLM_API_KEY = os.environ.get("LLM_API_KEY", "lm-studio")
 LLM_TIMEOUT_SECONDS = 120.0
 LLM_MAX_RETRIES = 0
 
+# Délai d'un appel d'outil MCP par l'agent ADK. La première recherche documentaire charge
+# deux modèles et le corpus (environ une minute sur processeur) ; le défaut ADK est de 5 s.
+MCP_TIMEOUT_SECONDS = 180.0
+
 DATA_DIR = PROJECT_ROOT / "data"
 CHROMA_PATH = PROJECT_ROOT / "chroma_db"
 

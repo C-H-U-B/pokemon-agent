@@ -12,7 +12,7 @@ from google.genai import types
 from pydantic import Field
 
 from pokemon_rag.agent.agent import root_agent, pokemon_mcp
-from pokemon_rag.agent.context_budget import _size
+from pokemon_rag.agent.context_budget import _size, TOOL_FAILURE_ABSTENTION
 
 
 class WrongRankingModel(BaseLlm):
@@ -22,9 +22,12 @@ class WrongRankingModel(BaseLlm):
     tool_counts: list[int] = Field(default_factory=list)
     proposed_name: str = "pokemon_search"
     proposed_args: dict = Field(default_factory=lambda: {"types":["Steel"],"form_category":"mega"})
+    events: list = Field(default_factory=list)
+    requests: list[str] = Field(default_factory=list)
 
     async def generate_content_async(self, llm_request, stream=False):
         self.calls += 1
+        self.requests.append(llm_request.model_dump_json(exclude_none=True))
         self.tool_counts.append(len(llm_request.config.tools or []))
         self.request_sizes.append(_size({"contents":llm_request.contents,
             "system_instruction":llm_request.config.system_instruction,"tools":llm_request.config.tools}))
@@ -173,6 +176,7 @@ async def _run_simulated(question, tool, args):
             new_message=types.Content(role="user",parts=[types.Part(text=question)]))]
     finally:
         await runner.close()
+    model.events = events
     parts = [part for event in events for part in (event.content.parts if event.content else [])]
     return model, [part.function_response.response for part in parts if part.function_response], [
         part.text for part in parts if part.text]
@@ -212,5 +216,36 @@ def test_guard_refusal_leaves_room_to_retry_with_the_catalogue():
     model, responses, texts = asyncio.run(_run_simulated(
         "Quel Pokémon porte le numéro 618 du Pokédex national ?", "pokemon_pokedex_identity", {"pokemon":"618"}))
     assert responses[-1]["error"] == "unsupported_pokedex_number_constraint"
-    assert texts == ["Réponse simulée après résultat SQL."], (texts, model.request_sizes)
     assert model.calls == 2 and model.tool_counts[-1] > 0  # le catalogue reste disponible pour la reprise
+    # Le modèle simulé rédige au lieu de reprendre : sans aucun résultat valide, son texte est remplacé.
+    assert texts == [TOOL_FAILURE_ABSTENTION], (texts, model.request_sizes)
+
+
+@pytest.mark.real_data
+def test_answer_after_a_failed_mcp_call_is_replaced_in_the_real_runner():
+    # Vrai serveur MCP : le Pokémon inconnu produit une erreur d'outil, puis le modèle simulé « répond ».
+    model, responses, texts = asyncio.run(_run_simulated(
+        "Quels sont les types de Fauxkémon ?", "pokemon_types", {"pokemon": "Fauxkémon"}))
+    assert responses and all(response.get("error") for response in responses)
+    assert texts == [TOOL_FAILURE_ABSTENTION] and model.calls == 2
+
+
+@pytest.mark.real_data
+@pytest.mark.parametrize("question,tool,args", [
+    ("Quels sont les légendaires de la sixième génération ?", "pokemon_search", {"generation": 6, "legendary": True}),
+    ("Quels sont les types de Xerneas ?", "pokemon_types", {"pokemon": "Xerneas"}),
+    ("Quelles capacités physiques Sovkipou peut-il apprendre ?", "pokemon_moves",
+     {"pokemon": "Sovkipou", "damage_class": "physical"}),
+])
+def test_sql_time_reaches_the_interface_through_the_session_state_and_not_the_model(question, tool, args):
+    model, responses, texts = asyncio.run(_run_simulated(question, tool, args))
+    assert not responses[-1].get("error") and texts == ["Réponse simulée après résultat SQL."]
+    recorded = [event.actions.state_delta["tool_timings"] for event in model.events
+                if event.actions and "tool_timings" in (event.actions.state_delta or {})]
+    # L'événement du retour d'outil porte la mesure que lit le panneau Web.
+    assert len(recorded) == 1 and len(recorded[0]) == 1
+    measure = recorded[0][0]
+    assert measure["tool"] == tool and 0 <= measure["execution_time"] < 5
+    # Ni le retour d'outil ni la requête envoyée au modèle ne contiennent la mesure.
+    assert "execution_time" not in responses[-1]
+    assert all("execution_time" not in request and "tool_timings" not in request for request in model.requests)

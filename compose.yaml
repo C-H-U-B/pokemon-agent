@@ -27,6 +27,8 @@ services:
     environment:
       # Écouter sur toutes les interfaces du conteneur, sinon le port publié reste injoignable.
       GRADIO_SERVER_NAME: "0.0.0.0"
+      # Charge la base documentaire dès l'ouverture de la page, pas pendant la première question.
+      POKEMON_RAG_PRELOAD: "1"
       LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
       LLM_MODEL: ${LLM_MODEL:-qwen3-vl:8b}
       LLM_API_KEY: ${LLM_API_KEY:-ollama}
@@ -35,8 +37,10 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./data:/app/data:ro
-      # Index Poképédia ; Chroma y pose des verrous même en lecture.
-      - ./chroma_db:/app/chroma_db
+      # Index Poképédia dans un volume : lu depuis un dossier Windows partagé, son chargement est
+      # nettement plus lent. Le remplir une fois, et après chaque réindexation :
+      #   docker compose run --rm --no-deps -v "${PWD}/chroma_db:/source:ro" web sh -c "cp -a /source/. /app/chroma_db/"
+      - chroma:/app/chroma_db
       # Modèles d'embedding et de reclassement, téléchargés au premier usage (930 Mo).
       - huggingface:/root/.cache/huggingface
 
@@ -58,3 +62,4 @@ services:
 volumes:
   ollama:
   huggingface:
+  chroma:
