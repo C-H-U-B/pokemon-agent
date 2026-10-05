@@ -22,6 +22,24 @@ Le point d'entrée appelle `demo.launch(inbrowser=True)` et demande l'ouverture
 automatique du navigateur. Aucune adresse ou aucun port n'est fixé dans le code.
 Envoyer une question par le bouton ou Entrée appelle réellement Qwen.
 
+En conteneur, le service `web` de `compose.yaml` lance ce même point d'entrée
+sur le port 7860 (`GRADIO_SERVER_NAME=0.0.0.0`). Il vise par défaut le service
+`ollama` ; `LLM_BASE_URL` et `LLM_MODEL` le dirigent vers un autre serveur, par
+exemple LM Studio sur la machine hôte :
+
+```powershell
+$env:LLM_BASE_URL = "http://host.docker.internal:1234/v1"
+$env:LLM_MODEL = "qwen/qwen3-vl-8b"
+docker compose up -d --build web
+```
+
+La base SQLite est montée depuis `data/`. L'index Poképédia et les modèles de
+recherche vivent dans des volumes Docker : l'index doit y être copié une fois,
+puis après chaque réindexation, avec la commande notée dans `compose.yaml`.
+Lu depuis un dossier Windows partagé, son chargement prenait 44 secondes au lieu
+de 12 sur la machine de développement. Le parcours avec Ollama n'a pas encore
+été validé.
+
 Le panneau « Agent et outils en action » conserve deux parts sur cinq de la
 disposition sur grand écran, à droite de la conversation qui occupe les trois
 autres parts. Sur petit écran, la conversation est au-dessus de l'agent.
@@ -50,6 +68,13 @@ Les appels simultanés ne sont pas additionnés dans le total d'attente.
 Ces mesures incluent les délais de transport et de session, pas seulement le
 calcul du modèle ou du moteur. Sans outil, le temps reste dans analyse / choix.
 Les appels homonymes sont associés aux retours dans l'ordre d'arrivée (FIFO).
+Le panneau affiche aussi les temps mesurés par l'outil lui-même : chargement
+de la base documentaire au premier appel (modèles, corpus, index lexical),
+étapes de chaque recherche avec le nombre de passages, et durée de la requête
+SQL. Ces mesures passent par l'état de session ADK (`tool_timings`), jamais par
+le retour d'outil envoyé au modèle. Les tokens lus et générés viennent de
+l'usage déclaré par le serveur de modèle ; le débit affiché les rapporte au
+temps d'analyse et de préparation mesuré par l'interface, transport compris.
 La conversation reçoit le texte
 final à la fin de l'exécution, sans affichage token par token de la réponse.
 La question apparaît dès l'envoi, et la saisie se trouve sous l'historique.
@@ -61,6 +86,19 @@ l'exécution puis est remplacée par la réponse ou le message d'erreur. Elle
 indique l'attente, y compris pendant les outils, sans exposer de raisonnement.
 Une exécution sans texte final affiche « Aucune réponse finale », distinct de
 « Réponse disponible » et des erreurs techniques.
+
+## Démarrage du serveur d'outils
+
+À l'ouverture de la page, l'interface liste les outils MCP, ce qui démarre le
+serveur d'outils avant la première question ; les questions suivantes
+réutilisent ce même processus. Avec `POKEMON_RAG_PRELOAD=1` (défini pour le
+conteneur Web dans `compose.yaml`), l'agent lance ce serveur avec `--preload`
+et la base documentaire se charge alors en arrière-plan, au lieu d'être
+chargée pendant la première recherche. Sans cette variable, le chargement
+reste paresseux : aucun modèle n'est chargé tant qu'une recherche
+documentaire n'est pas demandée. Une question posée pendant le chargement
+attend sa fin, sans le relancer. Un échec de ce démarrage anticipé est
+journalisé (`warm_up_failed`) et ne bloque pas l'interface.
 
 ## Conversations et exemples
 

@@ -57,14 +57,15 @@ décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 | Routage ou parsing | `unit/test_router.py`, `unit/test_query_parser.py`, `unit/test_query_validation.py` |
 | Opération Pokédex | `unit/test_pokedex_queries.py`, puis tests d'intégration de données concernés |
 | Reprises ou erreurs terminales | `integration/test_graph_retry_policy.py`, `integration/test_graph_errors.py` |
-| Retrieval ou grounding | `unit/test_retrieval_logic.py`, `unit/test_grounding_logic.py` |
+| Retrieval ou grounding | `unit/test_retrieval_logic.py` (dont nom de scope normalisé, initialisation unique, mesures de l'outil de recherche), `unit/test_grounding_logic.py` |
 | Traces et coûts | `unit/test_metrics.py`, `unit/test_tracing.py` |
 | Client MCP | `integration/test_mcp_client.py`, puis `long/test_mcp_client_e2e.py` exécuté par l'utilisateur |
 | Contraintes MCP | `unit/test_mcp_constraint_preservation.py` : extraction et réconciliation sans LLM |
 | Guard ADK | `unit/test_adk_tool_guard.py` : callback et vrais extracteurs, contexte et outils ADK simulés, sans LLM ni serveur MCP |
-| Sessions Web | `unit/test_web_request_sessions.py` : runner ADK simulé ; questions indépendantes, historique affiché conservé, suppression des sessions après succès ou erreur |
+| Sessions Web | `unit/test_web_request_sessions.py` : runner ADK simulé ; questions indépendantes, historique affiché conservé, suppression des sessions après succès ou erreur ; temps d'outil et tokens du panneau, démarrage anticipé du serveur d'outils |
 | Serveur MCP | `integration/test_mcp_server.py` : vrai transport stdio et outil structuré, sans Qwen |
-| API HTTP | `unit/test_api.py` : vraie application FastAPI, moteur simulé ; 404 pour un nom inconnu, 503 pour une base absente |
+| API HTTP | `unit/test_api.py` : vraie application FastAPI et vraies fonctions d'outils, moteur simulé ; les neuf routes structurées, 404 ou 400 sur refus du moteur, 422 hors schéma, 503 pour une base absente |
+| Abstentions de l'agent ADK | `unit/test_adk_context_budget.py`, puis `integration/test_adk_stat_rankings.py` (vrai runner, modèle simulé) : réponse sans résultat d'outil exploitable remplacée, catalogue retiré après des passages, mesures hors de la vue du modèle |
 | Alias d'espèces du Pokédex | `integration/test_pokedex_species_aliases.py` : vraie base, appels métier/MCP directs sans parseur LLM ; formes par défaut et noms français des capacités |
 | Résolution de Tonnerre | `integration/test_structured_constraint_preservation.py` : parsing et vraie base |
 

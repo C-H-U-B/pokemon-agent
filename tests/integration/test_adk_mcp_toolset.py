@@ -24,6 +24,12 @@ async def _get_mcp_tools():
         await toolset.close()
 
 
+def test_tool_call_timeout_covers_the_first_document_search():
+    # Régression : avec le défaut ADK de 5 s, la première recherche documentaire, qui charge
+    # modèles et corpus, expirait et le modèle répondait de mémoire.
+    assert pokemon_mcp.connection_params.timeout >= 120
+
+
 @pytest.mark.integration
 def test_adk_mcp_toolset_exposes_expected_tools():
     """ADK doit exposer exactement les tools MCP autorisés à l'agent."""
@@ -77,6 +83,27 @@ def test_actual_top_ten_rankings_fit_tool_and_model_context_without_llm():
         ], config=types.GenerateContentConfig(system_instruction=root_agent.instruction,
             tools=[types.Tool(function_declarations=[tool._get_declaration() for tool in tools])]))
         assert before_model_budget(SimpleNamespace(state={}), req) is None
+
+
+def test_largest_document_result_is_formulated_within_the_real_request_budget():
+    # Vrai catalogue MCP et vraie consigne ; passages synthétiques à la taille maximale d'un résultat.
+    from pokemon_rag.agent.context_budget import MAX_TOOL_RESULT_BYTES, _size
+
+    tools = asyncio.run(_get_mcp_tools())
+    passages = {"question": "À quoi ressemble Mimiqui ?", "pokemon": "Mimiqui", "results": [
+        {"text": "Mimiqui se cache sous un chiffon. " * 17, "pokemon": "Mimiqui", "source_file": "Mimiqui.md",
+         "section_path": "Description", "chunk_number": index} for index in range(4)]}
+    result = bounded_tool_result(passages, question=passages["question"])
+    assert MAX_TOOL_RESULT_BYTES - 500 < _size(result) <= MAX_TOOL_RESULT_BYTES and not result.get("context_truncated")
+    arguments = {"question": passages["question"], "pokemon": "Mimiqui"}
+    req = LlmRequest(contents=[
+        types.Content(role="user", parts=[types.Part(text=passages["question"])]),
+        types.Content(role="model", parts=[types.Part(function_call=types.FunctionCall(name="pokemon_rag_search", args=arguments))]),
+        types.Content(role="user", parts=[types.Part(function_response=types.FunctionResponse(name="pokemon_rag_search", response=result))]),
+    ], config=types.GenerateContentConfig(system_instruction=root_agent.instruction,
+        tools=[types.Tool(function_declarations=[tool._get_declaration() for tool in tools])]))
+    assert before_model_budget(SimpleNamespace(state={}), req) is None
+    assert req.config.tools == []
 
 
 def test_abridged_catalogue_keeps_boundaries_closed_values_and_instruction_names():

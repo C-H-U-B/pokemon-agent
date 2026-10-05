@@ -7,6 +7,9 @@ Les diagnostics du serveur doivent utiliser stderr pour préserver le stdio MCP.
 
 from __future__ import annotations
 
+import sys
+import threading
+import time
 from typing import Annotated, Any, Literal
 
 from pydantic import Field
@@ -300,17 +303,26 @@ def pokemon_rag_search(
         pokemon: Nom canonique du Pokémon lorsque la recherche doit être
             strictement limitée à celui-ci.
     """
-    from pokemon_rag.rag.retrieval import retrieve
-    results = retrieve(
+    from pokemon_rag.rag import retrieval
+    cold = not retrieval._RETRIEVAL_INITIALIZED
+    start = time.perf_counter()
+    results = retrieval.retrieve(
         question=question,
         pokemon = pokemon.strip() if pokemon and pokemon.strip() else None,
     )
+    elapsed = time.perf_counter() - start
+    # Mesures destinées à l'interface ; le budget ADK les retire de la vue du modèle.
+    startup = dict(retrieval.STARTUP_TIMINGS) if cold else {}
+    timings = dict(results[0]["timings"]) if results else {"total": elapsed - startup.get("total", 0.0)}
+    if startup:
+        timings["startup"] = startup
 
     if not results:
         return {
             "question": question,
             "pokemon": pokemon,
             "results": [],
+            "timings": timings,
         }
 
     context_results = results[0].get("context_results") or results
@@ -337,8 +349,22 @@ def pokemon_rag_search(
         "question": question,
         "pokemon": pokemon,
         "results": documents,
+        "timings": timings,
     }
 
 
+def start_preload() -> threading.Thread:
+    """Charge modèles et corpus en arrière-plan, sans retarder la réponse du serveur à ses premiers appels."""
+    def load() -> None:
+        from pokemon_rag.rag import retrieval
+        retrieval.ensure_retrieval_initialized()
+
+    thread = threading.Thread(target=load, name="rag-preload", daemon=True)
+    thread.start()
+    return thread
+
+
 if __name__ == "__main__":
+    if "--preload" in sys.argv:
+        start_preload()
     mcp.run()

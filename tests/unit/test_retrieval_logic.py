@@ -310,3 +310,92 @@ def test_rerank_candidates_orders_crossencoder_scores(monkeypatch) -> None:
     assert [item["id"] for item in results] == ["b", "a"]
     assert [item["reranker_rank"] for item in results] == [1, 2]
     assert results[0]["reranker_score"] == pytest.approx(0.9)
+
+
+@pytest.mark.parametrize("asked, indexed", [
+    ("reshiram", "Reshiram"), ("RESHIRAM", "Reshiram"), ("Reshiram", "Reshiram"),
+    ("mimiqui", "Mimiqui"), ("evoli", "Évoli"), ("m. mime", "M. Mime"),
+    ("Reshi", "Reshi"),          # sous-chaîne : jamais rapprochée d'un nom indexé
+    ("Fauxkémon", "Fauxkémon"),  # inconnu : inchangé, donc recherche vide et non globale
+    (None, None), ("", None),
+])
+def test_scope_name_matches_the_indexed_name_after_normalization(monkeypatch, asked, indexed):
+    # Régression : « reshiram » en minuscules ne trouvait aucun fragment de « Reshiram ».
+    monkeypatch.setattr(retrieval, "POKEMON_TO_INDICES", {"Reshiram": [0], "Mimiqui": [1], "Évoli": [2], "M. Mime": [3]})
+    assert retrieval.canonical_pokemon(asked) == indexed
+
+
+def test_retrieve_scopes_every_stage_with_the_indexed_name(monkeypatch):
+    monkeypatch.setattr(retrieval, "POKEMON_TO_INDICES", {"Reshiram": [0]})
+    scopes = []
+    for stage in ("vector_retrieve", "bm25_retrieve", "section_structural_candidates"):
+        monkeypatch.setattr(retrieval, stage, lambda question, pokemon=None, _stage=stage: scopes.append((_stage, pokemon)) or [])
+    monkeypatch.setattr(retrieval, "expand_best_section", lambda *args, **kwargs: ([], {}))
+    assert retrieval.retrieve("à quoi ressemble reshiram ?", pokemon="reshiram") == []
+    assert scopes == [("vector_retrieve", "Reshiram"), ("bm25_retrieve", "Reshiram"),
+                      ("section_structural_candidates", "Reshiram")]
+
+
+def test_search_tool_reports_search_steps_and_loading_only_on_the_first_call(monkeypatch):
+    from pokemon_rag.mcp import server
+    steps = {"vector": 0.05, "bm25": 0.02, "rrf": 0.001, "reranker": 1.1, "total": 1.2}
+    passage = {"document": "Mimiqui porte un chiffon.", "metadata": {"pokemon": "Mimiqui"}, "timings": steps}
+    startup = {"embedding": 18.2, "reranker": 17.5, "corpus": 17.7, "bm25": 0.8, "total": 54.3}
+
+    def cold_retrieve(**kwargs):
+        # Le premier appel charge la base pendant la recherche.
+        monkeypatch.setattr(retrieval, "_RETRIEVAL_INITIALIZED", True)
+        monkeypatch.setattr(retrieval, "STARTUP_TIMINGS", startup)
+        return [dict(passage)]
+
+    monkeypatch.setattr(retrieval, "_RETRIEVAL_INITIALIZED", False)
+    monkeypatch.setattr(retrieval, "retrieve", cold_retrieve)
+    first = server.pokemon_rag_search("À quoi ressemble Mimiqui ?", "Mimiqui")
+    assert first["timings"] == {**steps, "startup": startup}
+    assert first["results"][0]["text"] == "Mimiqui porte un chiffon."
+
+    monkeypatch.setattr(retrieval, "retrieve", lambda **kwargs: [dict(passage)])
+    assert server.pokemon_rag_search("À quoi ressemble Mimiqui ?", "Mimiqui")["timings"] == steps
+
+    # Recherche vide : pas d'étapes détaillées, mais une durée totale mesurée et aucun chargement.
+    monkeypatch.setattr(retrieval, "retrieve", lambda **kwargs: [])
+    empty = server.pokemon_rag_search("à quoi ressemble reshiram ?", "Fauxkémon")
+    assert empty["results"] == [] and set(empty["timings"]) == {"total"} and empty["timings"]["total"] >= 0
+
+
+def test_concurrent_first_uses_initialize_the_retrieval_once(monkeypatch):
+    # Le préchargement et une première question peuvent demander la base au même moment.
+    import threading
+    import time
+
+    started = []
+
+    def slow_initialization():
+        started.append(threading.current_thread().name)
+        time.sleep(0.05)
+        monkeypatch.setattr(retrieval, "_RETRIEVAL_INITIALIZED", True)
+
+    monkeypatch.setattr(retrieval, "_RETRIEVAL_INITIALIZED", False)
+    monkeypatch.setattr(retrieval, "initialize_retrieval", slow_initialization)
+    threads = [threading.Thread(target=retrieval.ensure_retrieval_initialized) for _ in range(5)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=5)
+    assert len(started) == 1 and retrieval._RETRIEVAL_INITIALIZED
+
+
+def test_server_preload_loads_the_retrieval_in_the_background(monkeypatch):
+    from pokemon_rag.mcp import server
+
+    loaded = []
+    monkeypatch.setattr(retrieval, "ensure_retrieval_initialized", lambda: loaded.append(True))
+    thread = server.start_preload()
+    thread.join(timeout=5)
+    assert loaded == [True] and thread.daemon
+
+
+def test_agent_does_not_preload_the_retrieval_unless_asked():
+    # Hors conteneur Web et dans les tests, lancer le serveur MCP ne doit charger aucun modèle.
+    from pokemon_rag.agent.agent import pokemon_mcp
+    assert "--preload" not in pokemon_mcp.connection_params.server_params.args

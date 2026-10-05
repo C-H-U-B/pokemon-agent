@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import random
 import time
 import uuid
@@ -7,7 +8,9 @@ from dataclasses import dataclass, field
 import gradio as gr
 from google.adk.runners import InMemoryRunner
 from google.genai import types
-from pokemon_rag.agent.agent import root_agent
+from pokemon_rag.agent.agent import pokemon_mcp, root_agent
+
+logger = logging.getLogger(__name__)
 
 
 REFRESH_INTERVAL = 0.1
@@ -85,18 +88,37 @@ class ActivityTiming:
     phase_start: float = 0.0
     durations: dict[str, float] = field(default_factory=dict)
     calls: list[tuple[str, float, float | None]] = field(default_factory=list)
+    # Mesures côté outil par indice d'appel, et tokens cumulés des appels au modèle.
+    measures: dict[int, dict] = field(default_factory=dict)
+    seen_measures: int = 0
+    prompt_tokens: int = 0
+    output_tokens: int = 0
 
     def transition(self, phase: str, elapsed: float) -> None:
         if phase != self.phase:
             self.durations[self.phase] = self.durations.get(self.phase, 0.0) + elapsed - self.phase_start
             self.phase, self.phase_start = phase, elapsed
 
-    def observe(self, calls: list[tuple[str, dict]], responses: list[str], elapsed: float) -> None:
+    def observe(self, calls: list[tuple[str, dict]], responses: list[str], elapsed: float, event=None) -> None:
+        new_measures: list[dict] = []
+        if event is not None:
+            # L'état ADK porte les mesures des outils hors du contexte envoyé au modèle.
+            recorded = (getattr(getattr(event, "actions", None), "state_delta", None) or {}).get("tool_timings") or []
+            new_measures = list(recorded[self.seen_measures:])
+            self.seen_measures = max(self.seen_measures, len(recorded))
+            usage = getattr(event, "usage_metadata", None)
+            if usage is not None:
+                self.prompt_tokens += usage.prompt_token_count or 0
+                self.output_tokens += usage.candidates_token_count or 0
         self.calls.extend((name, elapsed, None) for name, _ in calls)
         for name in responses:
             for index, (called, start, end) in enumerate(self.calls):
                 if called == name and end is None:
                     self.calls[index] = (called, start, elapsed)
+                    measure = next((item for item in new_measures if item.get("tool") == name), None)
+                    if measure is not None:
+                        new_measures.remove(measure)
+                        self.measures[index] = measure
                     break
         if self.calls:
             self.transition("tools" if any(end is None for _, _, end in self.calls) else "generation", elapsed)
@@ -186,6 +208,34 @@ def _extract_function_responses(event) -> list[str]:
     return responses
 
 
+STARTUP_STEPS = (("embedding", "modèle d'embedding"), ("reranker", "modèle de reclassement"),
+                 ("corpus", "corpus"), ("bm25", "index lexical"))
+SEARCH_STEPS = (("vector", "vectorielle"), ("bm25", "lexicale"), ("rrf", "fusion"), ("reranker", "reclassement"))
+
+
+def _steps(values: dict, labels: tuple) -> str:
+    return " · ".join(f"{label} {values[key]:.2f} s" for key, label in labels if key in values)
+
+
+def _measure_lines(measure: dict | None) -> list[str]:
+    """Temps mesurés par l'outil lui-même : chargement et étapes de la recherche, ou requête SQL."""
+    if not measure:
+        return []
+    lines = []
+    timings = measure.get("timings") or {}
+    startup = timings.get("startup")
+    if startup:
+        lines.append(f"- Chargement de la base (premier appel) : {startup.get('total', 0.0):.1f} s"
+                     f" ({_steps(startup, STARTUP_STEPS)})")
+    if "total" in timings:
+        steps = _steps(timings, SEARCH_STEPS)
+        lines.append(f"- Recherche : {timings['total']:.2f} s" + (f" ({steps})" if steps else "")
+                     + f" · {measure.get('passages', 0)} passage(s)")
+    if measure.get("execution_time") is not None:
+        lines.append(f"- Requête SQL : {measure['execution_time'] * 1000:.0f} ms")
+    return lines
+
+
 def _format_activity(
     tool_calls: list[tuple[str, dict]],
     completed_tools: list[str],
@@ -213,8 +263,17 @@ def _format_activity(
             f"- Analyse / choix des outils : {timing.duration('analysis', elapsed_seconds):.1f} s",
             f"- Attente des outils : {timing.duration('tools', elapsed_seconds):.1f} s",
             f"- Préparation de la réponse : {timing.duration('generation', elapsed_seconds):.1f} s",
-            "",
         ])
+        startup = next((measure["timings"]["startup"] for measure in timing.measures.values()
+                        if (measure.get("timings") or {}).get("startup")), None)
+        if startup:
+            lines.append(f"- Chargement de la base documentaire (premier appel) : {startup.get('total', 0.0):.1f} s")
+        if timing.prompt_tokens or timing.output_tokens:
+            model_time = timing.duration("analysis", elapsed_seconds) + timing.duration("generation", elapsed_seconds)
+            rate = (f" · ≈ {timing.output_tokens / model_time:.0f} tokens/s"
+                    if timing.output_tokens and model_time > 0 else "")
+            lines.append(f"- Qwen : {timing.prompt_tokens} tokens lus, {timing.output_tokens} générés{rate}")
+        lines.append("")
 
     if not tool_calls:
         lines.append("**Outils sollicités :** aucun pour le moment.")
@@ -266,6 +325,10 @@ def _format_activity(
             )
         else:
             lines.append("L'agent échange avec cet outil via le protocole MCP.")
+
+        measured = _measure_lines(timing.measures.get(index - 1)) if timing is not None else []
+        if measured:
+            lines.extend(["", *measured])
 
         if arguments:
             lines.append("")
@@ -395,7 +458,7 @@ async def chat(
 
                 new_calls = _extract_function_calls(event)
                 new_responses = _extract_function_responses(event)
-                timing.observe(new_calls, new_responses, time.perf_counter() - start)
+                timing.observe(new_calls, new_responses, time.perf_counter() - start, event)
 
                 if new_calls:
                     tool_calls.extend(new_calls)
@@ -494,6 +557,18 @@ def new_conversation():
         _format_activity([], [], 0.0, "En attente d'une question."),
         "",
     )
+
+
+async def _warm_up() -> None:
+    """Démarre le serveur d'outils à l'ouverture de la page, avant la première question.
+
+    Le serveur est réutilisé par les questions suivantes ; avec POKEMON_RAG_PRELOAD=1, il charge
+    alors la base documentaire en arrière-plan. Un échec ici ne bloque pas l'interface.
+    """
+    try:
+        await pokemon_mcp.get_tools()
+    except Exception:
+        logger.warning("warm_up_failed", exc_info=True)
 
 
 def build_app() -> gr.Blocks:
@@ -615,6 +690,8 @@ def build_app() -> gr.Blocks:
                     message,
                 ],
             )
+
+        app.load(fn=_warm_up)
 
     return app
 

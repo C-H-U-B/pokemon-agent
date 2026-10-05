@@ -6,8 +6,8 @@ from google.adk.models.lite_llm import LiteLlm
 from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams
 from mcp import StdioServerParameters
 from pokemon_rag.agent.tool_guard import before_tool_guard
-from pokemon_rag.agent.context_budget import before_model_budget, after_tool_budget
-from pokemon_rag.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+from pokemon_rag.agent.context_budget import after_model_abstention, after_tool_budget, before_model_budget
+from pokemon_rag.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, MCP_TIMEOUT_SECONDS
 
 
 AGENT_INSTRUCTION = """Réponds en français avec les seuls faits demandés et prouvés par les outils, jamais de mémoire, même pour compléter ou contredire. Valeur/condition absente : inconnue ; n'invente aucun niveau, jeu, type ou capacité. Erreur technique ≠ Pokémon absent.
@@ -40,8 +40,11 @@ pokemon_mcp = McpToolset(
             args=[
                 "-m",
                 "pokemon_rag.mcp.server",
+                # Précharge la base documentaire dès le lancement du serveur (conteneur Web).
+                *(["--preload"] if os.environ.get("POKEMON_RAG_PRELOAD") == "1" else []),
             ],
         ),
+        timeout=MCP_TIMEOUT_SECONDS,
     ),
     tool_filter=[
         "pokemon_evolutions",
@@ -69,4 +72,5 @@ root_agent = Agent(
     before_tool_callback=before_tool_guard,
     after_tool_callback=after_tool_budget,
     before_model_callback=before_model_budget,
+    after_model_callback=after_model_abstention,
 )

@@ -8,8 +8,11 @@ import pytest
 from google.adk.models.llm_request import LlmRequest
 from google.genai import types
 
+from google.adk.models.llm_response import LlmResponse
+
 from pokemon_rag.agent.context_budget import (
-    before_model_budget, bounded_tool_result, after_tool_budget, MAX_TOOL_RESULT_BYTES,
+    after_model_abstention, before_model_budget, bounded_tool_result, after_tool_budget,
+    MAX_TOOL_RESULT_BYTES, TOOL_FAILURE_ABSTENTION, _size as budget_size,
 )
 
 
@@ -336,3 +339,133 @@ def test_champions_training_method_is_labelled_in_french():
     result = bounded_tool_result(data)
     # Une méthode sans libellé connu garde son identifiant plutôt qu'une traduction inventée.
     assert result["results"][0]["learning"] == [{"method":"entraînement"}, {"method":"xd-shadow"}]
+
+
+TIMEOUT = {"error": "MCP tool execution failed: Request 'tools/call' timed out"}
+REFUSAL = {"error": "invalid_explicit_constraints", "required_arguments": {"min_level": 10}}
+TYPES = {"operation": "get_pokemon_types", "rows": [{"name_fr": "Mimiqui", "type_1_fr": "Spectre"}], "count": 1}
+NO_PASSAGE = {"question": "à quoi ressemble reshiram ?", "pokemon": "reshiram", "results": []}
+PASSAGES = {"question": "À quoi ressemble Mimiqui ?", "pokemon": "Mimiqui", "results": [{"text": "Mimiqui porte un chiffon."}]}
+NO_MATCH = {"operation": "search_pokemon", "results": [], "total_count": 0, "returned_count": 0, "limit": 30, "offset": 0}
+
+
+def model_turn(*results, answer=None, call=None):
+    """Déroule les deux callbacks autour d'une réponse simulée du modèle ; renvoie le texte final."""
+    req = request("À quoi ressemble Mimiqui ?")
+    for result in results:
+        name = {"get_pokemon_types": "pokemon_types", "search_pokemon": "pokemon_search"}.get(
+            result.get("operation"), "pokemon_rag_search")
+        req.contents.append(types.Content(role="user", parts=[types.Part(
+            function_response=types.FunctionResponse(name=name, response=result))]))
+    ctx = SimpleNamespace(state={})
+    assert before_model_budget(ctx, req) is None
+    part = types.Part(function_call=types.FunctionCall(name=call, args={})) if call else types.Part(text=answer)
+    response = LlmResponse(content=types.Content(role="model", parts=[part]))
+    replaced = after_model_abstention(ctx, response)
+    return (replaced or response).content.parts[0]
+
+
+@pytest.mark.parametrize("results", [
+    [TIMEOUT],                                      # panne : cas observé dans le conteneur
+    [REFUSAL],                                      # refus du guard resté sans appel compatible
+    [bounded_tool_result({"isError": True})],       # erreur signalée par le serveur MCP
+    [TIMEOUT, REFUSAL, TIMEOUT],                    # plusieurs tentatives, aucune valide
+    [NO_PASSAGE],                                   # recherche documentaire vide : cas « reshiram »
+    [NO_PASSAGE, TIMEOUT],
+])
+def test_answer_written_after_only_failed_tool_calls_is_replaced(results, caplog):
+    # Régression : après un délai dépassé, le modèle décrivait Mimiqui de mémoire.
+    with caplog.at_level("WARNING", logger="pokemon_rag.agent.context_budget"):
+        part = model_turn(*results, answer="Mimiqui ressemble à un Pikachu en chiffon avec des oreilles pointues.")
+    assert part.text == TOOL_FAILURE_ABSTENTION
+    assert "tool_failure_abstention" in caplog.text and "Pikachu" not in caplog.text
+
+
+@pytest.mark.parametrize("results", [
+    [TYPES],                # résultat valide
+    [TIMEOUT, TYPES],       # échec puis nouvelle tentative réussie
+    [TYPES, TIMEOUT],       # un fait valide existe déjà
+    [PASSAGES],             # passages trouvés
+    [NO_PASSAGE, PASSAGES], # recherche relancée avec succès
+    [NO_MATCH],             # liste structurée vide : « aucun Pokémon ne correspond » est un fait
+    [],                     # aucun outil appelé : hors du périmètre de ce contrôle
+])
+def test_answer_backed_by_a_valid_tool_result_is_kept(results):
+    assert model_turn(*results, answer="Mimiqui est de type Spectre.").text == "Mimiqui est de type Spectre."
+
+
+def test_retrying_a_tool_after_a_failure_is_not_blocked():
+    part = model_turn(TIMEOUT, call="pokemon_rag_search")
+    assert part.function_call.name == "pokemon_rag_search" and part.text is None
+
+
+def test_agent_applies_the_abstention_after_every_model_answer():
+    from pokemon_rag.agent.agent import root_agent
+    assert root_agent.after_model_callback is after_model_abstention
+
+
+def test_tool_measures_go_to_the_session_state_and_never_to_the_model():
+    context = SimpleNamespace(user_content=None, state={})
+    passages = {"question": "À quoi ressemble Mimiqui ?", "pokemon": "Mimiqui",
+                "results": [{"text": "Mimiqui porte un chiffon."}],
+                "timings": {"vector": 0.05, "reranker": 1.1, "total": 1.23, "startup": {"total": 54.3}}}
+    types_result = {"operation": "get_pokemon_types", "rows": [{"name_fr": "Mimiqui"}], "count": 1,
+                    "execution_time": 0.048}
+    seen = [after_tool_budget(SimpleNamespace(name=name), {}, context, {"structuredContent": deepcopy(result)})
+            for name, result in (("pokemon_rag_search", passages), ("pokemon_types", types_result))]
+    # Le modèle ne reçoit aucune mesure : son budget de contexte est inchangé.
+    assert "timings" not in seen[0] and "execution_time" not in seen[1]
+    assert "54.3" not in json.dumps(seen) and "0.048" not in json.dumps(seen)
+    assert seen[0]["results"] == passages["results"]
+    assert context.state["tool_timings"] == [
+        {"tool": "pokemon_rag_search", "timings": passages["timings"], "passages": 1},
+        {"tool": "pokemon_types", "execution_time": 0.048},
+    ]
+
+
+def test_failed_tool_still_records_an_entry_so_later_measures_stay_aligned():
+    context = SimpleNamespace(user_content=None, state={})
+    after_tool_budget(SimpleNamespace(name="pokemon_rag_search"), {}, context, dict(TIMEOUT))
+    after_tool_budget(SimpleNamespace(name="pokemon_types"), {}, context, {"isError": True})
+    assert context.state["tool_timings"] == [{"tool": "pokemon_rag_search"}, {"tool": "pokemon_types"}]
+
+
+def test_callback_context_without_state_is_tolerated():
+    result = after_tool_budget(SimpleNamespace(name="pokemon_types"), {}, SimpleNamespace(user_content=None),
+                               {"structuredContent": {"operation": "get_pokemon_types", "rows": [], "count": 0}})
+    assert result["operation"] == "get_pokemon_types"
+
+
+def documentary_request(result, question="À quoi ressemble Mimiqui ?"):
+    """Retour de recherche documentaire devant un catalogue de la taille du vrai (environ 8 Ko)."""
+    req = request(question)
+    req.contents.append(types.Content(role="user", parts=[types.Part(
+        function_response=types.FunctionResponse(name="pokemon_rag_search", response=result))]))
+    req.config.tools = [types.Tool(function_declarations=[
+        types.FunctionDeclaration(name=f"outil_{index}", description="Règle d'appel. " * 55) for index in range(10)])]
+    return req
+
+
+LONG_PASSAGES = {"question": "À quoi ressemble Mimiqui ?", "pokemon": "Mimiqui",
+                 "results": [{"text": "Mimiqui se cache sous un chiffon. " * 20, "section_path": "Description"}] * 4}
+
+
+def test_passages_are_formulated_without_the_catalogue_instead_of_a_budget_abstention():
+    # Régression : catalogue + passages dépassaient le budget, la réponse documentaire était abandonnée.
+    assert size(LONG_PASSAGES) > 2500
+    req = documentary_request(LONG_PASSAGES)
+    assert budget_size(req.config.tools) > 7500
+    assert before_model_budget(SimpleNamespace(state={}), req) is None
+    assert req.config.tools == []
+    assert req.contents[-1].parts[0].function_response.response == LONG_PASSAGES  # aucun passage retiré
+
+
+@pytest.mark.parametrize("result, question", [
+    (NO_PASSAGE, "À quoi ressemble Mimiqui ?"),                       # recherche vide : nouvelle tentative possible
+    (TIMEOUT, "À quoi ressemble Mimiqui ?"),                          # erreur : nouvelle tentative possible
+    (PASSAGES, "Décris l'apparence de Mimiqui et ses types."),        # demande composée : autre outil à appeler
+])
+def test_catalogue_stays_when_another_tool_call_may_still_be_needed(result, question):
+    req = documentary_request(result, question)
+    before_model_budget(SimpleNamespace(state={}), req)
+    assert req.config.tools

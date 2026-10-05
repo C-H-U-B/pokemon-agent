@@ -29,8 +29,10 @@ sections ; BM25 utilise les documents stockés, pas cette représentation enrich
 
 - Les diagnostics et progressions d'initialisation vont sur stderr pour ne pas
   polluer le protocole MCP. L'affichage du terminal manuel reste sur stdout.
-- `pokemon` attend le nom canonique des métadonnées. Le graphe valide ce nom en
-  amont ; le serveur MCP transmet le filtre reçu sans résoudre les alias.
+- `pokemon` désigne un nom des métadonnées, retrouvé par comparaison exacte
+  après normalisation (casse, accents) : « reshiram » vise « Reshiram ». Les
+  alias et noms anglais ne sont pas résolus ici ; le graphe valide le nom en
+  amont, le serveur MCP transmet le filtre reçu.
 - Un scope explicite filtre les résultats vectoriels et les candidats BM25.
   Un nom absent ne doit pas ouvrir silencieusement la recherche à tout le corpus.
 - Une section se reconstruit par la paire `source_file` / `section_path`, dans

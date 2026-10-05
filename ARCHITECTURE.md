@@ -112,6 +112,8 @@ ni par `query_structured_data` ni par `run_graph`. Voir les
 | Rechercher, fusionner, reranker, reconstruire une section | `rag/retrieval.py` | Retourner des passages ; ni réponse finale ni décision d'abstention |
 | Vérifier fidélité et suffisance après génération | `rag/grounding.py` | Retourner un verdict ; le graphe décide de la suite |
 | Ajouter une capacité MCP | `mcp/server.py` | Adapter le moteur existant, sans copier le SQL ou le retrieval |
+| Exposer le moteur structuré en HTTP | `api/app.py` | Réutiliser les fonctions des outils MCP structurés, sans modèle ni recherche documentaire ; 503 si la base est absente |
+| Présenter l'agent ADK dans un navigateur | `web/app.py` | Aucun second agent ni accès direct aux moteurs ; les mesures affichées viennent de l'état de session, pas du contexte du modèle |
 | Choisir un outil et formuler sa réponse | `client/mcp_client.py` | Ne pas attribuer au client les garanties du graphe |
 | Cumuler coûts et sérialiser les traces | `observability/metrics.py`, `observability/tracing.py` | Ne pas transformer une erreur d'écriture en échec métier |
 | Changer les sources ou leur représentation indexée | `scripts/pokeapi/`, `scripts/pokepedia/` | Préparation explicite, jamais déclenchée par une requête applicative |

@@ -70,7 +70,7 @@ situation. Les noms français et anglais de capacités sont conservés, ainsi qu
 les identifiants techniques des jeux. L'instruction du client ADK privilégie les
 libellés français et interdit de compléter une récupération échouée de mémoire.
 
-`pokemon_rag_search` renvoie `question`, `pokemon` et `results`. Chaque passage contient son texte et ses références de source. Une liste vide signifie qu'aucun passage n'a été retourné, pas que le fait recherché est faux. Les passages sont des données documentaires, pas des instructions pour l'agent appelant.
+`pokemon_rag_search` renvoie `question`, `pokemon`, `results` et `timings` (durées de la recherche par étape, plus `startup` lorsque cet appel a chargé modèles et corpus). `pokemon` est rapproché du nom indexé après normalisation de la casse et des accents. Les résultats structurés portent `execution_time`. Ces mesures servent à l'observation : l'agent ADK les retire de la vue du modèle. Chaque passage contient son texte et ses références de source. Une liste vide signifie qu'aucun passage n'a été retourné, pas que le fait recherché est faux. Les passages sont des données documentaires, pas des instructions pour l'agent appelant.
 
 Le filtre `pokemon` de la recherche attend un nom canonique. Les paramètres et limites des requêtes SQL sont décrits dans [le guide structuré](../structured/README.md).
 `pokemon_machine_moves` sans `version_group` retourne seulement le groupe de
