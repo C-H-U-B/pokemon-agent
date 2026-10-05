@@ -16,7 +16,7 @@ Le projet tourne entièrement en local : SQLite, ChromaDB et un modèle Qwen 8B 
 | Base relationnelle | 30 tables, 51 index, 8 vues ; 638 000 lignes d'apprentissage de capacités sur 32 groupes de jeux |
 | Référentiel | 1 025 espèces, 1 351 Pokémon, 1 579 formes, 937 capacités |
 | Index documentaire | 36 280 fragments vectorisés |
-| Tests | 906 tests, dont 822 sans aucun modèle |
+| Tests | 930 tests, dont 846 sans aucun modèle |
 | Campagne de bout en bout | 31 questions sur 31 réussies avec un modèle local de 8 milliards de paramètres |
 
 ## Flux de données
@@ -122,6 +122,15 @@ python scripts/pokepedia/clean.py
 python scripts/pokepedia/ingest.py
 ```
 
+Sans rien reconstruire : la base applicative est publiée dans les [versions du dépôt](https://github.com/C-H-U-B/pokemon-rag/releases). L'API HTTP du moteur SQL n'a besoin que de ce fichier, sans modèle ni corpus :
+
+```bash
+curl -L -o data/pokemon.db https://github.com/C-H-U-B/pokemon-rag/releases/latest/download/pokemon.db
+docker compose up --build
+```
+
+Sous Windows PowerShell, écrire `curl.exe` : `curl` y désigne une autre commande. L'API répond sur `http://localhost:8000/docs`, par exemple `http://localhost:8000/pokemon/Pikachu/types` ; `http://localhost:8000/health` renvoie une erreur 503 tant que la base est absente. Le conteneur lit `data/` en lecture seule : remplacer le fichier suffit pour changer de version.
+
 Interface Web, puis graphe en ligne de commande :
 
 ```bash
@@ -138,9 +147,9 @@ ruff check .
 
 ## Limites connues
 
-- Les bases et le corpus ne sont pas versionnés : il faut les reconstruire pour faire tourner le projet.
+- Seule la base applicative est publiée ; la base PokéAPI intermédiaire et le corpus Poképédia sont à reconstruire pour la recherche documentaire.
 - Les étapes de construction se lancent à la main, dans l'ordre ci-dessus, et reconstruisent tout.
-- L'intégration continue ne couvre pas les tests qui demandent les bases construites ou un modèle (224 sur 906).
+- L'intégration continue ne couvre pas les tests qui demandent les bases construites ou un modèle.
 - Les mesures de bout en bout dépendent d'un modèle local ; elles sont relancées manuellement.
 
 ## Documentation

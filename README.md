@@ -16,7 +16,7 @@ Everything runs locally: SQLite, ChromaDB and an 8B Qwen model served by LM Stud
 | Relational database | 30 tables, 51 indexes, 8 views; 638,000 move-learning rows across 32 game groups |
 | Reference data | 1,025 species, 1,351 Pokémon, 1,579 forms, 937 moves |
 | Document index | 36,280 embedded chunks |
-| Tests | 906 tests, 822 of which need no model |
+| Tests | 930 tests, 846 of which need no model |
 | End-to-end campaign | 31 of 31 questions passed with a local 8-billion-parameter model |
 
 ## Data flow
@@ -122,6 +122,15 @@ python scripts/pokepedia/clean.py
 python scripts/pokepedia/ingest.py
 ```
 
+Without rebuilding anything: the application database is published in the [repository releases](https://github.com/C-H-U-B/pokemon-rag/releases). The HTTP API over the SQL engine only needs that file, with no model and no corpus:
+
+```bash
+curl -L -o data/pokemon.db https://github.com/C-H-U-B/pokemon-rag/releases/latest/download/pokemon.db
+docker compose up --build
+```
+
+In Windows PowerShell, type `curl.exe`: `curl` is a different command there. The API is served at `http://localhost:8000/docs`, for example `http://localhost:8000/pokemon/Pikachu/types`; `http://localhost:8000/health` returns a 503 error while the database is missing. The container reads `data/` read-only: replacing the file is enough to switch versions.
+
 Web interface, then the command-line graph:
 
 ```bash
@@ -138,9 +147,9 @@ ruff check .
 
 ## Known limits
 
-- The databases and corpus are not versioned: they must be rebuilt to run the project.
+- Only the application database is published; the intermediate PokéAPI database and the Poképédia corpus must be rebuilt for document search.
 - Build steps are launched by hand, in the order above, and rebuild everything.
-- Continuous integration does not cover the tests that need the built databases or a model (224 of 906).
+- Continuous integration does not cover the tests that need the built databases or a model.
 - End-to-end measurements depend on a local model; they are rerun manually.
 
 ## Documentation
