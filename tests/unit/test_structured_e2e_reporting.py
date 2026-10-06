@@ -177,3 +177,36 @@ def test_level_proven_under_its_french_condition_key_is_accepted(reporting):
     result = evolution({"niveau minimum": 16})
     assert all(ok for ok, _, _ in reporting["_factual_checks"](result, "Évolue au niveau 16."))
     assert not all(ok for ok, _, _ in reporting["_factual_checks"](result, "Évolue au niveau 30."))
+
+
+@pytest.fixture(scope="module")
+def documentary():
+    return runpy.run_path(str(Path(__file__).parents[1] / "long/test_adk_documentary_e2e.py"))
+
+
+def test_description_campaign_judges_an_unknown_pokemon_on_its_answer_not_on_the_path(documentary):
+    case = next(case for case in documentary["CASES"] if case.abstention)
+    abstention = documentary["TOOL_FAILURE_ABSTENTION"]
+    search = [{"name": "pokemon_rag_search", "args": {}}]
+    empty = [{"name": "pokemon_rag_search", "response": {"results": []}}]
+    found = [{"name": "pokemon_rag_search", "response": {"results": [{"text": "passage"}]}}]
+    # Régression : l'abstention sans appel à la recherche comptait comme un échec.
+    assert all(ok for ok, _ in documentary["_checks"](case, [], [], abstention))
+    assert all(ok for ok, _ in documentary["_checks"](case, search, empty, abstention))
+    assert not all(ok for ok, _ in documentary["_checks"](case, [], [], "Fauxkémon est un petit Pokémon bleu."))
+    assert not all(ok for ok, _ in documentary["_checks"](case, search, found, abstention))
+
+
+def test_description_campaign_requires_search_and_passages_and_expects_double_requests_to_be_refused(documentary):
+    simple = next(case for case in documentary["CASES"] if not case.abstention and not case.refused)
+    double = next(case for case in documentary["CASES"] if case.refused)
+    search = [{"name": "pokemon_rag_search", "args": {}}]
+    found = [{"name": "pokemon_rag_search", "response": {"results": [{"text": "passage"}]}}]
+    assert all(ok for ok, _ in documentary["_checks"](simple, search, found, "Description."))
+    assert not all(ok for ok, _ in documentary["_checks"](simple, [], [], "Description de mémoire."))
+    assert not all(ok for ok, _ in documentary["_checks"](simple, search, found, documentary["TOOL_FAILURE_ABSTENTION"]))
+    # Double demande : seule la consigne de refus convient, sans aucun appel d'outil.
+    refusal = documentary["DOUBLE_REQUEST_REFUSAL"]
+    assert all(ok for ok, _ in documentary["_checks"](double, [], [], refusal))
+    assert not all(ok for ok, _ in documentary["_checks"](double, search, found, "Trépassable est de type Géant et Sable."))
+    assert not all(ok for ok, _ in documentary["_checks"](double, search, found, refusal))

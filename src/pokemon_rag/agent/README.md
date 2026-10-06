@@ -232,6 +232,17 @@ et les consigne dans l'état de session pour l'interface Web.
 Après une recherche documentaire qui a trouvé des passages, le catalogue est
 aussi retiré pour la rédaction : catalogue et passages ne tiennent pas ensemble
 dans le budget de requête. Une recherche vide ou en erreur le conserve.
+Une question qui contient à la fois un mot de description et un fait structuré
+(« décris X et donne ses types ») est refusée avant tout appel au modèle, par
+un message fixe demandant de poser les deux questions séparément, journalisé
+`double_request_refusal` : traitée en un seul échange, elle a donné des types
+inventés. La reconnaissance se fait par mots, donc « l'origine du talent de X »
+est refusée aussi. Les doubles demandes purement structurées restent traitées.
+Pour une double demande que ces mots ne signalent pas (« parle-moi de X et de
+ses types »), si aucun outil structuré n'a encore répondu, les outils qui prennent un
+Pokémon en argument restent disponibles, sans `pokemon_search` ni
+`pokemon_rag_search` : privé de tout outil, le modèle inventait le fait
+manquant. Le catalogue est retiré dès que les deux parties sont obtenues.
 Une demande composée reconnue ou documentaire conserve le catalogue pour les
 autres faits à obtenir ; les champs de ligne explicitement demandés restent
 dans la projection de recherche.

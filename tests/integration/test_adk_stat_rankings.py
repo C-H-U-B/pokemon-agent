@@ -277,3 +277,10 @@ def test_description_answered_from_types_is_refused_then_replaced_in_the_real_ru
     assert responses[-1]["required_tool"] == "pokemon_rag_search"
     assert responses[-1]["required_arguments"] == {"question": "Décris Tutafeh", "pokemon": "Tutafeh"}
     assert texts == [TOOL_FAILURE_ABSTENTION] and model.tool_counts[-1] > 0  # catalogue gardé pour la reprise
+
+
+def test_description_plus_structured_fact_never_reaches_the_model_in_the_real_runner():
+    from pokemon_rag.agent.context_budget import DOUBLE_REQUEST_REFUSAL
+    model, responses, texts = asyncio.run(_run_simulated(
+        "Décris Trépassable et donne ses types", "pokemon_rag_search", {"question": "Décris Trépassable"}))
+    assert texts == [DOUBLE_REQUEST_REFUSAL] and model.calls == 0 and responses == []

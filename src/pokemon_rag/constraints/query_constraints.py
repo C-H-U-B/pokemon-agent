@@ -173,13 +173,17 @@ _STRUCTURED_CUES = (r"(?:^|-)(?:types?|numeros?|generations?|evolu[a-z]*|capacit
                     r"talents?|ct|cs|niveaux?|pv|vitesse|defense)(?:-|$)")
 
 
+def has_structured_request(question: str) -> bool:
+    """La question nomme littéralement un fait structuré (types, talents, statistiques, niveaux…)."""
+    return bool(re.search(_STRUCTURED_CUES, normalize(question)))
+
+
 def is_purely_documentary(question: str) -> bool:
     """Question de description sans aucune demande structurée : seule la recherche documentaire y répond.
 
     Reconnaissance par mots littéraux, volontairement étroite : hors de ces motifs, rien n'est imposé.
     """
-    text = normalize(question)
-    return bool(re.search(DOCUMENTARY_PATTERN, text)) and not re.search(_STRUCTURED_CUES, text)
+    return bool(re.search(DOCUMENTARY_PATTERN, normalize(question))) and not has_structured_request(question)
 
 
 def is_named_stat_question(question: str) -> bool:

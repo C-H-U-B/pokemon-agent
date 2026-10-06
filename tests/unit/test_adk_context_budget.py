@@ -12,7 +12,7 @@ from google.adk.models.llm_response import LlmResponse
 
 from pokemon_rag.agent.context_budget import (
     after_model_abstention, before_model_budget, bounded_tool_result, after_tool_budget,
-    MAX_REQUEST_BYTES, MAX_TOOL_RESULT_BYTES, TOOL_FAILURE_ABSTENTION, _size as budget_size,
+    DOUBLE_REQUEST_REFUSAL, MAX_REQUEST_BYTES, MAX_TOOL_RESULT_BYTES, TOOL_FAILURE_ABSTENTION, _size as budget_size,
 )
 
 
@@ -463,7 +463,7 @@ def test_passages_are_formulated_without_the_catalogue_instead_of_a_budget_abste
 @pytest.mark.parametrize("result, question", [
     (NO_PASSAGE, "À quoi ressemble Mimiqui ?"),                       # recherche vide : nouvelle tentative possible
     (TIMEOUT, "À quoi ressemble Mimiqui ?"),                          # erreur : nouvelle tentative possible
-    (PASSAGES, "Décris l'apparence de Mimiqui et ses types."),        # demande composée : autre outil à appeler
+    (PASSAGES, "Parle-moi de Mimiqui et de ses types."),              # fait structuré encore à demander
 ])
 def test_catalogue_stays_when_another_tool_call_may_still_be_needed(result, question):
     req = documentary_request(result, question)
@@ -497,7 +497,7 @@ def test_description_written_without_any_passage_is_replaced(results):
 @pytest.mark.parametrize("question, results", [
     ("Décris Tutafeh", [("pokemon_rag_search", PASSAGES)]),
     ("Décris Tutafeh", [("pokemon_types", TIMEOUT), ("pokemon_rag_search", PASSAGES)]),
-    ("Décris Tutafeh et donne ses types", [("pokemon_types", TYPES)]),   # composée : hors de cette règle
+    ("Parle-moi de Tutafeh et de ses types", [("pokemon_types", TYPES)]),   # pas une pure description
     ("Quels sont les types de Tutafeh ?", [("pokemon_types", TYPES)]),
     ("Quels sont les types de Tutafeh ?", []),                           # sans outil : non couvert, inchangé
 ])
@@ -558,3 +558,68 @@ def test_english_names_stay_available_in_conditions_when_english_is_requested():
         "trigger": "level-up", "conditions": {"held_item": {"fr": "Griffe Rasoir", "en": "Razor Claw"}}}]}
     result = bounded_tool_result(raw, keep_english=True, question="Donne aussi le nom anglais")
     assert result["evolutions"][0]["conditions"] == {"objet tenu": {"fr": "Griffe Rasoir", "en": "Razor Claw"}}
+
+
+CATALOGUE = ["pokemon_search", "pokemon_rag_search", "pokemon_types", "pokemon_base_stats", "pokemon_particularities"]
+
+
+def compound_request(question, *results):
+    """Historique d'une question avec un catalogue nommé ; chaque résultat est (outil, réponse)."""
+    req = request(question)
+    for name, result in results:
+        req.contents.append(types.Content(role="user", parts=[types.Part(
+            function_response=types.FunctionResponse(name=name, response=result))]))
+    req.config.tools = [types.Tool(function_declarations=[
+        types.FunctionDeclaration(name=name, description="Règle d'appel. " * 100) for name in CATALOGUE])]
+    assert before_model_budget(SimpleNamespace(state={}), req) is None, "abstention de budget"
+    return [declaration.name for tool in req.config.tools or [] for declaration in tool.function_declarations]
+
+
+@pytest.mark.parametrize("question", [
+    "Parle-moi de Trépassable et de ses types",
+    "Que sait-on de Trépassable et de ses talents ?",
+])
+def test_description_obtained_with_a_structured_fact_still_to_ask_keeps_the_named_tools(question):
+    # Filet pour une double demande que les mots de description ne signalent pas : privé d'outil
+    # après les passages, le modèle inventait les types (« Géant et Sable »).
+    left = compound_request(question, ("pokemon_rag_search", LONG_PASSAGES))
+    assert left == ["pokemon_types", "pokemon_base_stats", "pokemon_particularities"]
+
+
+@pytest.mark.parametrize("results", [
+    [("pokemon_rag_search", LONG_PASSAGES), ("pokemon_types", TYPES)],     # description puis types
+    [("pokemon_types", TYPES), ("pokemon_rag_search", LONG_PASSAGES)],     # types puis description
+])
+def test_compound_question_is_formulated_without_tools_once_both_parts_are_there(results):
+    assert compound_request("Parle-moi de Trépassable et de ses types", *results) == []
+
+
+def test_refused_structured_call_does_not_count_as_the_structured_part():
+    left = compound_request("Parle-moi de Trépassable et de ses types",
+                            ("pokemon_rag_search", LONG_PASSAGES), ("pokemon_types", REFUSAL))
+    assert left == ["pokemon_types", "pokemon_base_stats", "pokemon_particularities"]
+
+
+@pytest.mark.parametrize("question", [
+    "Décris Trépassable et donne ses types",       # régression : types inventés (« Géant et Sable »)
+    "Décris Trépassable et ses types",
+    "À quoi ressemble Trépassable et quels sont ses talents ?",
+    "Quel est l'habitat de Bacabouh et quelles sont ses statistiques ?",
+])
+def test_description_plus_structured_fact_is_refused_before_any_model_call(question, caplog):
+    req = documentary_request(PASSAGES, question)
+    req.contents = req.contents[:1]            # première requête : seule la question
+    tools = list(req.config.tools)
+    with caplog.at_level("WARNING", logger="pokemon_rag.agent.context_budget"):
+        refusal = before_model_budget(SimpleNamespace(state={}), req)
+    assert refusal.content.parts[0].text == DOUBLE_REQUEST_REFUSAL
+    assert "double_request_refusal" in caplog.text and req.config.tools == tools
+
+
+@pytest.mark.parametrize("question", [
+    "Décris Trépassable",                                    # description seule
+    "Quels sont les types de Trépassable ?",                 # fait structuré seul
+    "Quels sont les types et les talents de Trépassable ?",  # double demande structurée : toujours traitée
+])
+def test_single_requests_and_structured_pairs_are_not_refused(question):
+    assert before_model_budget(SimpleNamespace(state={}), request(question)) is None

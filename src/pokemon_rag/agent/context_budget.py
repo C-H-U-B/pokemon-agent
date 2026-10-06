@@ -15,7 +15,7 @@ from google.adk.models.llm_response import LlmResponse
 from google.genai import types
 from pokemon_rag.agent.tool_guard import _extract_user_text
 from pokemon_rag.constraints.query_constraints import (
-    DOCUMENTARY_PATTERN, is_purely_documentary, normalize, VERSION_GROUP_NAMES_FR,
+    DOCUMENTARY_PATTERN, has_structured_request, is_purely_documentary, normalize, VERSION_GROUP_NAMES_FR,
 )
 
 
@@ -29,6 +29,9 @@ TOOL_FAILURE_ABSTENTION = (
     "appel refusé, donnée introuvable ou aucun passage trouvé). Je ne réponds pas de mémoire : "
     "reformulez la question ou réessayez dans un instant.")
 
+DOUBLE_REQUEST_REFUSAL = (
+    "Cette question demande à la fois une description et un fait précis (types, talents, statistiques, "
+    "évolutions…). Je traite une demande à la fois pour rester fiable : posez d'abord l'une, puis l'autre.")
 BUDGET_ABSTENTION = ("Je n'ai pas pu obtenir une réponse fiable dans les limites de traitement. "
                      "Précisez les filtres ou demandez une liste plus courte.")
 
@@ -374,8 +377,25 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
     compound = re.search(r"(?:^|-)(?:et|puis|ainsi-que)-(?:leurs?-|ses-|son-|sa-|les-|le-|la-)?"
                          r"(?:types?|numeros?|evolutions?|attaques?|capacites?|statistiques?|vitesse|defense)(?:-|$)",normalize(question))
     documentary = re.search(DOCUMENTARY_PATTERN, normalize(question))
-    if not compound and (_passages_received(llm_request.contents)
-                         or (not documentary and _complete_structured_response(llm_request.contents))):
+    if documentary and has_structured_request(question):
+        # Double demande, description et fait structuré : refusée avant tout appel au modèle. Traitée
+        # en un seul échange, elle a donné des types inventés (« décris X et donne ses types »).
+        # ponytail: reconnaissance par mots, donc « l'origine du talent de X » est refusée aussi ;
+        # affiner si ces questions à intention unique deviennent gênantes.
+        logger.warning("double_request_refusal")
+        return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=DOUBLE_REQUEST_REFUSAL)]))
+    passages, structured = _any_passage(llm_request.contents), _structured_result_present(llm_request.contents)
+    if passages and has_structured_request(question) and not structured:
+        # Description obtenue, fait structuré encore à demander (« décris X et donne ses types ») :
+        # catalogue et passages ne tiennent pas ensemble dans le budget, et sans outil le modèle
+        # inventait le fait. Rester sur les outils qui nomment un Pokémon suffit et tient.
+        for tool in config.tools or []:
+            declarations = getattr(tool, "function_declarations", None)
+            if declarations:
+                tool.function_declarations = [declaration for declaration in declarations
+                                              if declaration.name not in _TOOLS_WITHOUT_NAMED_POKEMON]
+    elif ((passages and (structured or _passages_received(llm_request.contents)))
+          or (not compound and not documentary and _complete_structured_response(llm_request.contents))):
         # Phase de formulation, comme dans le client MCP : les faits restent
         # intégralement présents, sans transmettre à nouveau le catalogue.
         config.tools = []
@@ -416,6 +436,16 @@ def _every_tool_call_failed(contents: list) -> bool:
         not isinstance(item.response, dict) or item.response.get("error")
         or (item.name == "pokemon_rag_search" and not item.response.get("results"))
         for item in responses)
+
+
+_TOOLS_WITHOUT_NAMED_POKEMON = {"pokemon_search", "pokemon_rag_search"}
+
+
+def _structured_result_present(contents: list) -> bool:
+    """Au moins un outil structuré a renvoyé un résultat sans erreur."""
+    return any(part.function_response.name != "pokemon_rag_search" and isinstance(part.function_response.response, dict)
+               and not part.function_response.response.get("error")
+               for content in contents for part in content.parts or [] if part.function_response)
 
 
 def _any_passage(contents: list) -> bool:
