@@ -7,7 +7,7 @@ development. It is not intended to present a fixed final architecture:
 it preserves the main stages, problems encountered, experiments, and
 decisions that progressively shaped the system.
 
-## 1. \[Feature\] Starting point: experimenting with a local RAG
+## 1. [Feature] Starting point: experimenting with a local RAG
 
 The project began as an experiment around a locally executed
 Retrieval-Augmented Generation pipeline.
@@ -25,7 +25,7 @@ The initial objective was therefore to build a system capable of
 answering detailed questions from Poképédia using local models served by
 LM Studio.
 
-## 2. \[Feature\] Building the Poképédia corpus
+## 2. [Feature] Building the Poképédia corpus
 
 The first step consisted of downloading and cleaning Poképédia pages to
 build a usable local corpus.
@@ -59,7 +59,7 @@ document, and the original section.
 This decision later proved important when retrieval began to directly
 use section structure.
 
-## 3. \[Feature\] First retrieval pipeline
+## 3. [Feature] First retrieval pipeline
 
 The first RAG architecture combined semantic and lexical search:
 
@@ -91,7 +91,7 @@ Two problems quickly became important:
 2.  a relevant chunk could contain only part of the required
     information.
 
-## 4. \[Feature\] Restricting search to the relevant Pokémon
+## 4. [Feature] Restricting search to the relevant Pokémon
 
 When a question explicitly mentions a single Pokémon, a global search
 can retrieve passages about other Pokémon that use similar vocabulary.
@@ -122,7 +122,7 @@ Context-dependent handling
 
 This step reduced a major source of context contamination.
 
-## 5. \[Feature\] Using section structure
+## 5. [Feature] Using section structure
 
 Poképédia articles are organized into sections and subsections.
 Information can be spread across several chunks belonging to the same
@@ -149,7 +149,7 @@ Complete documentary context
 This evolution improved the coherence of the context provided to the
 generator.
 
-## 6. \[Feature\] Grounding and retry mechanism
+## 6. [Feature] Grounding and retry mechanism
 
 An answer produced from retrieved context can still introduce
 information absent from the sources or contradict them.
@@ -174,7 +174,7 @@ However, this experiment revealed an important distinction:
 > An answer can be perfectly grounded in its context without actually
 > answering the question correctly.
 
-## 7. \[Feature\] Experimenting with context sufficiency
+## 7. [Feature] Experimenting with context sufficiency
 
 To address this problem, a separate context-sufficiency verification
 step was tested.
@@ -196,7 +196,7 @@ This step reinforced an idea that would become important later in the
 project: adding LLM validations does not necessarily fix a problem
 located earlier in the retrieval chain.
 
-## 8. \[Architecture\] Improving the representation used for search
+## 8. [Architecture] Improving the representation used for search
 
 Some retrieval errors came from how chunks were represented in the
 index.
@@ -212,7 +212,7 @@ identity of the Pokémon and the passage's position within the article.
 This separation improves search without polluting the documentary text
 ultimately passed to the LLM.
 
-## 9. \[Architecture\] RAG limitations for structured data
+## 9. [Architecture] RAG limitations for structured data
 
 Over the course of testing, some questions proved poorly suited to RAG.
 
@@ -237,7 +237,7 @@ risks:
 The project therefore began evolving from a pure RAG system toward a
 hybrid architecture.
 
-## 10. \[Feature\] Introducing PokéAPI data
+## 10. [Feature] Introducing PokéAPI data
 
 PokéAPI data was downloaded and imported into SQLite.
 
@@ -252,7 +252,7 @@ This phase also demonstrated the value of validating the actual PokéAPI
 schema rather than compensating for its particularities in higher layers
 of the system.
 
-## 11. \[Feature\] Integrating the custom Pokédex
+## 11. [Feature] Integrating the custom Pokédex
 
 In parallel, a bilingual spreadsheet is used to store project-specific
 information that is not directly available in PokéAPI.
@@ -265,7 +265,7 @@ unambiguously to entities in the official database.
 
 This step prepared the merge between custom data and PokéAPI data.
 
-## 12. \[Architecture\] Moving to a unified SQLite database
+## 12. [Architecture] Moving to a unified SQLite database
 
 At one point in development, the runtime used both SQLite and the
 spreadsheet through Pandas.
@@ -294,7 +294,7 @@ The rule is now simple:
 This unification reduces runtime dependencies and provides a single
 interface for structured data.
 
-## 13. \[Feature\] Creating the structured query engine
+## 13. [Feature] Creating the structured query engine
 
 The system does not allow the LLM to freely generate SQL.
 
@@ -322,7 +322,7 @@ learning, TMs, and learning methods.
 This choice preserves natural-language understanding while avoiding
 arbitrary SQL generation.
 
-## 14. \[Bug fix\] Stabilizing evolutions and forms
+## 14. [Bug fix] Stabilizing evolutions and forms
 
 Evolutions were one of the first complex parts of the structured engine.
 
@@ -343,7 +343,7 @@ to another.
 This phase was also used to strengthen regression tests for the
 structured engine.
 
-## 15. \[Feature\] Extending structured queries to moves
+## 15. [Feature] Extending structured queries to moves
 
 The structured engine was then extended to the main questions about move
 learning.
@@ -362,7 +362,7 @@ this type of question.
 It also made it possible to identify and correct several assumptions
 initially made about the relational schema.
 
-## 16. \[Feature\] Emergence of the three execution routes
+## 16. [Feature] Emergence of the three execution routes
 
 At this stage, the architecture took a more general form with three
 paths:
@@ -394,7 +394,7 @@ Used when both sources can contribute to the answer.
 This separation is a major change from the initial RAG: the system no
 longer tries to make every question go through the same pipeline.
 
-## 17. \[Architecture\] Refactoring the project structure
+## 17. [Architecture] Refactoring the project structure
 
 As the number of components increased, the project was reorganized
 around a `src/pokemon_rag` package.
@@ -417,7 +417,7 @@ This refactoring clarified the separation between:
 -   runtime;
 -   tests.
 
-## 18. \[Performance\] First targeted performance work
+## 18. [Performance] First targeted performance work
 
 Once the main routes were functional, timing measurements showed that
 SQLite was not the main bottleneck.
@@ -450,7 +450,7 @@ documentary, or hybrid questions.
 For simple structured cases, this change reduced routing time from
 several seconds to a few tens of milliseconds.
 
-## 19. \[Performance\] Fast Parser for structured queries
+## 19. [Performance] Fast Parser for structured queries
 
 After optimizing the router, measurements showed that the main remaining
 cost for a simple structured query came from the semantic parser.
@@ -479,7 +479,7 @@ This approach follows the same principle as the Fast Router: reserve
 models for situations where their interpretation capabilities actually
 add value.
 
-## 20. \[Architecture\] Removing the separate sufficiency check
+## 20. [Architecture] Removing the separate sufficiency check
 
 The pre-generation context check added a model call and partially
 duplicated the faithfulness check performed after the answer. It was
@@ -490,7 +490,7 @@ accepted, whether a new search is required, or whether the answer must
 be regenerated. Graph tests verify that these retries remain bounded and
 that retrieval preserves the targeted Pokémon.
 
-## 21. \[Performance\] Lazy loading of retrieval
+## 21. [Performance] Lazy loading of retrieval
 
 Importing graph modules triggered loading of the corpus and retrieval
 models even when the query or test did not use them.
@@ -499,7 +499,7 @@ This initialization was moved to the first actual access to documentary
 retrieval. Structured processing and tests using simulated dependencies
 therefore avoid this cost.
 
-## 22. \[Bug fix\] Separating retry budgets
+## 22. [Bug fix] Separating retry budgets
 
 A shared counter limited both new searches and regenerations. An
 additional search could therefore prevent a later correction of the
@@ -509,7 +509,7 @@ The two mechanisms were given independent budgets, each allowing one
 retry. Regression tests verify that they can occur sequentially without
 causing a loop. An unrecognized control decision stops processing.
 
-## 23. \[Bug fix\] Distinguishing insufficient context from an incomplete answer
+## 23. [Bug fix] Distinguishing insufficient context from an incomplete answer
 
 The faithfulness check could accept an answer consistent with the
 sources even when those sources did not actually make it possible to
@@ -521,7 +521,7 @@ An answer could also omit information that was nevertheless available.
 The `INCOMPLETE` decision was added to trigger regeneration in this
 case, without unnecessarily rerunning documentary retrieval.
 
-## 24. \[Feature\] Setting up benchmarks
+## 24. [Feature] Setting up benchmarks
 
 Separate benchmarks were added to evaluate documentary retrieval,
 routing, and the faithfulness check, followed by a full-graph benchmark
@@ -540,7 +540,7 @@ faithfulness check.
 Durations observed on the full graph motivated the addition of per-stage
 measurements to locate processing costs.
 
-## 25. \[Feature\] Tracking executions and their performance
+## 25. [Feature] Tracking executions and their performance
 
 The overall duration of a query did not explain why it was slow. A
 per-execution trace was added to the graph to connect the path taken,
@@ -550,7 +550,7 @@ Traces are stored as JSONL and a script aggregates them to compare paths
 and identify slow queries. Initial observations confirmed the weight of
 model calls compared with SQL execution and context construction.
 
-## 26. \[Feature\] Measuring model usage
+## 26. [Feature] Measuring model usage
 
 Call duration alone was not enough to distinguish a long response from a
 model slowdown. Traces were therefore enriched with token volumes and
@@ -561,7 +561,7 @@ includes prompt processing and does not measure text generation alone.
 The analysis script uses this information while preserving support for
 older traces.
 
-## 27. \[Bug fix\] Aligning the router with available operations
+## 27. [Bug fix] Aligning the router with available operations
 
 The router sent questions about types, abilities, and stats to
 `STRUCTURED`, even though the engine did not provide an operation for
@@ -575,7 +575,7 @@ from the spreadsheet.
 
 Tests and benchmark expectations were adapted to this behavior.
 
-## 28. \[Bug fix\] Abstention after grounding failure
+## 28. [Bug fix] Abstention after grounding failure
 
 An answer rejected by grounding could still be displayed after retries
 were exhausted.
@@ -584,7 +584,7 @@ An abstention node now replaces that answer with a message indicating
 that the sources do not support a sufficiently reliable answer. The
 checker's decision and justification remain available for diagnostics.
 
-## 29. \[Bug fix\] Handling processing errors
+## 29. [Bug fix] Handling processing errors
 
 A retrieval or generation failure could interrupt the graph before its
 trace was saved.
@@ -599,7 +599,7 @@ to save the trace. A checker error is distinguished from insufficient
 context, preventing an unnecessary documentary search retry. Network
 timeouts for LLM clients were also made explicit.
 
-## 30. \[Bug fix\] Non-blocking trace persistence
+## 30. [Bug fix] Non-blocking trace persistence
 
 An error while writing the trace file must not prevent an already
 produced answer from being returned.
@@ -608,7 +608,7 @@ Persistence is now protected: the answer and trace remain available in
 memory, and the write result is reported separately. The error is logged
 without an automatic retry to avoid duplicating a partial write.
 
-## 31. \[Bug fix\] Accumulating metrics across attempts
+## 31. [Bug fix] Accumulating metrics across attempts
 
 Retries replaced previous measurements with those from the latest call,
 underestimating processing cost.
@@ -620,7 +620,7 @@ regeneration calls, then recalculates throughput from the totals.
 Unknown usage is reported rather than counted as zero. Display and the
 analysis script were adapted while preserving support for older traces.
 
-## 32. \[Architecture\] Test isolation and factual evaluation
+## 32. [Architecture] Test isolation and factual evaluation
 
 Fast tests sometimes depended on the real database or local models.
 Router and parser tests now use a small in-memory SQLite catalog. The
@@ -644,7 +644,7 @@ case verifies the addition of a condition absent from the sources. This
 distinction was validated with the local model without modifying the
 prompt.
 
-## 33. \[Bug fix\] Correcting level ranges
+## 33. [Bug fix] Correcting level ranges
 
 The Fast Parser stopped at the first recognized bound. A request such as
 "after level 20 but before level 40" could therefore lose its upper
@@ -657,7 +657,7 @@ phrasings are left to the LLM parser.
 
 Regression tests verify that level constraints are preserved.
 
-## 34. \[Feature\] Extending structured queries to the custom Pokédex
+## 34. [Feature] Extending structured queries to the custom Pokédex
 
 The custom Pokédex contains data that can be returned directly, without
 LLM generation: types, National Pokédex number, introduction generation,
@@ -671,7 +671,7 @@ Answers report missing values and preserve source annotations. Since
 these data cannot be filtered by game, that filter is rejected. Tests
 and factual benchmark references cover the new operations.
 
-## 35. \[Bug fix\] Preserving game constraints
+## 35. [Bug fix] Preserving game constraints
 
 The Fast Parser could ignore an unknown game and answer across all
 versions.
@@ -681,7 +681,7 @@ rejects them before falling back to the LLM, preserving the question's
 constraint. Regression tests verify that the game constraint is
 preserved.
 
-## 36. \[Feature\] Exposing project capabilities through MCP
+## 36. [Feature] Exposing project capabilities through MCP
 
 To use the project from MCP-compatible clients, a server exposes
 structured operations and documentary retrieval as typed tools. It
@@ -701,7 +701,7 @@ structured data and documentary retrieval.
 
 The integration was validated on questions using both sources.
 
-## 37. \[Bug fix\] Separating RAG diagnostics from the MCP protocol
+## 37. [Bug fix] Separating RAG diagnostics from the MCP protocol
 
 On the first documentary call, RAG initialization wrote its diagnostics
 to stdout, which was also used for MCP messages.

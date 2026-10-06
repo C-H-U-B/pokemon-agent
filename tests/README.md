@@ -122,11 +122,10 @@ et doit être exécutée par l'utilisateur. Transmettre la sortie pytest et le r
 JUnit, en distinguant les erreurs techniques des contraintes métier non respectées.
 
 ```powershell
-python -m pytest tests/integration/test_mcp_client.py -q -p no:cacheprovider
-python -m pytest tests/long/test_mcp_client_e2e.py -q -p no:cacheprovider --junitxml=traces/mcp-e2e.xml -o junit_family=legacy
+conda run -n langgraph-agent python -m pytest tests/integration/test_mcp_client.py -q -p no:cacheprovider
+conda run -n langgraph-agent python -m pytest tests/long/test_mcp_client_e2e.py -q -p no:cacheprovider --junitxml=traces/mcp-e2e.xml -o junit_family=legacy
 ```
 
-Ces commandes supposent l'environnement `langgraph-agent` déjà activé.
 Les scénarios réels sont regroupés dans `long/test_mcp_client_e2e.py`.
 Ils démarrent le serveur MCP en sous-processus et utilisent les
 vrais outils et Qwen. Ils nécessitent le projet installé dans `langgraph-agent`,
@@ -138,7 +137,8 @@ Le sous-processus utilise le cache Hugging Face en mode hors ligne. Les tests
 limitent les appels MCP à 120 secondes et les appels LLM à 90 secondes, sans
 reprise HTTP automatique ; la configuration du client applicatif reste inchangée.
 
-Ils vérifient les huit outils, les filtres de jeu et de niveau, une forme régionale
+Ils vérifient huit des douze outils (sans `pokemon_search`, `pokemon_moves`,
+`pokemon_base_stats` ni `pokemon_particularities`), les filtres de jeu et de niveau, une forme régionale
 et la recherche documentaire globale ou ciblée. Le rapport JUnit conserve la question, l'outil,
 ses arguments, son résultat et la réponse pour relecture. Le succès de ces tests
 ne garantit pas la fidélité du texte généré : le client n'applique pas le contrôle
@@ -151,8 +151,8 @@ et l'intervalle « entre les niveaux 10 et 20 ». Ils appellent la réconciliati
 directement : ils ne prouvent pas à eux seuls le comportement complet de `ask`.
 
 ```powershell
-python -m pytest tests/unit/test_mcp_constraint_preservation.py tests/integration/test_mcp_client.py -q -p no:cacheprovider
-python -m pytest tests/integration/test_mcp_server.py -q -p no:cacheprovider
+conda run -n langgraph-agent python -m pytest tests/unit/test_mcp_constraint_preservation.py tests/integration/test_mcp_client.py -q -p no:cacheprovider
+conda run -n langgraph-agent python -m pytest tests/integration/test_mcp_server.py -q -p no:cacheprovider
 ```
 
 Le test serveur nécessite la base locale et le SDK MCP compatible. Il découvre
@@ -249,7 +249,7 @@ sans modèle. Commande à exécuter par l'utilisateur avec la base locale et, si
 repli est nécessaire, LM Studio configuré pour le parseur :
 
 ```powershell
-python -m pytest tests/integration/test_structured_constraint_preservation.py -q -p no:cacheprovider
+conda run -n langgraph-agent python -m pytest tests/integration/test_structured_constraint_preservation.py -q -p no:cacheprovider
 ```
 
 Il vérifie le nom français du plan, le groupe Rouge/Bleu et l'identifiant interne

@@ -3,14 +3,14 @@
 Le code applicatif est dans `src/pokemon_rag`. Le graphe et le parcours MCP
 partagent SQLite et la recherche documentaire, mais n'offrent pas les mêmes garanties.
 Un agent ADK indépendant utilise Qwen local et expose les douze outils du serveur
-via MCP, sans les contrôles du graphe ou du client MCP existant.
-Le catalogue comprend désormais douze outils, dont une recherche Pokémon combinée
-et un movepool filtrable ; les huit outils historiques gardent leur API.
-La recherche compose aussi les filtres avec un classement SQL par statistique
-de base ou total, un mode de superlatif avec ex aequo et une catégorie de formes
-Méga. Le guard conserve ces arguments ; les calculs restent dans le moteur structuré.
-Son callback déterministe préserve les niveaux, jeux et formes reconnus avant
-l'appel d'outil ; ses limites sont décrites dans le [guide ADK](src/pokemon_rag/agent/README.md).
+via MCP, sans les contrôles du graphe ou du client MCP.
+Le callback déterministe de cet agent, le guard, préserve les niveaux, jeux et
+formes reconnus avant l'appel d'outil ; ses limites sont décrites dans le
+[guide ADK](src/pokemon_rag/agent/README.md).
+Parmi les douze outils, `pokemon_search` compose ses filtres avec un classement
+SQL par statistique de base ou total, un mode de superlatif avec ex aequo et une
+catégorie de formes Méga, et `pokemon_moves` filtre un movepool. Le guard conserve
+ces arguments ; les calculs restent dans le moteur structuré.
 Lire ensuite uniquement le [guide spécialisé](docs/README.md) de la tâche.
 
 ## Points d'entrée
@@ -104,7 +104,7 @@ ni par `query_structured_data` ni par `run_graph`. Voir les
 | Configurer l'agent ADK et son modèle local | `agent/agent.py` | Couche indépendante, douze outils MCP structurés et documentaires ; voir le [guide ADK](src/pokemon_rag/agent/README.md) pour le contexte local et les limites |
 | Préserver les contraintes avant un outil ADK | `agent/tool_guard.py` | Réutiliser les extracteurs communs ; restaurer les arguments compatibles ou bloquer l'appel ; aucun SQL ni calcul, catalogue/identité via le moteur existant |
 | Choisir une route et identifier le Pokémon | `graph/router.py` | Ne pas y exécuter une requête métier ou générer la réponse finale |
-| Extraire les formes, jeux et niveaux explicites | `constraints/query_constraints.py` | Extraction pure partagée entre moteur structuré et client MCP ; ni SQLite ni choix d'outil. Voir le [guide des contraintes](src/pokemon_rag/constraints/README.md) |
+| Extraire les formes, jeux et niveaux explicites | `constraints/query_constraints.py` | Extraction pure partagée entre moteur structuré, client MCP et guard ADK ; ni SQLite ni choix d'outil. Voir le [guide des contraintes](src/pokemon_rag/constraints/README.md) |
 | Ajouter une opération structurée | `structured/query_engine.py` | Plan validé et SQL prédéfini, sans code LLM ; adapter aussi le parseur, le routeur, le formatage et éventuellement un outil MCP |
 | Comprendre une question structurée, un jeu ou un niveau | `structured/query_parser.py` | Produit un plan, jamais du SQL ; seul module de `structured` qui appelle le LLM |
 | Construire les contextes, profils, réponses et prompts de génération | `graph/nodes.py` | Le profil SQLite y est actuellement construit ; ne pas y ajouter le nettoyage wiki ou la construction d'index |
