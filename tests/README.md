@@ -232,7 +232,11 @@ contrôle, une réponse niant une condition passait. Il ne détecte pas une
 condition citée puis niée dans la même phrase.
 `long/test_adk_documentary_e2e.py` est une campagne séparée de cinq questions
 de description : elle charge les modèles de recherche et vérifie que la
-réponse s'appuie sur des passages trouvés, ou s'abstient.
+réponse s'appuie sur des passages trouvés, ou s'abstient. Ses contrôles
+portent sur le déroulement (recherche appelée, passages reçus, refus d'une
+double demande), pas sur la fidélité de la réponse : celle-ci se juge
+par relecture du rapport `test_results/adk_documentary_e2e.md`, qui place la
+réponse en regard des passages renvoyés.
 
 La campagne `long/test_adk_structured_database_e2e.py` appelle réellement Qwen ;
 elle est réservée à l'utilisateur, avec LM Studio, un contexte de 16384 tokens

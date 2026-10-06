@@ -104,7 +104,7 @@ journalisé (`warm_up_failed`) et ne bloque pas l'interface.
 
 Chaque question ajoute une ligne à `traces/web_traces.jsonl` : modèle et serveur
 utilisés, question, issue (`answered`, `budget_abstention`,
-`tool_failure_abstention`, `no_final_response`, `error`), réponse, temps par
+`tool_failure_abstention`, `double_request_refusal`, `no_final_response`, `error`), réponse, temps par
 étape, tokens, et pour chaque appel d'outil ses arguments, sa durée, ses mesures
 et le résultat tel que le modèle l'a reçu. Le service `web` de `compose.yaml`
 monte ce dossier. Une écriture impossible est journalisée (`web_trace_failed`)

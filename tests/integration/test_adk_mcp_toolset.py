@@ -108,6 +108,30 @@ def test_largest_document_result_is_formulated_within_the_real_request_budget():
     assert req.config.tools == []
 
 
+def test_compound_description_keeps_named_tools_within_the_real_request_budget():
+    # Vrai catalogue : passages à la taille maximale, puis un fait structuré encore à demander.
+    from pokemon_rag.agent.context_budget import MAX_TOOL_RESULT_BYTES, _size
+
+    tools = asyncio.run(_get_mcp_tools())
+    question = "Parle-moi de Trépassable et de ses types"   # double demande sans mot de description
+    passages = {"question": "Décris Trépassable", "pokemon": "Trépassable", "results": [
+        {"text": "Trépassable ressemble à un château. " * 14, "pokemon": "Trépassable", "source_file": "Trépassable.md",
+         "section_path": "Description", "chunk_number": index} for index in range(4)]}
+    result = bounded_tool_result(passages, question=question)
+    assert MAX_TOOL_RESULT_BYTES - 600 < _size(result) <= MAX_TOOL_RESULT_BYTES and not result.get("context_truncated")
+    req = LlmRequest(contents=[
+        types.Content(role="user", parts=[types.Part(text=question)]),
+        types.Content(role="model", parts=[types.Part(function_call=types.FunctionCall(
+            name="pokemon_rag_search", args={"question": "Décris Trépassable", "pokemon": "Trépassable"}))]),
+        types.Content(role="user", parts=[types.Part(function_response=types.FunctionResponse(name="pokemon_rag_search", response=result))]),
+    ], config=types.GenerateContentConfig(system_instruction=root_agent.instruction,
+        tools=[types.Tool(function_declarations=[tool._get_declaration() for tool in tools])]))
+    assert before_model_budget(SimpleNamespace(state={}), req) is None
+    left = {declaration.name for declaration in req.config.tools[0].function_declarations}
+    assert {"pokemon_types", "pokemon_base_stats", "pokemon_particularities"} <= left
+    assert not left & {"pokemon_search", "pokemon_rag_search"}
+
+
 def test_abridged_catalogue_keeps_boundaries_closed_values_and_instruction_names():
     """Vérifie ce que le modèle reçoit après abrègement, pas son comportement."""
     import re

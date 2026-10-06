@@ -15,12 +15,46 @@ from google.adk.runners import InMemoryRunner
 from google.genai import types
 
 from pokemon_rag.agent.agent import root_agent
-from pokemon_rag.agent.context_budget import BUDGET_ABSTENTION, TOOL_FAILURE_ABSTENTION
+from pokemon_rag.agent.context_budget import BUDGET_ABSTENTION, DOUBLE_REQUEST_REFUSAL, TOOL_FAILURE_ABSTENTION
 from pokemon_rag.config import LLM_BASE_URL, LLM_MODEL
 
 JSONL_PATH = Path(__file__).resolve().parents[2] / "test_results" / "adk_documentary_e2e.jsonl"
+REPORT_PATH = JSONL_PATH.with_suffix(".md")
 RUN_ID = datetime.now().astimezone().isoformat(timespec="seconds")
 SEARCH = "pokemon_rag_search"
+
+
+def write_report(run_id: str = RUN_ID) -> None:
+    """Rapport lisible d'une exécution, réécrit après chaque cas : question, passages, réponse."""
+    rows = [json.loads(line) for line in JSONL_PATH.read_text(encoding="utf-8").splitlines()]
+    rows = [row for row in rows if row["run_id"] == run_id]
+    if not rows:
+        return
+    lines = [f"# Campagne des descriptions — {run_id}", "",
+             f"**Modèle :** {rows[0]['model']} sur {rows[0]['server']}  ",
+             f"**Réussis :** {sum(row['passed'] for row in rows)} sur {len(rows)}", "",
+             "> Un cas réussi signifie que la recherche a été appelée et qu'une réponse a été rédigée à partir "
+             "de passages. La fidélité de la réponse aux passages se juge en les lisant ci-dessous.", ""]
+    for row in rows:
+        lines += [f"## {'✅' if row['passed'] else '❌'} {row['case_id']}", "",
+                  f"**Question :** {row['question']}  ", f"**But :** {row['note']}  ",
+                  f"**Durée :** {row['elapsed_seconds']:.0f} s", ""]
+        for call in row["tool_calls"]:
+            lines.append(f"- Appel : `{call['name']}` {json.dumps(call['args'], ensure_ascii=False)}")
+        failed = [check["message"] for check in row["checks"] if not check["passed"]]
+        if failed:
+            lines.append(f"- **Contrôles en échec :** {' ; '.join(failed)}")
+        lines += ["", "### Réponse", "", row["final_answer"] or "*(aucune)*", "", "### Ce que les outils ont renvoyé", ""]
+        for response in row["tool_responses"]:
+            data = response["response"] if isinstance(response["response"], dict) else {}
+            if response["name"] == SEARCH and data.get("results"):
+                for passage in data["results"]:
+                    lines += [f"**Passage — {passage.get('source_file')} › {passage.get('section_path')}**", "",
+                              "> " + str(passage.get("text", "")).replace("\n", "\n> "), ""]
+            else:
+                lines += [f"`{response['name']}` : `{json.dumps(data, ensure_ascii=False)[:600]}`", ""]
+        lines += ["---", ""]
+    REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
 
 
 @dataclass(frozen=True)
@@ -28,8 +62,8 @@ class Case:
     id: str
     question: str
     note: str
-    # Outils structurés qui doivent aussi avoir répondu (question composée).
-    other_tools: tuple[str, ...] = ()
+    # Double demande (description et fait structuré) : refusée avant tout appel au modèle.
+    refused: bool = False
     # Aucun passage n'existe : la réponse attendue est l'abstention déterministe.
     abstention: bool = False
 
@@ -41,9 +75,9 @@ CASES = [
          "Régression : la description était rédigée sans appeler la recherche documentaire."),
     Case("habitat-bacabouh", "Quel est l'habitat de Bacabouh ?",
          "Autre mot de description ; la réponse doit s'appuyer sur des passages."),
-    Case("compound-trepassable", "Décris Trépassable et donne ses types",
-         "Question composée : recherche documentaire et outil structuré, sans abstention.",
-         other_tools=("pokemon_types",)),
+    Case("double-request-trepassable", "Décris Trépassable et donne ses types",
+         "Double demande : refusée avec une consigne claire, aucun outil appelé, aucun type inventé.",
+         refused=True),
     Case("unknown-pokemon", "Décris Fauxkémon",
          "Aucun passage : abstention, jamais une description inventée.", abstention=True),
 ]
@@ -68,16 +102,16 @@ def _parts(events):
 
 def _checks(case: Case, calls: list[dict], responses: list[dict], answer: str) -> list[tuple[bool, str]]:
     passages = [r for r in responses if r["name"] == SEARCH and r["response"].get("results")]
-    checks = [(any(call["name"] == SEARCH for call in calls), "recherche documentaire appelée"),
-              (answer != BUDGET_ABSTENTION, "pas d'abstention de budget")]
+    if case.refused:
+        return [(answer == DOUBLE_REQUEST_REFUSAL, "double demande refusée"), (not calls, "aucun outil appelé")]
+    checks = [(answer != BUDGET_ABSTENTION, "pas d'abstention de budget")]
     if case.abstention:
+        # Le contrat porte sur la réponse : que le modèle ait cherché ou non, il ne doit rien inventer.
         return checks + [(not passages, "aucun passage trouvé"),
                          (answer == TOOL_FAILURE_ABSTENTION, "abstention déterministe")]
-    checks += [(bool(passages), "au moins un passage trouvé"),
+    checks += [(any(call["name"] == SEARCH for call in calls), "recherche documentaire appelée"),
+               (bool(passages), "au moins un passage trouvé"),
                (bool(answer) and answer != TOOL_FAILURE_ABSTENTION, "réponse rédigée à partir des passages")]
-    for tool in case.other_tools:
-        checks.append((any(r["name"] == tool and not r["response"].get("error") for r in responses),
-                       f"outil structuré {tool} a répondu"))
     return checks
 
 
@@ -105,6 +139,7 @@ def test_documentary_e2e(case):
             "tool_calls": calls, "tool_responses": responses, "final_answer": answer,
             "checks": [{"passed": ok, "message": message} for ok, message in checks],
             "passed": all(ok for ok, _ in checks)}, ensure_ascii=False, default=repr) + "\n")
-    print(f"terminé: {case.id} ({elapsed:.0f} s)", flush=True)
+    write_report()
+    print(f"terminé: {case.id} ({elapsed:.0f} s) — rapport : {REPORT_PATH}", flush=True)
     failed = [message for ok, message in checks if not ok]
     assert not failed, f"{case.id} : {failed}\nRéponse : {answer[:300]}"
