@@ -64,7 +64,7 @@ décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 | Guard ADK | `unit/test_adk_tool_guard.py` : callback et vrais extracteurs, contexte et outils ADK simulés, sans LLM ni serveur MCP |
 | Sessions Web | `unit/test_web_request_sessions.py` : runner ADK simulé ; questions indépendantes, historique affiché conservé, suppression des sessions après succès ou erreur ; temps d'outil et tokens du panneau, démarrage anticipé du serveur d'outils |
 | Serveur MCP | `integration/test_mcp_server.py` : vrai transport stdio et outil structuré, sans Qwen |
-| API HTTP | `unit/test_api.py` : vraie application FastAPI et vraies fonctions d'outils, moteur simulé ; les neuf routes structurées, 404 ou 400 sur refus du moteur, 422 hors schéma, 503 pour une base absente |
+| API HTTP | `unit/test_api.py` : vraie application FastAPI et vraies fonctions d'outils, moteur simulé ; les onze routes structurées, 404 ou 400 sur refus du moteur, 422 hors schéma, 503 pour une base absente |
 | Abstentions de l'agent ADK | `unit/test_adk_context_budget.py`, puis `integration/test_adk_stat_rankings.py` (vrai runner, modèle simulé) : réponse sans résultat d'outil exploitable remplacée, catalogue retiré après des passages, mesures hors de la vue du modèle |
 | Alias d'espèces du Pokédex | `integration/test_pokedex_species_aliases.py` : vraie base, appels métier/MCP directs sans parseur LLM ; formes par défaut et noms français des capacités |
 | Résolution de Tonnerre | `integration/test_structured_constraint_preservation.py` : parsing et vraie base |
@@ -87,7 +87,7 @@ Elle ne valide pas le choix d'outil par Qwen. Les tests ADK réels de function
 calling et du parcours MCP restent dans `tests/long`, marqués `llm`, `models`
 et `long`, et doivent être exécutés par l'utilisateur.
 
-`integration/test_adk_mcp_toolset.py` vérifie la découverte exacte des dix outils
+`integration/test_adk_mcp_toolset.py` vérifie la découverte exacte des douze outils
 via le vrai serveur stdio, sans appel d'outil ni LLM. Il contrôle aussi le
 catalogue tel que le modèle le reçoit après abrègement : premier paragraphe non
 coupé, direction annoncée, valeurs fermées exposées, outils cités par
@@ -156,7 +156,7 @@ python -m pytest tests/integration/test_mcp_server.py -q -p no:cacheprovider
 ```
 
 Le test serveur nécessite la base locale et le SDK MCP compatible. Il découvre
-les dix outils et appelle réellement `pokemon_types` pour Pikachu et Nigirigon,
+les douze outils et appelle réellement `pokemon_types` pour Pikachu et Nigirigon,
 puis vérifie qu'une espèce inexistante produit une erreur MCP, sans Qwen ni recherche RAG.
 Il utilise `asyncio.run` et ne nécessite pas `pytest-asyncio`.
 
@@ -208,7 +208,7 @@ Il couvre les nombres de domaines distincts, types de Pokémon/capacités,
 catégories, bornes, régions multiples et titres complets de jeux. Les refus
 doivent préserver la proposition d'origine et exposer les arguments requis.
 Il vérifie aussi qu'une méthode d'apprentissage absente de la question est
-retirée, et conservée dès que la question en mentionne une. Les quatre cas
+retirée, et conservée dès que la question en mentionne une. Les trois cas
 `moves-*` de la campagne attendent `learning_method` absent, pour qu'une
 méthode inventée apparaisse dans le diagnostic de proposition.
 `integration/test_mcp_server.py` vérifie aussi guard → vrai MCP stdio → SQLite :
@@ -218,6 +218,16 @@ et reprise explicite après un refus de recherche par numéro, sans modèle.
 vérifie les jeux récents, anciens et historiques, sans LLM.
 Les tests du vrai runner simulant le modèle couvrent également les listes de
 huit et neuf résultats ainsi que les CT d'un Pokémon substitué par Qwen.
+
+La campagne structurée compte 32 cas : types, identité, évolutions, capacités,
+recherche et classements, statistiques et particularités d'un Pokémon nommé,
+recherche par sous-groupe, talent et stade d'évolution, un comptage et un
+Pokémon inconnu dont la réponse attendue est l'abstention. Elle évite les
+listes longues, qui allongent la génération sans rien vérifier de plus. Le
+rapport et chaque ligne JSONL nomment le modèle et le serveur utilisés.
+`long/test_adk_documentary_e2e.py` est une campagne séparée de cinq questions
+de description : elle charge les modèles de recherche et vérifie que la
+réponse s'appuie sur des passages trouvés, ou s'abstient.
 
 La campagne `long/test_adk_structured_database_e2e.py` appelle réellement Qwen ;
 elle est réservée à l'utilisateur, avec LM Studio, un contexte de 16384 tokens
