@@ -30,13 +30,15 @@ services:
       # Charge la base documentaire dès l'ouverture de la page, pas pendant la première question.
       POKEMON_RAG_PRELOAD: "1"
       LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
-      LLM_MODEL: ${LLM_MODEL:-qwen3-vl:8b}
+      LLM_MODEL: ${LLM_MODEL:-qwen3-vl:8b-instruct}
       LLM_API_KEY: ${LLM_API_KEY:-ollama}
     extra_hosts:
       # Rend la machine hôte joignable sous Linux aussi (déjà le cas avec Docker Desktop).
       - "host.docker.internal:host-gateway"
     volumes:
       - ./data:/app/data:ro
+      # Une ligne par question posée : questions, appels d'outils, temps et réponses.
+      - ./traces:/app/traces
       # Index Poképédia dans un volume : lu depuis un dossier Windows partagé, son chargement est
       # nettement plus lent. Le remplir une fois, et après chaque réindexation :
       #   docker compose run --rm --no-deps -v "${PWD}/chroma_db:/source:ro" web sh -c "cp -a /source/. /app/chroma_db/"
@@ -45,7 +47,7 @@ services:
       - huggingface:/root/.cache/huggingface
 
   # Serveur de modèle, compatible OpenAI sur http://localhost:11434/v1 :
-  #   docker compose exec ollama ollama pull qwen3-vl:8b      (une fois, 6,1 Go)
+  #   docker compose exec ollama ollama pull qwen3-vl:8b-instruct   (une fois, 6,1 Go ; même variante Instruct que sous LM Studio)
   # Avec une carte NVIDIA, ajouter « -f compose.yaml -f compose.gpu.yaml » après « docker compose ».
   ollama:
     profiles: ["llm"]

@@ -3,12 +3,16 @@ import logging
 import random
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from dataclasses import dataclass, field
 import gradio as gr
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 from pokemon_rag.agent.agent import pokemon_mcp, root_agent
+from pokemon_rag.agent.context_budget import BUDGET_ABSTENTION, TOOL_FAILURE_ABSTENTION
+from pokemon_rag.config import LLM_BASE_URL, LLM_MODEL
+from pokemon_rag.observability.tracing import TRACE_DIR, save_trace
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +72,8 @@ TOOL_LABELS = {
     "pokemon_rag_search": "Recherche documentaire Poképédia",
 }
 EXAMPLE_QUESTIONS_PATH = Path(__file__).with_name("example_questions.txt")
+# Une ligne JSON par question posée dans l'interface.
+WEB_TRACE_FILE = TRACE_DIR / "web_traces.jsonl"
 
 
 @dataclass
@@ -90,6 +96,7 @@ class ActivityTiming:
     calls: list[tuple[str, float, float | None]] = field(default_factory=list)
     # Mesures côté outil par indice d'appel, et tokens cumulés des appels au modèle.
     measures: dict[int, dict] = field(default_factory=dict)
+    results: dict[int, dict] = field(default_factory=dict)
     seen_measures: int = 0
     prompt_tokens: int = 0
     output_tokens: int = 0
@@ -110,6 +117,8 @@ class ActivityTiming:
             if usage is not None:
                 self.prompt_tokens += usage.prompt_token_count or 0
                 self.output_tokens += usage.candidates_token_count or 0
+        returned = [part.function_response for part in getattr(getattr(event, "content", None), "parts", None) or []
+                    if getattr(part, "function_response", None) is not None]
         self.calls.extend((name, elapsed, None) for name, _ in calls)
         for name in responses:
             for index, (called, start, end) in enumerate(self.calls):
@@ -119,6 +128,10 @@ class ActivityTiming:
                     if measure is not None:
                         new_measures.remove(measure)
                         self.measures[index] = measure
+                    result = next((item for item in returned if item.name == name), None)
+                    if result is not None:
+                        returned.remove(result)
+                        self.results[index] = result.response
                     break
         if self.calls:
             self.transition("tools" if any(end is None for _, _, end in self.calls) else "generation", elapsed)
@@ -270,7 +283,8 @@ def _format_activity(
             lines.append(f"- Chargement de la base documentaire (premier appel) : {startup.get('total', 0.0):.1f} s")
         if timing.prompt_tokens or timing.output_tokens:
             model_time = timing.duration("analysis", elapsed_seconds) + timing.duration("generation", elapsed_seconds)
-            rate = (f" · ≈ {timing.output_tokens / model_time:.0f} tokens/s"
+            # Le serveur de modèle ne sépare pas lecture et génération : ce débit couvre les deux.
+            rate = (f" · ≈ {timing.output_tokens / model_time:.0f} tokens/s, lecture des requêtes comprise"
                     if timing.output_tokens and model_time > 0 else "")
             lines.append(f"- Qwen : {timing.prompt_tokens} tokens lus, {timing.output_tokens} générés{rate}")
         lines.append("")
@@ -346,6 +360,40 @@ def _format_activity(
         ])
 
     return "\n".join(lines)
+
+
+def _web_trace(question: str, answer: str, outcome: str, error: Exception | None,
+               tool_calls: list[tuple[str, dict]], timing: ActivityTiming, elapsed: float) -> dict:
+    """Trace d'une question : ce que le modèle a demandé, ce que les outils ont renvoyé, ce qui a été répondu."""
+    if outcome == "answered":
+        outcome = {BUDGET_ABSTENTION: "budget_abstention",
+                   TOOL_FAILURE_ABSTENTION: "tool_failure_abstention"}.get(answer, outcome)
+    tools = []
+    for index, (name, arguments) in enumerate(tool_calls):
+        _, call_start, call_end = timing.calls[index] if index < len(timing.calls) else (name, None, None)
+        measure = {key: value for key, value in timing.measures.get(index, {}).items() if key != "tool"}
+        tools.append({"name": name, "arguments": arguments,
+                      "seconds": None if call_start is None or call_end is None else call_end - call_start,
+                      **measure, "result": timing.results.get(index)})
+    return {
+        "trace_id": uuid.uuid4().hex,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "model": LLM_MODEL, "server": LLM_BASE_URL,
+        "question": question, "outcome": outcome, "answer": answer,
+        "error": None if error is None else f"{type(error).__name__}: {error}",
+        "seconds": {"total": elapsed, **{phase: timing.duration(phase, elapsed)
+                                        for phase in ("analysis", "tools", "generation")}},
+        "tokens": {"prompt": timing.prompt_tokens, "output": timing.output_tokens},
+        "tools": tools,
+    }
+
+
+def _save_web_trace(trace: dict) -> None:
+    """Une trace illisible ou un disque plein ne doit jamais faire échouer une réponse déjà obtenue."""
+    try:
+        save_trace(trace, WEB_TRACE_FILE)
+    except Exception:
+        logger.warning("web_trace_failed", exc_info=True)
 
 
 async def _run_agent_into_queue(
@@ -514,6 +562,7 @@ async def chat(
         )
 
         status = "❌ **Erreur**"
+        outcome = "error"
 
     else:
         response = _final_response_text(events)
@@ -521,8 +570,12 @@ async def chat(
         if not response:
             response = "L'agent n'a produit aucune réponse finale."
             status = "⚠️ **Aucune réponse finale**"
+            outcome = "no_final_response"
         else:
             status = "✅ **Réponse disponible**"
+            outcome = "answered"
+
+    _save_web_trace(_web_trace(message, response, outcome, error, tool_calls, timing, elapsed))
 
     updated_history = history + [
         {
