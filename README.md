@@ -1,6 +1,6 @@
-# Pokémon RAG
+# Pokémon Agent
 
-[![CI](https://github.com/C-H-U-B/pokemon-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/C-H-U-B/pokemon-rag/actions/workflows/ci.yml)
+[![CI](https://github.com/C-H-U-B/pokemon-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/C-H-U-B/pokemon-agent/actions/workflows/ci.yml)
 
 🇫🇷 [Version française](README_FR.md)
 
@@ -76,6 +76,7 @@ One data anomaly met along the way shows why these checks matter: the most recen
 - **SQL engine.** Parameterised functions cover evolutions, moves, types, multi-criteria search and rankings by statistic. Filters, sorts, totals and ties are computed in SQL. The language model never writes SQL: it picks an operation and its arguments.
 - **Document search.** Combined lexical and vector search, awareness of section structure, then reranking.
 - **MCP server.** Twelve tools expose these functions to any compatible client.
+- **HTTP API.** Eleven routes expose the SQL engine without any model. They reuse the functions of the MCP tools: same arguments, same validation.
 
 Three ways of answering a question rely on the same data:
 
@@ -97,13 +98,43 @@ Results of the 31-question campaign, before and after the latest reliability wor
 | Calls correct as proposed by the model | 15 | 30 |
 | Answers dropped for exceeding the context budget | 5 | 0 |
 
+Since then, two tools and three filters were added, and the campaign rebalanced to 33 questions. With Qwen served by Ollama in Docker, the model proposes 27 correct calls outright; the check repairs the other 6 before execution, and all 33 questions pass.
+
 Each cause was isolated before being fixed, telling data errors, test errors and orchestration errors apart. The full account is in the [development history](DEVELOPMENT.md).
 
 ## Stack
 
-Python, SQLite, ChromaDB, Sentence Transformers, BM25, CrossEncoder reranking, LangGraph, Google ADK, Model Context Protocol, Gradio, LM Studio, pytest, ruff.
+Python, SQLite, ChromaDB, Sentence Transformers, BM25, CrossEncoder reranking, LangGraph, Google ADK, Model Context Protocol, Gradio, FastAPI, Docker, Ollama, LM Studio, pytest, ruff.
 
 ## Running the project
+
+### With Docker, without building anything
+
+The SQLite database and the document index are published in the [repository releases](https://github.com/C-H-U-B/pokemon-agent/releases). Docker is enough: no Python environment to install.
+
+**The API alone, without a model.**
+
+```bash
+curl -L -o data/pokemon.db https://github.com/C-H-U-B/pokemon-agent/releases/latest/download/pokemon.db
+docker compose up --build api
+```
+
+The API is served at `http://localhost:8000/docs`, for example `http://localhost:8000/pokemon/Pikachu/types`. `http://localhost:8000/health` returns a 503 error while the database is missing. In Windows PowerShell, type `curl.exe`: `curl` is a different command there.
+
+**The web interface with Qwen.** The database is downloaded as above. The index is installed once into a Docker volume, then the interface and the model server start together:
+
+```bash
+docker compose run --rm --no-deps web python -c "import tarfile, urllib.request; tarfile.open(fileobj=urllib.request.urlopen('https://github.com/C-H-U-B/pokemon-agent/releases/latest/download/chroma_db.tar.gz'), mode='r|gz').extractall('/app', filter='data')"
+docker compose up --build web ollama
+```
+
+The interface is at `http://localhost:7860`. On first start, Ollama downloads Qwen3-VL 8B (6.1 GB) and the interface waits until it is ready; the two retrieval models (930 MB) are fetched when the page opens. With an NVIDIA card, run `docker compose -f compose.yaml -f compose.gpu.yaml up --build web ollama`.
+
+Configuration this setup was measured on: 10 GB of memory granted to Docker and a 6 GB graphics card. With 8 GB, the model exhausts the memory and its generation falls below one token per second. Allow about fifteen gigabytes of disk. Running without a graphics card has not been measured.
+
+To point the interface at LM Studio or another OpenAI-compatible server, see the [web interface guide](src/pokemon_rag/web/README.md) (in French).
+
+### Locally
 
 Requirements: Python 3.10 or later, and an OpenAI-compatible model server for the paths that call a model. The default is LM Studio on `http://localhost:1234/v1` with `qwen/qwen3-vl-8b` (16,384-token context window); set `LLM_BASE_URL`, `LLM_MODEL` and `LLM_API_KEY` to use Ollama, another host or a remote API.
 
@@ -122,15 +153,6 @@ python scripts/pokepedia/clean.py
 python scripts/pokepedia/ingest.py
 ```
 
-Without rebuilding anything: the application database is published in the [repository releases](https://github.com/C-H-U-B/pokemon-rag/releases). The HTTP API over the SQL engine only needs that file, with no model and no corpus:
-
-```bash
-curl -L -o data/pokemon.db https://github.com/C-H-U-B/pokemon-rag/releases/latest/download/pokemon.db
-docker compose up --build
-```
-
-In Windows PowerShell, type `curl.exe`: `curl` is a different command there. The API is served at `http://localhost:8000/docs`, for example `http://localhost:8000/pokemon/Pikachu/types`; `http://localhost:8000/health` returns a 503 error while the database is missing. The container reads `data/` read-only: replacing the file is enough to switch versions.
-
 Web interface, then the command-line graph:
 
 ```bash
@@ -147,7 +169,9 @@ ruff check .
 
 ## Known limits
 
-- Only the application database is published; the intermediate PokéAPI database and the Poképédia corpus must be rebuilt for document search.
+- The application database and the document index are published; the intermediate PokéAPI database and the raw corpus still have to be rebuilt to regenerate them.
+- On the agent path, nothing checks that a description is faithful to the passages found: it can copy an off-topic record or extrapolate. Only the LangGraph path checks faithfulness.
+- The agent refuses a question that mixes a description and a structured fact; the two must be asked separately.
 - Build steps are launched by hand, in the order above, and rebuild everything.
 - Continuous integration does not cover the tests that need the built databases or a model.
 - End-to-end measurements depend on a local model; they are rerun manually.

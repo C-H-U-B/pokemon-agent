@@ -2,7 +2,7 @@
 
 🇫🇷 [Version française](DEVELOPMENT_FR.md)
 
-This document traces the evolution of the Pokémon RAG project throughout
+This document traces the evolution of the Pokémon Agent project throughout
 development. It is not intended to present a fixed final architecture:
 it preserves the main stages, problems encountered, experiments, and
 decisions that progressively shaped the system.

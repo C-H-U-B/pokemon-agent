@@ -30,7 +30,7 @@ from pokemon_rag.structured.query_engine import (
     search_pokemon,
 )
 
-mcp = MCPServer("Pokemon RAG")
+mcp = MCPServer("Pokémon Agent")
 
 # Seuls le premier paragraphe d'une docstring et les descriptions d'arguments
 # restent visibles du modèle après l'abrègement ADK : y placer les règles d'appel.

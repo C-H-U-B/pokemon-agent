@@ -428,7 +428,7 @@ def analyze_traces(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Analyse les traces JSONL du graphe Pokémon RAG."
+        description="Analyse les traces JSONL du graphe Pokémon Agent."
     )
     parser.add_argument(
         "trace_file",

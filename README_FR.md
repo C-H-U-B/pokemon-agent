@@ -1,6 +1,6 @@
-# Pokémon RAG
+# Pokémon Agent
 
-[![CI](https://github.com/C-H-U-B/pokemon-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/C-H-U-B/pokemon-rag/actions/workflows/ci.yml)
+[![CI](https://github.com/C-H-U-B/pokemon-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/C-H-U-B/pokemon-agent/actions/workflows/ci.yml)
 
 🇬🇧 [English version](README.md)
 
@@ -76,6 +76,7 @@ Une anomalie de données rencontrée en cours de route illustre l'intérêt de c
 - **Moteur SQL.** Des fonctions paramétrées couvrent les évolutions, les capacités, les types, la recherche multicritère et les classements par statistique. Les filtres, les tris, les totaux et les égalités sont calculés en SQL. Le modèle de langage ne produit jamais de SQL : il choisit une opération et ses arguments.
 - **Recherche documentaire.** Recherche lexicale et vectorielle combinées, prise en compte de la structure des sections, puis reclassement.
 - **Serveur MCP.** Douze outils exposent ces fonctions à n'importe quel client compatible.
+- **API HTTP.** Onze routes exposent le moteur SQL sans aucun modèle. Elles réutilisent les fonctions des outils MCP : mêmes arguments, mêmes validations.
 
 Trois façons de répondre à une question s'appuient sur ces mêmes données :
 
@@ -97,13 +98,43 @@ Résultats de la campagne de 31 questions, avant et après les derniers travaux 
 | Appels corrects dès la proposition du modèle | 15 | 30 |
 | Réponses abandonnées pour dépassement de contexte | 5 | 0 |
 
+Depuis, deux outils et trois filtres ont été ajoutés, et la campagne rééquilibrée à 33 questions. Avec Qwen servi par Ollama dans Docker, le modèle propose 27 appels corrects d'emblée ; le contrôle corrige les 6 autres avant exécution, et les 33 questions passent.
+
 Chaque cause a été isolée avant d'être corrigée, en distinguant erreur de données, erreur de test et erreur d'orchestration. Le récit complet est dans [l'historique de développement](DEVELOPMENT_FR.md).
 
 ## Technologies
 
-Python, SQLite, ChromaDB, Sentence Transformers, BM25, reclassement par CrossEncoder, LangGraph, Google ADK, Model Context Protocol, Gradio, LM Studio, pytest, ruff.
+Python, SQLite, ChromaDB, Sentence Transformers, BM25, reclassement par CrossEncoder, LangGraph, Google ADK, Model Context Protocol, Gradio, FastAPI, Docker, Ollama, LM Studio, pytest, ruff.
 
 ## Lancer le projet
+
+### Avec Docker, sans rien construire
+
+La base SQLite et l'index documentaire sont publiés dans les [versions du dépôt](https://github.com/C-H-U-B/pokemon-agent/releases). Docker suffit : aucun environnement Python à installer.
+
+**L'API seule, sans modèle.**
+
+```bash
+curl -L -o data/pokemon.db https://github.com/C-H-U-B/pokemon-agent/releases/latest/download/pokemon.db
+docker compose up --build api
+```
+
+L'API répond sur `http://localhost:8000/docs`, par exemple `http://localhost:8000/pokemon/Pikachu/types`. `http://localhost:8000/health` renvoie une erreur 503 tant que la base est absente. Sous Windows PowerShell, écrire `curl.exe` : `curl` y désigne une autre commande.
+
+**L'interface Web avec Qwen.** La base se télécharge comme ci-dessus. L'index s'installe une fois dans un volume Docker, puis l'interface et le serveur de modèle démarrent ensemble :
+
+```bash
+docker compose run --rm --no-deps web python -c "import tarfile, urllib.request; tarfile.open(fileobj=urllib.request.urlopen('https://github.com/C-H-U-B/pokemon-agent/releases/latest/download/chroma_db.tar.gz'), mode='r|gz').extractall('/app', filter='data')"
+docker compose up --build web ollama
+```
+
+L'interface est sur `http://localhost:7860`. Au premier démarrage, Ollama télécharge Qwen3-VL 8B (6,1 Go) et l'interface attend qu'il soit prêt ; les deux modèles de recherche (930 Mo) sont récupérés à l'ouverture de la page. Avec une carte NVIDIA, lancer `docker compose -f compose.yaml -f compose.gpu.yaml up --build web ollama`.
+
+Configuration sur laquelle cet ensemble a été mesuré : 10 Go de mémoire accordés à Docker et une carte graphique de 6 Go. Avec 8 Go, le modèle sature la mémoire et sa génération tombe sous un token par seconde. Compter une quinzaine de gigaoctets de disque. Le fonctionnement sans carte graphique n'a pas été mesuré.
+
+Pour brancher l'interface sur LM Studio ou un autre serveur compatible OpenAI, voir le [guide de l'interface Web](src/pokemon_rag/web/README.md).
+
+### En local
 
 Prérequis : Python 3.10 ou plus récent, et un serveur de modèle compatible OpenAI pour les parcours qui appellent un modèle. Par défaut, LM Studio sur `http://localhost:1234/v1` avec `qwen/qwen3-vl-8b` (fenêtre de contexte de 16 384 tokens) ; `LLM_BASE_URL`, `LLM_MODEL` et `LLM_API_KEY` permettent d'utiliser Ollama, un autre hôte ou une API distante.
 
@@ -122,15 +153,6 @@ python scripts/pokepedia/clean.py
 python scripts/pokepedia/ingest.py
 ```
 
-Sans rien reconstruire : la base applicative est publiée dans les [versions du dépôt](https://github.com/C-H-U-B/pokemon-rag/releases). L'API HTTP du moteur SQL n'a besoin que de ce fichier, sans modèle ni corpus :
-
-```bash
-curl -L -o data/pokemon.db https://github.com/C-H-U-B/pokemon-rag/releases/latest/download/pokemon.db
-docker compose up --build
-```
-
-Sous Windows PowerShell, écrire `curl.exe` : `curl` y désigne une autre commande. L'API répond sur `http://localhost:8000/docs`, par exemple `http://localhost:8000/pokemon/Pikachu/types` ; `http://localhost:8000/health` renvoie une erreur 503 tant que la base est absente. Le conteneur lit `data/` en lecture seule : remplacer le fichier suffit pour changer de version.
-
 Interface Web, puis graphe en ligne de commande :
 
 ```bash
@@ -147,7 +169,9 @@ ruff check .
 
 ## Limites connues
 
-- Seule la base applicative est publiée ; la base PokéAPI intermédiaire et le corpus Poképédia sont à reconstruire pour la recherche documentaire.
+- La base applicative et l'index documentaire sont publiés ; la base PokéAPI intermédiaire et le corpus brut restent à reconstruire pour les régénérer.
+- Sur le parcours de l'agent, rien ne vérifie qu'une description est fidèle aux passages trouvés : elle peut recopier une fiche hors sujet ou extrapoler. Seul le graphe LangGraph contrôle cette fidélité.
+- L'agent refuse une question qui mêle une description et un fait structuré ; il faut poser les deux séparément.
 - Les étapes de construction se lancent à la main, dans l'ordre ci-dessus, et reconstruisent tout.
 - L'intégration continue ne couvre pas les tests qui demandent les bases construites ou un modèle.
 - Les mesures de bout en bout dépendent d'un modèle local ; elles sont relancées manuellement.

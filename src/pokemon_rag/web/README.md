@@ -24,12 +24,12 @@ Envoyer une question par le bouton ou Entrée appelle réellement Qwen.
 
 En conteneur, le service `web` de `compose.yaml` lance ce même point d'entrée
 sur le port 7860 (`GRADIO_SERVER_NAME=0.0.0.0`). Il vise par défaut le service
-`ollama` ; `LLM_BASE_URL` et `LLM_MODEL` le dirigent vers un autre serveur, par
+`ollama` ; `WEB_LLM_BASE_URL` et `WEB_LLM_MODEL` le dirigent vers un autre serveur, par
 exemple LM Studio sur la machine hôte :
 
 ```powershell
-$env:LLM_BASE_URL = "http://host.docker.internal:1234/v1"
-$env:LLM_MODEL = "qwen/qwen3-vl-8b"
+$env:WEB_LLM_BASE_URL = "http://host.docker.internal:1234/v1"
+$env:WEB_LLM_MODEL = "qwen/qwen3-vl-8b"
 docker compose up -d --build web
 ```
 

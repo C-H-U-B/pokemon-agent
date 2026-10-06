@@ -51,3 +51,6 @@ traces/*.jsonl
 test_results/
 traces/*.xml
 traces/*.json
+
+# Index exporté pour une release
+dist/

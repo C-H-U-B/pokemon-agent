@@ -1,5 +1,5 @@
 # Prérequis : data/pokemon.db, construite localement ou téléchargée depuis
-#   https://github.com/C-H-U-B/pokemon-rag/releases/latest/download/pokemon.db
+#   https://github.com/C-H-U-B/pokemon-agent/releases/latest/download/pokemon.db
 # Nommer les services à lancer : un seul conteneur suffit, sauf pour l'interface avec Ollama.
 #   API seule, sans modèle :     docker compose up --build api          (http://localhost:8000/docs)
 #   Interface Web et Ollama :    docker compose up --build web ollama   (http://localhost:7860, deux conteneurs)
@@ -8,7 +8,7 @@
 services:
   api:
     build: .
-    image: pokemon-rag:dev
+    image: pokemon-agent:dev
     ports:
       - "8000:8000"
     volumes:
@@ -16,11 +16,11 @@ services:
       - ./data:/app/data:ro
 
   # Interface Web Gradio et agent ADK. Sans le service ollama (LM Studio, API distante) :
-  #   LLM_BASE_URL=http://host.docker.internal:1234/v1 LLM_MODEL=qwen/qwen3-vl-8b docker compose up web
+  #   WEB_LLM_BASE_URL=http://host.docker.internal:1234/v1 WEB_LLM_MODEL=qwen/qwen3-vl-8b docker compose up web
   web:
     profiles: ["llm", "web"]
     build: .
-    image: pokemon-rag:dev
+    image: pokemon-agent:dev
     command: ["python", "-m", "pokemon_rag.web.app"]
     ports:
       - "7860:7860"
@@ -29,9 +29,11 @@ services:
       GRADIO_SERVER_NAME: "0.0.0.0"
       # Charge la base documentaire dès l'ouverture de la page, pas pendant la première question.
       POKEMON_RAG_PRELOAD: "1"
-      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
-      LLM_MODEL: ${LLM_MODEL:-${OLLAMA_MODEL:-qwen3-vl:8b-instruct}}
-      LLM_API_KEY: ${LLM_API_KEY:-ollama}
+      # Variables propres au conteneur (WEB_...) : celles du terminal, LLM_BASE_URL en tête, visent
+      # souvent localhost pour un usage hors Docker, adresse injoignable depuis un conteneur.
+      LLM_BASE_URL: ${WEB_LLM_BASE_URL:-http://ollama:11434/v1}
+      LLM_MODEL: ${WEB_LLM_MODEL:-${OLLAMA_MODEL:-qwen3-vl:8b-instruct}}
+      LLM_API_KEY: ${WEB_LLM_API_KEY:-ollama}
     extra_hosts:
       # Rend la machine hôte joignable sous Linux aussi (déjà le cas avec Docker Desktop).
       - "host.docker.internal:host-gateway"
@@ -45,7 +47,8 @@ services:
       # Une ligne par question posée : questions, appels d'outils, temps et réponses.
       - ./traces:/app/traces
       # Index Poképédia dans un volume : lu depuis un dossier Windows partagé, son chargement est
-      # nettement plus lent. Le remplir une fois, et après chaque réindexation :
+      # nettement plus lent. Le remplir une fois depuis la release (commande dans le README), ou
+      # depuis un index local après une réindexation :
       #   docker compose run --rm --no-deps -v "${PWD}/chroma_db:/source:ro" web sh -c "cp -a /source/. /app/chroma_db/"
       - chroma:/app/chroma_db
       # Modèles d'embedding et de reclassement, téléchargés au premier usage (930 Mo).

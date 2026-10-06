@@ -2,7 +2,7 @@
 
 🇬🇧 [English version](DEVELOPMENT.md)
 
-Ce document retrace l'évolution du projet Pokémon RAG au fil du
+Ce document retrace l'évolution du projet Pokémon Agent au fil du
 développement. Il ne cherche pas à présenter une architecture finale
 figée : il conserve les principales étapes, les problèmes rencontrés,
 les expérimentations et les décisions qui ont progressivement façonné le
