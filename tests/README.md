@@ -219,7 +219,7 @@ vérifie les jeux récents, anciens et historiques, sans LLM.
 Les tests du vrai runner simulant le modèle couvrent également les listes de
 huit et neuf résultats ainsi que les CT d'un Pokémon substitué par Qwen.
 
-La campagne structurée compte 33 cas : types, identité, évolutions (dont deux
+La campagne structurée compte 34 cas : types, identité, évolutions (dont deux
 gains de niveau sans seuil : une capacité connue, un nombre de pas), capacités,
 recherche et classements, statistiques et particularités d'un Pokémon nommé,
 recherche par sous-groupe, talent et stade d'évolution, un comptage et un
