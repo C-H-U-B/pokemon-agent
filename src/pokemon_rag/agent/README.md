@@ -321,6 +321,15 @@ un filtre légendaire ou fabuleux que la question ne mentionne pas. Ces noms
 suffisent aussi à reconnaître un classement sans le mot « Pokémon » (« le
 fossile le plus rapide »). `evolution_stage` et `talent` ne sont pas extraits
 de la question : le guard ne les restaure pas et ne les retire pas.
+
+Quand la question nomme un Pokémon, un mot de catégorie (légendaire, fabuleux
+ou sous-groupe) n'est plus un filtre de liste mais une propriété interrogée
+(« Mewtwo est-il un légendaire ? »). Seul `pokemon_particularities` est alors
+accepté, parce qu'il renvoie le sous-groupe ; tout autre outil est refusé en le
+désignant. Auparavant aucun outil n'était accepté. Toute autre contrainte de
+liste (classement, génération, type) reste exigée et maintient le refus. Limite :
+un mot de catégorie simplement accolé au nom (« les types du fossile Kabuto »)
+est orienté vers la fiche, qui ne contient pas les types.
 Les événements de function call ne prouvent pas à eux seuls les arguments
 corrigés envoyés au serveur. La campagne structurée instrumente les callbacks
 pour séparer proposition, arguments exécutés, MCP brut et adaptation ADK.

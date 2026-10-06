@@ -459,3 +459,44 @@ def test_subgroup_question_cannot_be_sent_to_a_tool_that_has_no_such_filter(cata
     refusal = before_tool_guard(_tool("pokemon_types"), {"pokemon": "Ptéra"}, _context("Quel est le fossile le plus rapide ?"))
     assert refusal["error"] == "unsupported_search_constraints"
     assert refusal["required_arguments"]["subgroup"] == "Fossile"
+
+
+CATEGORY_QUESTIONS = [
+    ("Dracolosse est-il un pseudo-légendaire ?", "Dracolosse"),
+    ("Dracolosse est-il un légendaire ?", "Dracolosse"),
+    ("Carabaffe est-il un starter ?", "Carabaffe"),
+]
+
+
+@pytest.mark.parametrize("question, pokemon", CATEGORY_QUESTIONS)
+@pytest.mark.parametrize("proposed", [{}, {"pokemon": "Mewtwo"}])
+def test_category_of_a_named_pokemon_is_answered_by_its_particularities(catalogue, question, pokemon, proposed):
+    # Régression : le mot de catégorie était exigé comme filtre de liste, donc refusé par tous les outils.
+    # La fiche renvoie le sous-groupe : la catégorie reste dans le résultat, sans devenir un argument.
+    args = dict(proposed)
+    assert before_tool_guard(_tool("pokemon_particularities"), args, _context(question)) is None
+    assert args == {"pokemon": pokemon}
+
+
+@pytest.mark.parametrize("question, pokemon", CATEGORY_QUESTIONS)
+@pytest.mark.parametrize("tool", ["pokemon_types", "pokemon_base_stats", "pokemon_pokedex_identity", "pokemon_search"])
+def test_category_of_a_named_pokemon_points_other_tools_to_its_particularities(catalogue, question, pokemon, tool):
+    args = {"pokemon": pokemon} if tool != "pokemon_search" else {}
+    original = dict(args)
+    refusal = before_tool_guard(_tool(tool), args, _context(question))
+    assert refusal["required_tool"] == "pokemon_particularities"
+    assert refusal["required_arguments"] == {"pokemon": pokemon}
+    assert args == original
+
+
+@pytest.mark.parametrize("question", [
+    "Quels sont les starters de la 4e génération ?",                 # liste : aucun Pokémon nommé
+    "Quels sont les légendaires de type Dragon ?",
+    "Quel est le légendaire le plus rapide après Dracolosse ?",     # Pokémon nommé, mais un classement reste exigé
+])
+def test_particularities_stay_refused_when_a_list_is_requested(catalogue, question):
+    args = {"pokemon": "Dracolosse"}
+    refusal = before_tool_guard(_tool("pokemon_particularities"), args, _context(question))
+    assert refusal["error"] == "unsupported_search_constraints"
+    assert refusal.get("required_tool") != "pokemon_particularities"
+    assert args == {"pokemon": "Dracolosse"}
