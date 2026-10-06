@@ -1171,3 +1171,132 @@ with the species name alone was rejected as ambiguous. The species name now
 designates the PokéAPI default form, as the search and the movepool already
 did. A named form is never replaced, and the ambiguity remains an error when no
 default form is known.
+
+## 67. [Feature] HTTP API and Docker image for the structured engine
+
+Querying the data used to require the full Python environment, and usually a
+model. An HTTP API now exposes the SQL engine alone, with no model and no
+document search: someone who clones the repository can download the database
+published in the repository releases, start a container and send a request.
+
+The routes redefine nothing: each one calls the function of a structured MCP
+tool, with the same arguments, the same allowed values and the same validation.
+An argument added to a tool therefore appears in the API too. Responses
+distinguish an unknown Pokémon, a filter rejected by the engine, a value outside
+the schema and a missing database; in the last case the service reports itself
+unavailable instead of claiming to be healthy while failing every request.
+
+The address, name and key of the model server are read from the environment, so
+the other paths can target a different server depending on whether they run in a
+container or not.
+
+## 68. [Bug fix] Default entries named after their species
+
+A list of sixth-generation Legendaries read "Xerneas Paisible" and "Zygarde
+Forme 50 %". In the spreadsheet, sixty-one species have their default entry
+named with its form, and the search returned that name as is.
+
+When no form is requested, a result now carries the species name, for the search
+as well as for the types and identity of a named Pokémon. The selected form
+stays readable separately. As soon as a form, a form category or the full name
+of an entry is requested, the full name is kept. The choice is made in the
+engine, not by the model.
+
+## 69. [Bug fix] Document answers from the ADK agent
+
+A description question asked to the ADK agent never produced an answer drawn
+from Poképédia. Three causes were hiding one another.
+
+The agent waited only five seconds for a tool, while the first search loads two
+models and the corpus: the call was cut off. With that delay fixed, the Pokémon
+name copied in lowercase from the question matched no passage, because the index
+filter compares strings as they are; it is now matched to the indexed name after
+normalisation, never by substring. Finally the tool catalogue and the passages
+did not fit together in the request budget: once passages are received, the
+model writes without the catalogue, as it already did after a complete
+structured answer.
+
+In the first two cases the model received an error or an empty list and answered
+from memory, despite its instruction. The check no longer relies on it: an
+answer written while no tool returned a usable result is replaced by a fixed
+unavailability message. Another tool attempt remains possible, and an empty
+structured list remains a valid answer.
+
+## 70. [Feature] Web interface and model served by Docker
+
+The project had to be usable without installing LM Studio. The web interface now
+runs in a container, and an optional service serves Qwen with Ollama; outside a
+container, LM Studio remains the default target. The model is fetched on first
+start, and the interface waits until it is ready.
+
+Two measurements guided the containerisation. Read from a shared Windows folder,
+the document index loaded in 44 seconds; placed in a volume, in 12. That loading
+now happens when the page opens rather than during the first question. Served by
+Ollama, the model first exhausted the memory granted to Docker and its
+generation fell below one token per second: its context memory is compressed,
+and the memory granted to Docker was raised.
+
+The interface displays the times measured by the tools themselves, database
+loading, search steps and SQL duration, together with tokens read and generated.
+These measurements are not sent to the model. Every question is traced with its
+tool calls, their results and the answer, which makes it possible to review an
+answer against the data that produced it.
+
+## 71. [Feature] Statistics, particularities and spreadsheet filters
+
+The reference spreadsheet held far more than the tools exposed: abilities,
+subgroup, evolution stage, statistic records, spotlight and acquisition at the
+Pokémon's release. The agent instruction even declared abilities unavailable.
+Besides, no tool gave the statistic of a named Pokémon: the search was refused
+for lack of a name filter, the accepted tools returned no statistic, and the
+model answered from memory.
+
+Two tools now take a named Pokémon: one returns its base statistics and their
+sum computed in SQL, the other what the spreadsheet records as particular to it.
+The search also filters by subgroup, evolution stage and ability; an unknown
+value there is an error listing the allowed values, not an empty list.
+
+The guard points to the statistics tool when the question names a Pokémon. It
+restores the subgroup named in the question, which the model translated into
+English, and no longer reads "pseudo-legendary" as "legendary", which would have
+emptied the list. The request budget was raised to keep the margin needed for a
+retry after a refusal, the traces showing that a request at this limit stays far
+from the context window.
+
+The end-to-end campaign was rebalanced: redundant rankings and long lists, which
+lengthened generation without checking anything more, gave way to these
+additions, to counts and to an unknown Pokémon whose expected answer is an
+abstention.
+
+## 72. [Bug fix] Evolution conditions invented, omitted or denied
+
+For an evolution by levelling up without a threshold, the agent announced a
+level that did not exist, then, once that was fixed, omitted or denied the real
+condition when it was a rare one, such as a number of steps.
+
+The trigger is now presented to the model with a French label. Rewording that
+label, however, changed almost nothing for the conditions: it was their
+translation, keys and values, in the model's view that made them reappear. An
+English technical key next to a bare number was not understood. The engine, the
+MCP server and the API keep the original identifiers.
+
+The campaign did not see this defect: it checked that no level was invented, not
+that the conditions were present, and an answer denying a condition passed. It
+now requires every condition returned by the tool to appear in the answer.
+
+## 73. [Bug fix] Description questions and double requests
+
+For "describe this Pokémon", the model could call the types tool, or none, then
+write a description from memory. The guard now refuses any tool other than the
+document search for a purely descriptive question, and a description written
+without any passage is replaced by the abstention.
+
+A question asking for both a description and a structured fact produced invented
+types. It is refused before any model call, with the instruction to ask the two
+questions separately. Recognition is word-based, so some single requests are
+refused as well.
+
+A separate campaign covers these questions. Its checks bear on the process;
+reviewing the answers against the passages shows that a description can still
+copy an off-topic record or infer a habitat the passages do not mention, as this
+path has no faithfulness check.
