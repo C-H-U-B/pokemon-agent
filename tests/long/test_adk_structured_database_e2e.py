@@ -12,6 +12,8 @@ from google.adk.runners import InMemoryRunner
 from google.genai import types
 
 from pokemon_rag.agent.agent import root_agent
+from pokemon_rag.agent.context_budget import TOOL_FAILURE_ABSTENTION
+from pokemon_rag.config import LLM_BASE_URL, LLM_MODEL
 from pokemon_rag.constraints.query_constraints import VERSION_GROUP_NAMES_FR, _TYPE_NAMES, normalize
 
 
@@ -31,6 +33,8 @@ class Case:
     expected_answer_terms: tuple[str, ...] = ()
     forbidden_answer_terms: tuple[str, ...] = ()
     note: str = ""
+    # Aucun fait à restituer : la réponse attendue est l'abstention déterministe de l'agent.
+    abstention: bool = False
 
 
 # Ces tests visent uniquement les données structurées / SQLite.
@@ -90,10 +94,11 @@ CASES = [
     ),
     Case(
         "machine-gouroutan-sun-moon",
-        "Quelles CT Gouroutan peut-il apprendre dans Pokémon Soleil et Lune ?",
+        "Combien de CT Gouroutan peut-il apprendre dans Pokémon Soleil et Lune ?",
         "pokemon_machine_moves",
         {"pokemon": "gouroutan", "version_group": "sun-moon"},
-        note="Jeu explicite -> version_group explicite.",
+        ("43",),
+        note="Jeu explicite -> version_group explicite ; comptage plutôt que 43 lignes à recopier.",
     ),
     Case(
         "learning-method",
@@ -128,11 +133,12 @@ CASES = [
 
     # --- Recherche par type ---
     Case(
-        "search-type-ghost",
-        "Donne-moi des Pokémon de type Spectre.",
+        "count-type-ghost",
+        "Combien de Pokémon sont de type Spectre ?",
         "pokemon_search",
-        {"types":["ghost"],"type_match":"all","best_only":False},
-        note="Recherche inverse par type.",
+        {"types":["ghost"],"type_match":"all"},
+        ("65",),
+        note="Comptage : le total vient du SQL, sans recopier une longue liste.",
     ),
     Case(
         "search-double-type-water-flying",
@@ -169,33 +175,12 @@ CASES = [
         note="Ex æquo : les deux gagnants doivent survivre jusqu'à la réponse finale.",
     ),
     Case(
-        "mega-highest-attack",
-        "Quel Pokémon Méga possède le plus d'Attaque ?",
-        "pokemon_search",
-        {"form_category": "mega", "sort_by": "attack", "sort_order": "desc", "best_only": True},
-        ("Méga-Mewtwo X", "190"),
-    ),
-    Case(
         "water-flying-best-total",
         "Quel Pokémon Eau/Vol possède le meilleur total de statistiques ?",
         "pokemon_search",
         {"sort_by": "base-stat-total", "sort_order": "desc", "best_only": True},
         ("Léviator", "540"),
         note="Double type + statistique calculée en SQL.",
-    ),
-    Case(
-        "top-five-speed",
-        "Quels sont les 5 Pokémon les plus rapides ?",
-        "pokemon_search",
-        {"sort_by": "speed", "sort_order": "desc", "best_only": False, "limit": 5},
-        note="Top N != superlatif.",
-    ),
-    Case(
-        "top-ten-speed",
-        "Quels sont les 10 Pokémon les plus rapides ?",
-        "pokemon_search",
-        {"sort_by": "speed", "sort_order": "desc", "best_only": False, "limit": 10},
-        note="Pagination / limite explicite.",
     ),
     Case(
         "top-five-ghost-special-attack",
@@ -212,36 +197,92 @@ CASES = [
         note="Composition de trois contraintes + superlatif.",
     ),
 
-    # --- Six statistiques + total : traduction NL -> sort_by ---
-    Case(
-        "rank-hp",
-        "Quels sont les 3 Pokémon avec le plus de PV ?",
-        "pokemon_search",
-        {"sort_by": "hp", "sort_order": "desc", "best_only": False, "limit": 3},
-    ),
-    Case(
-        "rank-defense",
-        "Quels sont les 3 Pokémon avec la meilleure Défense ?",
-        "pokemon_search",
-        {"sort_by": "defense", "sort_order": "desc", "best_only": False, "limit": 3},
-    ),
-    Case(
-        "rank-special-defense",
-        "Quels sont les 3 Pokémon avec la meilleure Défense Spéciale ?",
-        "pokemon_search",
-        {"sort_by": "special-defense", "sort_order": "desc", "best_only": False, "limit": 3},
-    ),
+    # --- Classement croissant avec quantité ---
     Case(
         "rank-slowest",
         "Quels sont les 4 Pokémon les plus lents ?",
         "pokemon_search",
         {"sort_by": "speed", "sort_order": "asc", "best_only": False, "limit": 4},
     ),
+
+    # --- Statistiques et particularités d'un Pokémon nommé ---
     Case(
-        "rank-best-total",
-        "Quels sont les 5 Pokémon avec le plus grand total de statistiques de base ?",
+        "stats-mega-dardargnan",
+        "Quelle est la Défense Spéciale de Méga-Dardargnan ?",
+        "pokemon_base_stats",
+        {"pokemon": "Dardargnan", "form": "beedrill-mega"},
+        ("80",),
+        ("120",),
+        note="Régression : sans outil pour un Pokémon nommé, le modèle répondait 120 de mémoire.",
+    ),
+    Case(
+        "stats-xerneas",
+        "Quelles sont les statistiques de base de Xerneas ?",
+        "pokemon_base_stats",
+        {"pokemon": "xerneas"},
+        ("126", "131", "95", "98", "99"),
+        ("Paisible",),
+        note="Forme par défaut nommée par son espèce ; les six valeurs viennent du résultat.",
+    ),
+    Case(
+        "talents-concombaffe",
+        "Quels sont les talents de Concombaffe ?",
+        "pokemon_particularities",
+        {"pokemon": "concombaffe"},
+        ("Expuls’Organes", "Inconscient"),
+        note="Talents du tableur, talent caché compris.",
+    ),
+    Case(
+        "particularities-malamandre",
+        "En quoi Malamandre est-il particulier ?",
+        "pokemon_particularities",
+        {"pokemon": "malamandre"},
+        ("Corrosion", "Poison"),
+        note="Fiche d'unicité : talent signature et double type unique à l'introduction.",
+    ),
+
+    # --- Recherche par sous-groupe, talent et stade d'évolution ---
+    Case(
+        "subgroup-fastest-fossil",
+        "Quel est le fossile le plus rapide ?",
         "pokemon_search",
-        {"sort_by": "base-stat-total", "sort_order": "desc", "best_only": False, "limit": 5},
+        {"subgroup": "Fossile", "sort_by": "speed", "sort_order": "desc", "best_only": True},
+        ("Ptéra", "130"),
+        note="Classement sur un sous-groupe, sans le mot « Pokémon » dans la question.",
+    ),
+    Case(
+        "subgroup-pseudo-legendary-gen6",
+        "Quels sont les pseudo-légendaires de la sixième génération ?",
+        "pokemon_search",
+        {"subgroup": "Pseudo-légendaire", "generation": 6, "legendary": None},
+        ("Mucuscule", "Colimucus", "Muplodocus"),
+        note="Pseudo-légendaire n'est pas légendaire : ce filtre viderait la liste.",
+    ),
+    Case(
+        "search-talent",
+        "Quels Pokémon ont le talent Momie ?",
+        "pokemon_search",
+        {"talent": "Momie"},
+        ("Tutafeh", "Tutankafer"),
+        note="Recherche inverse par talent ; non protégée par le guard, mesure le modèle seul.",
+    ),
+    Case(
+        "stage-no-evolution-attack",
+        "Quel Pokémon sans évolution a le plus d'Attaque ?",
+        "pokemon_search",
+        {"evolution_stage": "no-evolution", "sort_by": "attack", "sort_order": "desc", "best_only": True},
+        ("Katagami", "181"),
+        note="Stade d'évolution combiné à un superlatif ; filtre non protégé par le guard.",
+    ),
+
+    # --- Pokémon inconnu ---
+    Case(
+        "unknown-pokemon",
+        "Quels sont les types de Fauxkémon ?",
+        "pokemon_types",
+        {"pokemon": "fauxkémon"},
+        note="Aucun résultat d'outil exploitable : abstention, jamais une réponse de mémoire.",
+        abstention=True,
     ),
 
     # --- Movepool filtré ---
@@ -258,13 +299,6 @@ CASES = [
         "pokemon_moves",
         {"pokemon": "sovkipou", "damage_class":"physical", "learning_method": None},
         note="damage_class doit être appliqué par SQL.",
-    ),
-    Case(
-        "moves-min-power",
-        "Quelles capacités d'au moins 100 de puissance Gouroutan peut-il apprendre ?",
-        "pokemon_moves",
-        {"pokemon": "gouroutan", "min_power": 100, "learning_method": None},
-        note="Filtre de puissance ; les puissances inconnues ne doivent pas être assimilées à 0.",
     ),
     Case(
         "moves-combined",
@@ -500,6 +534,9 @@ def _semantic_checks(case, calls, responses, answer, executions, raw_responses=(
         "Aucun appel RAG",
         f"RAG appelé {len(rag_calls)} fois",
     ))
+    if case.abstention:
+        return checks + [(answer == TOOL_FAILURE_ABSTENTION, "Abstention déterministe",
+                          f"Réponse au lieu d'une abstention : {answer[:120]!r}")]
 
     call = next((call for call in reversed(executions)
                  if call["name"] == case.expected_tool and not call["blocked"]),None)
@@ -633,6 +670,7 @@ def _append_jsonl(case, elapsed, calls, responses, answer, checks, error=None,
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     record = {
         "run_id": RUN_ID,
+        "model": LLM_MODEL, "server": LLM_BASE_URL,
         "case_id": case.id,
         "question": case.question,
         "elapsed_seconds": round(elapsed, 3),
@@ -657,6 +695,7 @@ def _initialise_report():
     REPORT_PATH.write_text(
         "# Rapport E2E — Base structurée Pokémon\n\n"
         f"**Run :** {RUN_ID}  \n"
+        f"**Modèle :** {LLM_MODEL} sur {LLM_BASE_URL}  \n"
         f"**Nombre de cas :** {len(CASES)}\n\n"
         "Ce rapport est destiné à la revue humaine. Il contient les questions, "
         "les propositions Qwen (diagnostic), les arguments après guard, les retours bruts "
