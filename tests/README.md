@@ -219,12 +219,17 @@ vérifie les jeux récents, anciens et historiques, sans LLM.
 Les tests du vrai runner simulant le modèle couvrent également les listes de
 huit et neuf résultats ainsi que les CT d'un Pokémon substitué par Qwen.
 
-La campagne structurée compte 32 cas : types, identité, évolutions, capacités,
+La campagne structurée compte 33 cas : types, identité, évolutions (dont deux
+gains de niveau sans seuil : une capacité connue, un nombre de pas), capacités,
 recherche et classements, statistiques et particularités d'un Pokémon nommé,
 recherche par sous-groupe, talent et stade d'évolution, un comptage et un
 Pokémon inconnu dont la réponse attendue est l'abstention. Elle évite les
 listes longues, qui allongent la génération sans rien vérifier de plus. Le
 rapport et chaque ligne JSONL nomment le modèle et le serveur utilisés.
+Pour une évolution, chaque condition renvoyée par l'outil (nombre, nom
+français, moment de la journée) doit se retrouver dans la réponse : sans ce
+contrôle, une réponse niant une condition passait. Il ne détecte pas une
+condition citée puis niée dans la même phrase.
 `long/test_adk_documentary_e2e.py` est une campagne séparée de cinq questions
 de description : elle charge les modèles de recherche et vérifie que la
 réponse s'appuie sur des passages trouvés, ou s'abstient.

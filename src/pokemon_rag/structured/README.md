@@ -151,6 +151,16 @@ catalogue lié, sans substitution d'une forme. Cette couverture est calculée
 depuis les données, pas une liste d'exceptions codée en dur. La base actuelle est
 complète, ce que vérifie un test `real_data`.
 
+`get_evolutions` accompagne l'identifiant `trigger` de PokéAPI d'un libellé
+`trigger_fr` pour la montée de niveau, l'objet et l'échange. Une montée de
+niveau sans `minimum_level` y est dite « quel que soit le niveau » : le
+seul identifiant `level-up` était restitué comme un seuil de niveau inventé.
+L'agent ADK ne transmet au modèle que ce libellé, et traduit aussi les clés et
+valeurs de `conditions` (« nombre de pas minimum », « moment de la journée :
+jour ») : c'est cette traduction, et non le libellé du déclencheur, qui a fait
+disparaître les conditions omises ou niées dans les réponses. Le moteur, le
+serveur MCP et l'API HTTP gardent les identifiants d'origine.
+
 `get_base_stats` et `get_particularities` lisent la ligne du tableur
 (`custom_pokedex_fr`) de l'entrée résolue. Le total des statistiques est une
 somme SQL, pas la valeur stockée. `search_pokemon` filtre aussi par

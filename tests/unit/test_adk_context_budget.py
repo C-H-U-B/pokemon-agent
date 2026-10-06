@@ -513,3 +513,48 @@ def test_first_call_of_a_description_question_may_still_request_a_tool():
     call = LlmResponse(content=types.Content(role="model", parts=[types.Part(
         function_call=types.FunctionCall(name="pokemon_rag_search", args={"question": "Décris Tutafeh"}))]))
     assert after_model_abstention(ctx, call) is None
+
+
+def test_evolution_trigger_reaches_the_model_in_french_without_the_technical_identifier():
+    # Régression : « level-up » sans niveau minimum était restitué comme « au moins niveau 30 ».
+    raw = {"operation": "get_evolutions", "pokemon": "Capumain", "count": 1, "evolutions": [{
+        "from": {"name_fr": "Capumain", "name_en": "Aipom"}, "to": {"name_fr": "Capidextre", "name_en": "Ambipom"},
+        "trigger": "level-up", "trigger_fr": "gain d'un niveau, quel que soit le niveau",
+        "version_group": "diamond-pearl", "conditions": {"known_move": {"fr": "Coup Double", "en": "Double Hit"}}}]}
+    original = deepcopy(raw)
+    seen = bounded_tool_result(raw, question="En quoi Capumain évolue-t-il ?")
+    evolution = seen["evolutions"][0]
+    assert evolution["trigger"] == "gain d'un niveau, quel que soit le niveau" and "trigger_fr" not in evolution
+    assert "level-up" not in json.dumps(seen, ensure_ascii=False)
+    assert evolution["conditions"] == {"capacité connue": "Coup Double"} and raw == original
+
+
+@pytest.mark.parametrize("conditions, seen", [
+    # Régression : « minimum_steps: 1000 » était omis ou nié (« aucune condition de pas »).
+    ({"minimum_steps": 1000}, {"nombre de pas minimum": 1000}),
+    ({"time_of_day": "day", "minimum_happiness": 160}, {"moment de la journée": "jour", "bonheur minimum": 160}),
+    ({"time_of_day": "night", "held_item": {"fr": "Griffe Rasoir", "en": "Razor Claw"}},
+     {"moment de la journée": "nuit", "objet tenu": "Griffe Rasoir"}),
+    ({"minimum_level": 16}, {"niveau minimum": 16}),
+    ({"near_special_rock": 1, "location": {"fr": "Forêt Vestigion", "en": "Eterna Forest"}},
+     {"près d'un rocher spécial": "oui", "lieu": "Forêt Vestigion"}),
+    ({"gender": "female", "minimum_level": 33}, {"sexe": "femelle", "niveau minimum": 33}),
+    # Clé sans libellé connu : transmise telle quelle, jamais supprimée.
+    ({"condition_expression": "EC 100 % 0 ==", "percentage_chance": 1},
+     {"condition_expression": "EC 100 % 0 ==", "probabilité en pourcentage": 1}),
+    ({}, {}),
+])
+def test_evolution_conditions_reach_the_model_in_french_without_losing_any(conditions, seen):
+    raw = {"operation": "get_evolutions", "count": 1, "evolutions": [{
+        "to": {"name_fr": "Cible"}, "trigger": "level-up", "conditions": conditions}]}
+    original = deepcopy(raw)
+    result = bounded_tool_result(raw, question="Comment évolue-t-il ?")
+    assert result["evolutions"][0]["conditions"] == seen
+    assert len(seen) == len(conditions) and raw == original
+
+
+def test_english_names_stay_available_in_conditions_when_english_is_requested():
+    raw = {"operation": "get_evolutions", "count": 1, "evolutions": [{
+        "trigger": "level-up", "conditions": {"held_item": {"fr": "Griffe Rasoir", "en": "Razor Claw"}}}]}
+    result = bounded_tool_result(raw, keep_english=True, question="Donne aussi le nom anglais")
+    assert result["evolutions"][0]["conditions"] == {"objet tenu": {"fr": "Griffe Rasoir", "en": "Razor Claw"}}
