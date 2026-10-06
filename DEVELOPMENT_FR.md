@@ -1234,3 +1234,137 @@ nom d'espèce désigne maintenant la forme par défaut de PokéAPI, comme le
 faisaient déjà la recherche et le movepool. Une forme nommée n'est jamais
 remplacée, et l'ambiguïté reste une erreur lorsqu'aucune forme par défaut n'est
 connue.
+
+## 67. [Feature] API HTTP et image Docker pour le moteur structuré
+
+Interroger les données demandait jusque-là l'environnement Python complet, et le
+plus souvent un modèle. Une API HTTP expose désormais le moteur SQL seul, sans
+modèle ni recherche documentaire : une personne qui clone le dépôt peut
+télécharger la base publiée dans les versions du dépôt, lancer un conteneur et
+poser une requête.
+
+Les routes ne redéfinissent rien : chacune appelle la fonction d'un outil MCP
+structuré, avec les mêmes arguments, les mêmes valeurs admises et les mêmes
+validations. Un argument ajouté à un outil apparaît donc aussi dans l'API. Les
+réponses distinguent un Pokémon introuvable, un filtre refusé par le moteur, une
+valeur hors du schéma et une base absente ; dans ce dernier cas le service se
+déclare indisponible au lieu de se dire sain tout en échouant à chaque requête.
+
+L'adresse, le nom et la clé du serveur de modèle se lisent dans l'environnement,
+ce qui permet aux autres parcours de viser un serveur différent selon qu'ils
+tournent dans un conteneur ou non.
+
+## 68. [Bug fix] Entrées par défaut nommées par leur espèce
+
+Une liste des légendaires de sixième génération citait « Xerneas Paisible » et
+« Zygarde Forme 50 % ». Dans le tableur, soixante et une espèces ont leur entrée
+par défaut nommée avec sa forme, et la recherche renvoyait ce nom tel quel.
+
+Sans forme demandée, un résultat porte maintenant le nom de l'espèce, pour la
+recherche comme pour les types et l'identité d'un Pokémon nommé. La forme
+retenue reste lisible à part. Dès qu'une forme, une catégorie de formes ou le
+nom complet d'une entrée est demandé, le nom complet est conservé. Le choix se
+fait dans le moteur, pas dans le modèle.
+
+## 69. [Bug fix] Réponses documentaires de l'agent ADK
+
+Une question de description posée à l'agent ADK n'aboutissait jamais à une
+réponse tirée de Poképédia. Trois causes se masquaient l'une l'autre.
+
+L'agent n'attendait un outil que cinq secondes, alors que la première recherche
+charge deux modèles et le corpus : l'appel était coupé. Ce délai corrigé, le nom
+du Pokémon recopié en minuscules depuis la question ne trouvait aucun passage,
+le filtre de l'index comparant les chaînes telles quelles ; il est désormais
+rapproché du nom indexé après normalisation, jamais par sous-chaîne. Enfin le
+catalogue d'outils et les passages ne tenaient pas ensemble dans le budget de
+requête : une fois les passages reçus, le modèle rédige sans le catalogue, comme
+il le faisait déjà après une réponse structurée complète.
+
+Dans les deux premiers cas, le modèle recevait une erreur ou une liste vide et
+répondait de mémoire, malgré la consigne. Le contrôle ne repose plus sur lui :
+une réponse rédigée alors qu'aucun outil n'a renvoyé de résultat exploitable est
+remplacée par un message fixe d'indisponibilité. Une nouvelle tentative d'outil
+reste possible, et une liste structurée vide reste une réponse valable.
+
+## 70. [Feature] Interface Web et modèle servis par Docker
+
+Le projet devait pouvoir être essayé sans installer LM Studio. L'interface Web
+tourne désormais dans un conteneur, et un service optionnel sert Qwen avec
+Ollama ; hors conteneur, LM Studio reste la cible par défaut. Le modèle est
+récupéré au premier démarrage, et l'interface attend qu'il soit prêt.
+
+Deux mesures ont guidé la mise en conteneur. Lu depuis un dossier Windows
+partagé, l'index documentaire se chargeait en 44 secondes ; placé dans un volume,
+en 12. Ce chargement se fait maintenant à l'ouverture de la page plutôt que
+pendant la première question. Servi par Ollama, le modèle a d'abord saturé la
+mémoire accordée à Docker et sa génération est tombée sous un token par
+seconde : la mémoire de son contexte est compressée, et la mémoire accordée
+à Docker a été relevée.
+
+L'interface affiche les temps mesurés par les outils eux-mêmes, chargement de la
+base, étapes de la recherche et durée SQL, ainsi que les tokens lus et générés.
+Ces mesures ne sont pas envoyées au modèle. Chaque question est tracée avec ses
+appels d'outils, leurs résultats et la réponse, ce qui permet de relire une
+réponse face aux données qui l'ont produite.
+
+## 71. [Feature] Statistiques, particularités et filtres du tableur
+
+Le tableur de référence contenait bien plus que ce que les outils exposaient :
+talents, sous-groupe, stade d'évolution, records de statistiques, mise en avant
+et obtention à la sortie du Pokémon. La consigne de l'agent déclarait même les
+talents indisponibles. Par ailleurs, aucun outil ne donnait la statistique d'un
+Pokémon nommé : la recherche était refusée faute de filtre par nom, les outils
+acceptés ne renvoyaient pas de statistique, et le modèle répondait de mémoire.
+
+Deux outils prennent maintenant un Pokémon nommé : l'un renvoie ses statistiques
+de base et leur somme calculée en SQL, l'autre ce que le tableur note de
+particulier pour lui. La recherche filtre aussi par sous-groupe, stade
+d'évolution et talent ; une valeur inconnue y est une erreur qui liste les
+valeurs admises, pas une liste vide.
+
+Le guard désigne l'outil de statistiques quand la question nomme un Pokémon. Il
+restaure le sous-groupe nommé dans la question, que le modèle traduisait en
+anglais, et ne lit plus « pseudo-légendaire » comme « légendaire », ce qui
+aurait vidé la liste. Le budget de requête a été relevé pour garder la marge
+nécessaire à une reprise après refus, les traces montrant qu'une requête à cette
+limite reste loin de la fenêtre de contexte.
+
+La campagne de bout en bout a été rééquilibrée : les classements redondants et
+les listes longues, qui allongeaient la génération sans rien vérifier de plus,
+ont laissé la place à ces nouveautés, à des comptages et à un Pokémon inconnu
+dont la réponse attendue est l'abstention.
+
+## 72. [Bug fix] Conditions d'évolution inventées, omises ou niées
+
+Pour une évolution par gain de niveau sans seuil, l'agent annonçait un niveau
+inexistant, puis, ce défaut corrigé, omettait ou niait la condition réelle
+lorsqu'elle était rare, comme un nombre de pas.
+
+Le déclencheur est maintenant présenté au modèle par un libellé français.
+Reformuler ce libellé n'a toutefois presque rien changé aux conditions : c'est
+leur traduction, clés et valeurs, dans la vue du modèle qui les a fait
+réapparaître. Une clé technique anglaise posée à côté d'un nombre nu n'était pas
+comprise. Le moteur, le serveur MCP et l'API gardent les identifiants d'origine.
+
+La campagne ne voyait pas ce défaut : elle vérifiait l'absence de niveau
+inventé, pas la présence des conditions, et une réponse qui niait une condition
+passait. Elle exige désormais que chaque condition renvoyée par l'outil se
+retrouve dans la réponse.
+
+## 73. [Bug fix] Questions de description et doubles demandes
+
+Pour « décris tel Pokémon », le modèle pouvait appeler l'outil des types, ou
+aucun, puis rédiger une description de mémoire. Le guard refuse maintenant tout
+autre outil que la recherche documentaire pour une question purement
+descriptive, et une description rédigée sans aucun passage est remplacée par
+l'abstention.
+
+Une question demandant à la fois une description et un fait structuré a donné
+des types inventés. Elle est refusée avant tout appel au modèle, avec la
+consigne de poser les deux questions séparément. La reconnaissance se fait par
+mots, si bien que certaines demandes uniques sont refusées aussi.
+
+Une campagne séparée couvre ces questions. Ses contrôles portent sur le
+déroulement ; la relecture des réponses face aux passages montre qu'une
+description peut encore recopier une fiche hors sujet ou déduire un habitat que
+les passages ne mentionnent pas, ce parcours n'ayant pas de contrôle de fidélité.
