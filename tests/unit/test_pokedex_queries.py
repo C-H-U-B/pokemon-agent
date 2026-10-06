@@ -143,3 +143,65 @@ def test_sql_engine_mcp_server_and_guard_load_no_llm_client():
             "sys.exit(', '.join(loaded) or 0)")
     result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
+
+
+@pytest.fixture
+def spreadsheet(monkeypatch):
+    """Deux formes d'une espèce avec leur ligne de tableur ; le total stocké est volontairement faux."""
+    def connect():
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.executescript('''
+            CREATE TABLE custom_pokedex(source_row INTEGER, species_id INTEGER, is_default INTEGER,
+              pokemon_form_id INTEGER, name_fr TEXT, name_en TEXT, pokemon_identifier TEXT,
+              form_identifier TEXT, form_fr TEXT, form_en TEXT);
+            INSERT INTO custom_pokedex VALUES
+              (20,15,1,15,'Dardargnan','Beedrill','beedrill','beedrill',NULL,NULL),
+              (21,15,0,10090,'Méga-Dardargnan','Mega Beedrill','beedrill-mega','beedrill-mega','Méga','Mega');
+            CREATE TABLE custom_pokedex_fr(source_row INTEGER, total_de_base INTEGER, pv INTEGER, attaque INTEGER,
+              defense INTEGER, attaque_speciale INTEGER, defense_speciale INTEGER, vitesse INTEGER,
+              talent_1 TEXT, talent_2 TEXT, talent_cache TEXT, talent_signature TEXT,
+              double_type_unique_a_l_introduction TEXT, stade_d_evolution TEXT, sous_groupe TEXT,
+              analyse_des_statistiques TEXT, mise_en_avant_a_l_introduction TEXT,
+              rencontre_ou_obtention_a_l_introduction TEXT, particularite_du_movepool TEXT,
+              autre_particularite TEXT, differences_physiques_selon_le_sexe TEXT);
+            INSERT INTO custom_pokedex_fr VALUES
+              (20,999,65,90,40,45,80,75,'Essaim',NULL,'Sniper',NULL,NULL,'Final · stade 3',
+               'Insecte de début d’aventure',NULL,NULL,NULL,NULL,'Possède une Méga-Évolution introduite en G6.',''),
+              (21,999,65,150,40,15,80,145,'Adaptabilité',NULL,NULL,NULL,NULL,'Méga-Évolution',
+               'Insecte de début d’aventure ; Méga-Évolution','Top 10 global — Attaque',NULL,NULL,NULL,NULL,NULL);
+        ''')
+        return conn
+    monkeypatch.setattr(engine, "_connect", connect)
+
+
+@pytest.mark.parametrize("pokemon, form", [("Méga-Dardargnan", None), ("Dardargnan", "beedrill-mega"), ("Dardargnan", "Méga")])
+def test_base_stats_of_a_named_form_are_read_for_that_form_with_a_sql_total(spreadsheet, pokemon, form):
+    # Régression : aucune opération ne donnait la statistique d'un Pokémon nommé ; le modèle répondait de mémoire.
+    result = engine.get_base_stats(pokemon, form)
+    assert result["operation"] == "get_base_stats" and result["pokemon"] == "Méga-Dardargnan" and result["count"] == 1
+    assert result["rows"] == [{"name_fr": "Méga-Dardargnan", "PV": 65, "Attaque": 150, "Défense": 40,
+                               "Attaque Spéciale": 15, "Défense Spéciale": 80, "Vitesse": 145,
+                               "Total des statistiques": 495}]  # somme SQL, pas le total stocké (999)
+
+
+def test_base_stats_without_form_use_the_default_entry_not_the_mega(spreadsheet):
+    row = engine.get_base_stats("Dardargnan")["rows"][0]
+    assert (row["name_fr"], row["Attaque"], row["Vitesse"], row["Total des statistiques"]) == ("Dardargnan", 90, 75, 395)
+
+
+def test_particularities_keep_filled_headings_only_and_stay_form_specific(spreadsheet):
+    base = engine.get_particularities("Dardargnan")["rows"][0]
+    assert base == {"name_fr": "Dardargnan", "Talent 1": "Essaim", "Talent caché": "Sniper",
+                    "Stade d'évolution": "Final · stade 3", "Sous-groupe": "Insecte de début d’aventure",
+                    "Autre particularité": "Possède une Méga-Évolution introduite en G6."}
+    mega = engine.get_particularities("Méga-Dardargnan")["rows"][0]
+    assert mega["Talent 1"] == "Adaptabilité" and "Talent caché" not in mega
+    assert mega["Statistiques remarquables"] == "Top 10 global — Attaque"
+
+
+@pytest.mark.parametrize("function", [engine.get_base_stats, engine.get_particularities])
+@pytest.mark.parametrize("pokemon, form", [("Inconnu", None), ("Dardargnan", "alola"), ("", None)])
+def test_stats_and_particularities_of_unknown_entry_or_form_are_errors(spreadsheet, function, pokemon, form):
+    with pytest.raises(ValueError):
+        function(pokemon, form)

@@ -19,6 +19,8 @@ EXPECTED_TOOLS = {
     "pokemon_types",
     "pokemon_pokedex_identity",
     "pokemon_signature_moves",
+    "pokemon_base_stats",
+    "pokemon_particularities",
     "pokemon_rag_search",
     "pokemon_search",
     "pokemon_moves",
@@ -46,7 +48,25 @@ async def _check_server() -> None:
 
             assert set(tools) == EXPECTED_TOOLS
 
+            # Nouveaux outils nommés : appel réel à travers stdio, forme comprise.
+            stats = await session.call_tool("pokemon_base_stats", arguments={"pokemon": "Dardargnan", "form": "beedrill-mega"})
+            assert not stats.is_error
+            assert stats.structured_content["rows"][0]["Défense Spéciale"] == 80
+            facts = await session.call_tool("pokemon_particularities", arguments={"pokemon": "Dracolosse"})
+            assert facts.structured_content["rows"][0]["Sous-groupe"] == "Pseudo-légendaire"
+            unknown = await session.call_tool("pokemon_base_stats", arguments={"pokemon": "Fauxkémon"})
+            assert unknown.is_error
+
             schema = tools["pokemon_search"].input_schema["properties"]
+            stage = next(option for option in schema["evolution_stage"]["anyOf"] if "enum" in option)
+            assert set(stage["enum"]) == {"base", "intermediate", "final", "no-evolution", "baby"}
+            fossil = await session.call_tool("pokemon_search", arguments={
+                "subgroup": "fossile", "sort_by": "speed", "sort_order": "desc", "best_only": True})
+            assert fossil.structured_content["results"][0]["name_fr"] == "Ptéra"
+            holders = await session.call_tool("pokemon_search", arguments={"talent": "Multiécaille"})
+            assert [row["name_fr"] for row in holders.structured_content["results"]] == ["Dracolosse", "Lugia"]
+            wrong = await session.call_tool("pokemon_search", arguments={"subgroup": "pseudo"})
+            assert wrong.is_error  # valeur inconnue : erreur, pas liste vide
             assert set(schema["sort_by"]["enum"]) == {
                 "national_number", "hp", "attack", "defense", "special-attack",
                 "special-defense", "speed", "base-stat-total"}

@@ -2,6 +2,15 @@
 
 `server.py` expose les évolutions, les capacités, les types, l'identité Pokédex, les capacités signature et la recherche documentaire sous forme d'outils MCP.
 
+`pokemon_base_stats` et `pokemon_particularities` prennent un Pokémon nommé :
+le premier renvoie ses six statistiques de base et leur somme SQL, le second
+ce que le tableur note pour lui (talents, sous-groupe, stade d'évolution,
+records, double type unique, mise en avant, obtention, dimorphisme), rubriques
+vides omises. Les rubriques « à l'introduction » datent de la sortie du
+Pokémon. `pokemon_search` accepte en plus `subgroup`, `evolution_stage` et
+`talent`, comparés exactement aux valeurs du tableur après normalisation ; une
+valeur inconnue est une erreur qui liste les valeurs admises, pas une liste vide.
+
 Deux outils complètent les huit outils existants : `pokemon_search` appelle
 `search_pokemon` et `pokemon_moves` appelle `get_pokemon_moves`. Leurs signatures
 et contrats sont décrits dans le [guide structuré](../structured/README.md#recherche-pokémon-et-movepool-filtrable-via-mcp).
@@ -81,7 +90,7 @@ soumis à cette sélection automatique.
 ## Client local
 
 L'[agent ADK](../agent/README.md) constitue un autre client du serveur. Son
-catalogue expose les dix outils du serveur, y compris `pokemon_rag_search`.
+catalogue expose les douze outils du serveur, y compris `pokemon_rag_search`.
 Son callback préserve les
 contraintes reconnues de niveaux, puissance, jeux, formes, catégories/types de
 capacités, types de Pokémon, génération, classifications et classements ou refuse un outil

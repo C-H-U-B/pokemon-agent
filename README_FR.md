@@ -16,7 +16,7 @@ Le projet tourne entièrement en local : SQLite, ChromaDB et un modèle Qwen 8B 
 | Base relationnelle | 30 tables, 51 index, 8 vues ; 638 000 lignes d'apprentissage de capacités sur 32 groupes de jeux |
 | Référentiel | 1 025 espèces, 1 351 Pokémon, 1 579 formes, 937 capacités |
 | Index documentaire | 36 280 fragments vectorisés |
-| Tests | 1018 tests, dont 934 sans aucun modèle |
+| Tests | 1134 tests, dont 1044 sans aucun modèle |
 | Campagne de bout en bout | 31 questions sur 31 réussies avec un modèle local de 8 milliards de paramètres |
 
 ## Flux de données
@@ -75,7 +75,7 @@ Une anomalie de données rencontrée en cours de route illustre l'intérêt de c
 
 - **Moteur SQL.** Des fonctions paramétrées couvrent les évolutions, les capacités, les types, la recherche multicritère et les classements par statistique. Les filtres, les tris, les totaux et les égalités sont calculés en SQL. Le modèle de langage ne produit jamais de SQL : il choisit une opération et ses arguments.
 - **Recherche documentaire.** Recherche lexicale et vectorielle combinées, prise en compte de la structure des sections, puis reclassement.
-- **Serveur MCP.** Dix outils exposent ces fonctions à n'importe quel client compatible.
+- **Serveur MCP.** Douze outils exposent ces fonctions à n'importe quel client compatible.
 
 Trois façons de répondre à une question s'appuient sur ces mêmes données :
 

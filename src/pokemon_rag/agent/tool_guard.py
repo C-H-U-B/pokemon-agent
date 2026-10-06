@@ -6,7 +6,8 @@ import re
 from pokemon_rag.constraints.query_constraints import (
     ExplicitConstraints,
     extract_explicit_constraints, reconcile_search_args,
-    extract_named_pokemon, is_named_identity_question, without_unnamed_learning_method,
+    extract_named_pokemon, is_named_identity_question, is_named_stat_question, is_purely_documentary,
+    without_unnamed_learning_method,
     normalize,
     VERSION_ALIASES,
 )
@@ -32,6 +33,8 @@ FORM_TOOLS = {
     "pokemon_types",
     "pokemon_pokedex_identity",
     "pokemon_signature_moves",
+    "pokemon_base_stats",
+    "pokemon_particularities",
 }
 
 MOVE_FILTER_TOOLS = {"pokemon_moves", "pokemon_search"}
@@ -46,6 +49,7 @@ def _explicit_arguments(constraints: ExplicitConstraints) -> dict[str, Any]:
         ("version_group", constraints.version_group), ("move_type", constraints.move_type),
         ("damage_class", constraints.damage_class), ("legendary", constraints.legendary),
         ("mythical", constraints.mythical), ("form_category", constraints.form_category),
+        ("subgroup", constraints.subgroup),
     ) if value is not None}
     if constraints.pokemon_types:
         required.update(types=list(constraints.pokemon_types), type_match=constraints.type_match)
@@ -66,7 +70,7 @@ def _unsupported(tool_name: str, required: dict[str, Any]) -> dict[str, Any] | N
         ({"form"}, FORM_TOOLS, "unsupported_form_constraint"),
         ({"min_level", "max_level"}, LEVEL_TOOLS, "unsupported_level_constraints"),
         ({"move_type", "damage_class", "min_power", "max_power"}, MOVE_FILTER_TOOLS, "unsupported_move_constraints"),
-        ({"generation", "types", "type_match", "legendary", "mythical", "form_category",
+        ({"generation", "types", "type_match", "legendary", "mythical", "form_category", "subgroup",
           "sort_by", "sort_order", "best_only", "limit", "offset"}, {"pokemon_search"}, "unsupported_search_constraints"),
     )
     for fields, tools, error in groups:
@@ -123,6 +127,17 @@ def before_tool_guard(
         return None
 
     tool_name = getattr(tool, "name", "")
+    if tool_name != "pokemon_rag_search" and is_purely_documentary(question):
+        # Types, identité ou particularités ne décrivent pas un Pokémon : sans ce refus, le modèle
+        # disposait d'un résultat valide mais hors sujet et rédigeait la description de mémoire.
+        try:
+            entity = extract_named_pokemon(question, pokemon_name_catalogue())
+        except ValueError:
+            entity = None
+        return {"error": "documentary_question_requires_search", "selected_tool": tool_name,
+                "required_tool": "pokemon_rag_search",
+                "required_arguments": {"question": question, **({"pokemon": entity["pokemon"]} if entity else {})},
+                "message": "Question de description : seule la recherche Poképédia peut y répondre."}
     historical = tool_name in {"pokemon_level_up_moves", "pokemon_machine_moves", "pokemon_move_learning_methods"} and bool(
         re.search(r"(?:^|-)(?:historique|toutes-les-versions|tous-les-jeux|plusieurs-versions)(?:-|$)", normalize(question)))
     padded = "-" + normalize(question) + "-"
@@ -152,7 +167,9 @@ def before_tool_guard(
                     raise ValueError("La forme complète et la région explicites se contredisent.")
                 entity["form"] = constraints.form
             if tool_name == "pokemon_search" and constraints.national_number is None and (identity or corrected.get("pokedex_number") is None):
-                required = {"required_tool":"pokemon_pokedex_identity"} if identity else {}
+                # Désigner l'outil qui prend ce Pokémon en argument, sinon le modèle n'a aucune issue.
+                required = ({"required_tool":"pokemon_pokedex_identity"} if identity else
+                            {"required_tool":"pokemon_base_stats"} if is_named_stat_question(question) else {})
                 return {"error":"unsupported_named_pokemon_constraint", **required,
                         "required_arguments":entity,
                         "message":"Cet outil ne filtre pas par nom. Choisissez un outil compatible avec le Pokémon explicite."}

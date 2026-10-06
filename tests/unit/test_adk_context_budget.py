@@ -12,7 +12,7 @@ from google.adk.models.llm_response import LlmResponse
 
 from pokemon_rag.agent.context_budget import (
     after_model_abstention, before_model_budget, bounded_tool_result, after_tool_budget,
-    MAX_TOOL_RESULT_BYTES, TOOL_FAILURE_ABSTENTION, _size as budget_size,
+    MAX_REQUEST_BYTES, MAX_TOOL_RESULT_BYTES, TOOL_FAILURE_ABSTENTION, _size as budget_size,
 )
 
 
@@ -325,7 +325,7 @@ def test_budget_abstention_logs_its_reason_and_sizes_without_content(caplog):
         ctx = SimpleNamespace(state={"temp:model_calls": 4})
         assert before_model_budget(ctx, request()) is not None
     assert "request_too_large" in caplog.text and "too_many_model_calls" in caplog.text
-    assert "12000" in caplog.text and "🦕" not in caplog.text
+    assert f"limit={MAX_REQUEST_BYTES}" in caplog.text and "🦕" not in caplog.text
 
 
 def test_latest_game_without_pair_title_is_named_in_french():
@@ -351,7 +351,7 @@ NO_MATCH = {"operation": "search_pokemon", "results": [], "total_count": 0, "ret
 
 def model_turn(*results, answer=None, call=None):
     """Déroule les deux callbacks autour d'une réponse simulée du modèle ; renvoie le texte final."""
-    req = request("À quoi ressemble Mimiqui ?")
+    req = request("Quels sont les types de Mimiqui ?")
     for result in results:
         name = {"get_pokemon_types": "pokemon_types", "search_pokemon": "pokemon_search"}.get(
             result.get("operation"), "pokemon_rag_search")
@@ -469,3 +469,47 @@ def test_catalogue_stays_when_another_tool_call_may_still_be_needed(result, ques
     req = documentary_request(result, question)
     before_model_budget(SimpleNamespace(state={}), req)
     assert req.config.tools
+
+
+def documentary_turn(question, *results, answer="Tutafeh est un petit fantôme noir portant un masque doré."):
+    """Comme model_turn, pour une question donnée ; chaque résultat est (nom d'outil, réponse)."""
+    req = request(question)
+    for name, result in results:
+        req.contents.append(types.Content(role="user", parts=[types.Part(
+            function_response=types.FunctionResponse(name=name, response=result))]))
+    ctx = SimpleNamespace(state={})
+    assert before_model_budget(ctx, req) is None
+    response = LlmResponse(content=types.Content(role="model", parts=[types.Part(text=answer)]))
+    return ((after_model_abstention(ctx, response) or response).content.parts[0].text, req)
+
+
+@pytest.mark.parametrize("results", [
+    [],                                              # aucun outil appelé : description de mémoire
+    [("pokemon_types", TYPES)],                      # résultat valide mais qui ne décrit rien
+    [("pokemon_rag_search", NO_PASSAGE)],            # recherche vide
+    [("pokemon_types", TYPES), ("pokemon_rag_search", NO_PASSAGE)],
+])
+def test_description_written_without_any_passage_is_replaced(results):
+    # Régression : « décris Tutafeh » était rédigé sans appel à la recherche documentaire.
+    assert documentary_turn("Décris Tutafeh", *results)[0] == TOOL_FAILURE_ABSTENTION
+
+
+@pytest.mark.parametrize("question, results", [
+    ("Décris Tutafeh", [("pokemon_rag_search", PASSAGES)]),
+    ("Décris Tutafeh", [("pokemon_types", TIMEOUT), ("pokemon_rag_search", PASSAGES)]),
+    ("Décris Tutafeh et donne ses types", [("pokemon_types", TYPES)]),   # composée : hors de cette règle
+    ("Quels sont les types de Tutafeh ?", [("pokemon_types", TYPES)]),
+    ("Quels sont les types de Tutafeh ?", []),                           # sans outil : non couvert, inchangé
+])
+def test_description_with_passages_and_structured_questions_are_kept(question, results):
+    answer = "Réponse appuyée sur les outils."
+    assert documentary_turn(question, *results, answer=answer)[0] == answer
+
+
+def test_first_call_of_a_description_question_may_still_request_a_tool():
+    req = request("Décris Tutafeh")
+    ctx = SimpleNamespace(state={})
+    assert before_model_budget(ctx, req) is None
+    call = LlmResponse(content=types.Content(role="model", parts=[types.Part(
+        function_call=types.FunctionCall(name="pokemon_rag_search", args={"question": "Décris Tutafeh"}))]))
+    assert after_model_abstention(ctx, call) is None

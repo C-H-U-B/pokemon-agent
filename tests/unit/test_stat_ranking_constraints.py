@@ -109,3 +109,64 @@ def test_unrecognized_queries_and_named_comparisons_left_unchanged(question):
 def test_ambiguous_or_invalid_recognized_requests_are_rejected(question):
     with pytest.raises(ValueError):
         reconcile_stat_ranking_args(question,{})
+
+
+from pokemon_rag.constraints.query_constraints import (  # noqa: E402
+    SUBGROUP_ALIASES, extract_classifications, extract_explicit_constraints, extract_subgroup,
+)
+
+
+@pytest.mark.parametrize("question, subgroup", [
+    ("Quel est le fossile le plus rapide ?", "Fossile"),
+    ("Quels sont les starters de la première génération ?", "Starter"),
+    ("Liste les pseudo-légendaires", "Pseudo-légendaire"),
+    ("Quel Pokémon bébé a le plus de PV ?", "Pokémon bébé"),
+    ("Quelles sont les Ultra-Chimères ?", "Ultra-Chimère"),
+    ("Quel paradoxe antique est le plus rapide ?", "Paradoxe antique"),
+    ("Quels sont les légendaires secondaires de Sinnoh ?", "Légendaire secondaire"),
+    ("Quels sont les Pokémon légendaires ?", None),            # classification, pas sous-groupe
+    ("Quels sont les types de Fossilis ?", None),              # jamais par sous-chaîne
+    ("Quelles capacités apprend Dracolosse ?", None),
+])
+def test_subgroup_is_recognised_only_from_its_literal_name(question, subgroup):
+    assert extract_subgroup(question) == subgroup
+    assert extract_explicit_constraints(question).subgroup == subgroup
+
+
+def test_two_named_subgroups_are_not_representable():
+    with pytest.raises(ValueError, match="sous-groupes"):
+        extract_subgroup("Quels fossiles sont aussi des starters ?")
+
+
+def test_pseudo_legendary_is_not_a_legendary_mention():
+    # Régression : le filtre légendaire, ajouté à tort, vidait la liste des pseudo-légendaires.
+    assert extract_classifications("Quels sont les pseudo-légendaires ?") == {}
+    assert extract_classifications("Quels sont les légendaires ?") == {"legendary": True}
+    assert extract_classifications("Quel légendaire secondaire est le plus rapide ?") == {"legendary": True}
+
+
+@pytest.mark.parametrize("question, expected", [
+    ("Quel est le fossile le plus rapide ?", {"sort_by": "speed", "sort_order": "desc", "best_only": True}),
+    ("Quel starter a le plus d'Attaque ?", {"sort_by": "attack", "sort_order": "desc", "best_only": True}),
+    ("Quels sont les 3 fossiles les plus lents ?", {"sort_by": "speed", "sort_order": "asc", "best_only": False, "limit": 3}),
+    ("Quel est le légendaire le plus rapide ?", {"sort_by": "speed", "sort_order": "desc", "best_only": True}),
+    ("Quels sont les 5 pseudo-légendaires avec le plus de PV ?", {"sort_by": "hp", "sort_order": "desc", "limit": 5}),
+])
+def test_ranking_over_a_named_group_needs_no_pokemon_word(question, expected):
+    # Régression : sans le mot « Pokémon », le superlatif était « non reconnu » et l'appel refusé.
+    ranking = extract_stat_ranking_args(question)
+    assert ranking is not None and expected.items() <= ranking.items()
+
+
+def test_superlative_about_something_else_is_still_not_a_pokemon_ranking():
+    assert extract_stat_ranking_args("Quelle est la capacité la plus puissante de Dracolosse ?") is None
+
+
+@pytest.mark.real_data
+def test_every_subgroup_alias_names_a_value_of_the_spreadsheet():
+    import sqlite3
+    from pokemon_rag.config import DB_PATH
+    with sqlite3.connect(DB_PATH) as conn:
+        cells = [row[0] for row in conn.execute("SELECT DISTINCT sous_groupe FROM custom_pokedex_fr WHERE sous_groupe IS NOT NULL")]
+    known = {part.strip() for cell in cells for part in cell.split(" ; ")}
+    assert set(SUBGROUP_ALIASES.values()) <= known

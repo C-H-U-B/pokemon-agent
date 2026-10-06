@@ -590,3 +590,76 @@ def test_missing_default_mapping_is_reported_without_substituting_other_form(cat
     assert not result["catalogue_complete"]
     assert result["catalogue_missing_default_forms"] == [{"species_id": 38, "name_fr": "Feunard"}]
     assert names(engine.search_pokemon(pokedex_number=38, form="alola")) == ["Feunard d’Alola"]
+
+
+@pytest.fixture
+def spreadsheet_filters(catalogue):
+    """Ajoute au catalogue temporaire les colonnes du tableur utilisées par les filtres."""
+    with sqlite3.connect(engine.DB_PATH) as conn:
+        conn.executescript("""
+            ALTER TABLE custom_pokedex ADD COLUMN source_row INTEGER;
+            UPDATE custom_pokedex SET source_row=pokemon_id;
+            CREATE TABLE custom_pokedex_fr(source_row INTEGER, vitesse INTEGER, sous_groupe TEXT,
+                stade_d_evolution TEXT, talent_1 TEXT, talent_2 TEXT, talent_cache TEXT);
+            INSERT INTO custom_pokedex_fr VALUES
+                (38,100,NULL,'Final · stade 2','Torche',NULL,'Sécheresse'),
+                (1038,109,'Forme régionale','Final · stade 2','Rideau Neige',NULL,'Alerte Neige'),
+                (369,55,'Fossile','Sans évolution','Glissade','Tête de Roc','Solide Roc'),
+                (245,85,'Légendaire secondaire','Sans évolution','Pression',NULL,'Absorbe-Eau'),
+                (385,100,'Fabuleux','Sans évolution','Sérénité',NULL,NULL),
+                (352,40,'Starter ; Fossile','Base · 1 évolution possible','Déguisement',NULL,'Protéen');
+        """)
+
+
+@pytest.mark.parametrize("filters, expected", [
+    ({"subgroup": "Fossile"}, ["Kecleon", "Relicanth"]),                 # composante d'une valeur composée
+    ({"subgroup": "starter"}, ["Kecleon"]),
+    ({"subgroup": "fossile", "sort_by": "speed", "sort_order": "desc", "best_only": True}, ["Relicanth"]),
+    ({"subgroup": "legendaire secondaire"}, ["Suicune"]),                # casse et accents normalisés
+    ({"evolution_stage": "no-evolution"}, ["Suicune", "Relicanth", "Jirachi"]),
+    ({"evolution_stage": "sans évolution", "types": ["Eau"]}, ["Suicune", "Relicanth"]),
+    ({"evolution_stage": "final"}, ["Feunard"]),                         # « Final · stade 2 »
+    ({"evolution_stage": "base"}, ["Kecleon"]),
+    ({"evolution_stage": "baby"}, []),
+    ({"ability": "Sécheresse"}, ["Feunard"]),                            # talent caché
+    ({"ability": "tete de roc"}, ["Relicanth"]),                         # second talent
+    ({"ability": "Rideau Neige"}, []),                                   # forme non demandée exclue
+    ({"ability": "Rideau Neige", "form": "alola"}, ["Feunard d’Alola"]),
+    ({"subgroup": "Fossile", "evolution_stage": "no-evolution", "ability": "Glissade"}, ["Relicanth"]),
+])
+def test_spreadsheet_filters_are_exact_and_combine_in_sql(spreadsheet_filters, filters, expected):
+    assert names(engine.search_pokemon(**filters)) == expected
+
+
+@pytest.mark.parametrize("filters, message", [
+    ({"subgroup": "Foss"}, "subgroup inconnu"),          # jamais de sous-chaîne
+    ({"subgroup": "Starter ; Fossile"}, "subgroup inconnu"),
+    ({"ability": "Neige"}, "ability inconnu"),
+    ({"ability": ""}, "ability doit"),
+    ({"evolution_stage": "adulte"}, "evolution_stage invalide"),
+    ({"evolution_stage": 3}, "evolution_stage invalide"),
+])
+def test_unknown_spreadsheet_filter_value_is_an_error_not_an_empty_list(spreadsheet_filters, filters, message):
+    with pytest.raises(ValueError, match=message):
+        engine.search_pokemon(**filters)
+
+
+@pytest.mark.real_data
+def test_real_db_spreadsheet_filters_answer_typical_questions():
+    pseudo = engine.search_pokemon(subgroup="Pseudo-légendaire", evolution_stage="final", limit=100)
+    assert "Dracolosse" in names(pseudo) and "Carchacrok" in names(pseudo) and "Minidraco" not in names(pseudo)
+    fastest = engine.search_pokemon(subgroup="Fossile", sort_by="speed", sort_order="desc", best_only=True)
+    assert names(fastest) == ["Ptéra"] and fastest["best_value"] == 130
+    assert names(engine.search_pokemon(ability="Multiécaille")) == ["Dracolosse", "Lugia"]
+
+
+@pytest.mark.real_data
+def test_real_db_named_stats_and_particularities():
+    mega = engine.get_base_stats("Méga-Dardargnan")["rows"][0]
+    assert (mega["Défense Spéciale"], mega["Attaque"], mega["Total des statistiques"]) == (80, 150, 495)
+    assert engine.get_base_stats("Dardargnan", "beedrill-mega")["rows"] == [mega]
+    assert engine.get_base_stats("Xerneas")["rows"][0]["Total des statistiques"] == 680
+    facts = engine.get_particularities("Dracolosse")["rows"][0]
+    assert facts["Sous-groupe"] == "Pseudo-légendaire" and facts["Talent caché"] == "Multiécaille"
+    assert facts["Mise en avant à l'introduction"].startswith("Peter")
+    assert "Talent 2" not in facts

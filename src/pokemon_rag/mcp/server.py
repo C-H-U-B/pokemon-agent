@@ -17,7 +17,9 @@ from pydantic import Field
 from mcp.server import MCPServer
 
 from pokemon_rag.structured.query_engine import (
+    get_base_stats,
     get_evolutions,
+    get_particularities,
     get_level_up_moves,
     get_machine_moves,
     get_move_learning_methods,
@@ -60,8 +62,11 @@ def pokemon_search(
     min_power: int | None = None, max_power: int | None = None,
     learning_method: str | None = None, min_level: int | None = None,
     max_level: int | None = None,
+    subgroup: Annotated[str | None, Field(description="Starter, Pseudo-légendaire, Fossile, Pokémon bébé…")] = None,
+    evolution_stage: Literal["base", "intermediate", "final", "no-evolution", "baby"] | None = None,
+    talent: str | None = None,
 ) -> dict[str, Any]:
-    """Propriétés → Pokémon : trouve, compte ou classe par numéro national, génération, types, légendaire/fabuleux, forme, statistique de base ou capacité apprenable. Aucun nom de Pokémon en argument.
+    """Propriétés → Pokémon : trouve, compte ou classe par numéro national, génération, types, légendaire/fabuleux, forme, sous-groupe, stade, talent, statistique de base ou capacité apprenable. Aucun nom de Pokémon en argument.
 
     pokedex_number est le numéro national ; generation est l'origine de l'espèce.
     legendary et mythical sont distincts. types accepte les noms français ou les
@@ -75,7 +80,8 @@ def pokemon_search(
     jamais l'union historique ; avec learning_method ou des niveaux, le dernier jeu
     où ce Pokémon a cette méthode. Les propriétés des capacités ne sont pas historisées.
     limit : 0 à 100 (0 pour compter), offset : pagination. total_count est exact,
-    truncated signale une liste partielle. Aucun filtre talent n'est disponible.
+    truncated signale une liste partielle. subgroup et talent (caché compris) sont comparés exactement
+    aux valeurs du tableur ; une valeur inconnue est une erreur, pas une liste vide.
     Retourne des Pokémon, pas les noms des capacités qui justifient la sélection.
     Pour nommer ces capacités si elles sont demandées, appeler pokemon_moves.
     sort_by : national_number, hp, attack, defense, special-attack,
@@ -94,6 +100,7 @@ def pokemon_search(
         min_level=min_level, max_level=max_level, limit=limit, offset=offset,
         sort_by=sort_by, sort_order=sort_order,
         best_only=best_only, form_category=form_category,
+        subgroup=subgroup, evolution_stage=evolution_stage, ability=talent,
     )
 
 
@@ -246,6 +253,39 @@ def pokemon_types(
         pokemon=pokemon,
         form=form,
     )
+
+
+@mcp.tool()
+def pokemon_base_stats(
+    pokemon: str,
+    form: str | None = None,
+) -> dict[str, Any]:
+    """Pokémon nommé → ses statistiques de base et leur total. « Le plus… » : pokemon_search.
+
+    Args:
+        pokemon: Nom du Pokémon ou de l'entrée du Pokédex.
+        form: Forme particulière du Pokémon, si nécessaire.
+    """
+    return get_base_stats(pokemon=pokemon, form=form)
+
+
+@mcp.tool()
+def pokemon_particularities(
+    pokemon: str,
+    form: str | None = None,
+) -> dict[str, Any]:
+    """Pokémon nommé → ses talents et particularités : sous-groupe, stade d'évolution, records, obtention.
+
+    Aussi : double type unique, mise en avant, particularité du movepool, différences selon le sexe.
+
+    Les rubriques « à l'introduction » décrivent la sortie du Pokémon, pas les jeux récents.
+    Une rubrique absente signifie que le tableur ne note rien, pas que le fait est faux.
+
+    Args:
+        pokemon: Nom du Pokémon ou de l'entrée du Pokédex.
+        form: Forme particulière du Pokémon, si nécessaire.
+    """
+    return get_particularities(pokemon=pokemon, form=form)
 
 
 @mcp.tool()

@@ -46,6 +46,8 @@ def test_adk_mcp_toolset_exposes_expected_tools():
         "pokemon_types",
         "pokemon_pokedex_identity",
         "pokemon_signature_moves",
+        "pokemon_base_stats",
+        "pokemon_particularities",
         "pokemon_rag_search",
         "pokemon_search",
         "pokemon_moves",

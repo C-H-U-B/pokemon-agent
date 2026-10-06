@@ -14,10 +14,12 @@ from typing import Any
 from google.adk.models.llm_response import LlmResponse
 from google.genai import types
 from pokemon_rag.agent.tool_guard import _extract_user_text
-from pokemon_rag.constraints.query_constraints import normalize, VERSION_GROUP_NAMES_FR
+from pokemon_rag.constraints.query_constraints import (
+    DOCUMENTARY_PATTERN, is_purely_documentary, normalize, VERSION_GROUP_NAMES_FR,
+)
 
 
-MAX_REQUEST_BYTES = 12_000
+MAX_REQUEST_BYTES = 13_500
 MAX_TOOL_RESULT_BYTES = 3_000
 MAX_MODEL_CALLS = 4
 MAX_OUTPUT_TOKENS = 1_024
@@ -306,6 +308,7 @@ def _complete_structured_response(contents: list) -> bool:
         keys = {"pokemon_level_up_moves":"moves", "pokemon_machine_moves":"moves",
                 "pokemon_move_learning_methods":"methods", "pokemon_types":"rows",
                 "pokemon_pokedex_identity":"rows", "pokemon_signature_moves":"rows",
+                "pokemon_base_stats":"rows", "pokemon_particularities":"rows",
                 "pokemon_evolutions":"evolutions"}
         key = keys.get(responses[0].name)
         return bool(key and isinstance(result.get(key), list)
@@ -329,7 +332,7 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
                         for part in content.parts or [] if part.text)
     compound = re.search(r"(?:^|-)(?:et|puis|ainsi-que)-(?:leurs?-|ses-|son-|sa-|les-|le-|la-)?"
                          r"(?:types?|numeros?|evolutions?|attaques?|capacites?|statistiques?|vitesse|defense)(?:-|$)",normalize(question))
-    documentary = re.search(r"(?:^|-)(?:apparence|habitat|comportement|origine|histoire|description|decris)(?:-|$)",normalize(question))
+    documentary = re.search(DOCUMENTARY_PATTERN, normalize(question))
     if not compound and (_passages_received(llm_request.contents)
                          or (not documentary and _complete_structured_response(llm_request.contents))):
         # Phase de formulation, comme dans le client MCP : les faits restent
@@ -352,7 +355,9 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
                        _size(config.tools), calls)
         return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=BUDGET_ABSTENTION)]))
     callback_context.state["temp:model_calls"] = calls + 1
-    callback_context.state["temp:every_tool_call_failed"] = _every_tool_call_failed(llm_request.contents)
+    callback_context.state["temp:every_tool_call_failed"] = (
+        _every_tool_call_failed(llm_request.contents)
+        or (is_purely_documentary(question) and not _any_passage(llm_request.contents)))
     return None
 
 
@@ -372,11 +377,20 @@ def _every_tool_call_failed(contents: list) -> bool:
         for item in responses)
 
 
+def _any_passage(contents: list) -> bool:
+    """Au moins une recherche documentaire a renvoyé des passages."""
+    return any(part.function_response.name == "pokemon_rag_search" and isinstance(part.function_response.response, dict)
+               and part.function_response.response.get("results")
+               for content in contents for part in content.parts or [] if part.function_response)
+
+
 def after_model_abstention(callback_context: Any, llm_response: Any) -> LlmResponse | None:
     """Remplace un texte rédigé sans aucun résultat d'outil valide ; une nouvelle tentative d'outil passe.
 
     La consigne interdit déjà de répondre de mémoire après une erreur, mais le modèle peut
     l'ignorer : le contrôle est donc fait ici, sur les retours d'outils réellement reçus.
+    Une question purement descriptive exige en plus au moins un passage documentaire, même si
+    aucun outil n'a été appelé ou si un autre outil a répondu.
     """
     if not callback_context.state.get("temp:every_tool_call_failed") or getattr(llm_response, "partial", False):
         return None
