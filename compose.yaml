@@ -57,6 +57,13 @@ services:
     environment:
       # Ollama charge par défaut un contexte plus petit que celui que l'agent ADK budgète.
       OLLAMA_CONTEXT_LENGTH: "16384"
+      # Garde le modèle chargé entre deux questions : par défaut il est déchargé après 5 minutes
+      # d'inactivité, et son rechargement ajoute une vingtaine de secondes à la question suivante.
+      OLLAMA_KEEP_ALIVE: "30m"
+      # Mémoire du contexte compressée (environ 1,1 Go de moins pour 16 384 tokens) : davantage de
+      # couches tiennent sur la carte graphique. Nécessite l'attention « flash ».
+      OLLAMA_FLASH_ATTENTION: "1"
+      OLLAMA_KV_CACHE_TYPE: "q8_0"
     volumes:
       # Les modèles téléchargés survivent aux reconstructions et aux suppressions du conteneur.
       - ollama:/root/.ollama
