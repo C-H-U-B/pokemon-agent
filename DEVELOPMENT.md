@@ -1182,9 +1182,11 @@ published in the repository releases, start a container and send a request.
 The routes redefine nothing: each one calls the function of a structured MCP
 tool, with the same arguments, the same allowed values and the same validation.
 An argument added to a tool therefore appears in the API too. Responses
-distinguish an unknown Pokémon, a filter rejected by the engine, a value outside
-the schema and a missing database; in the last case the service reports itself
-unavailable instead of claiming to be healthy while failing every request.
+distinguish a refusal by the engine, a value outside the schema and a missing
+database; in the last case the service reports itself unavailable instead of
+claiming to be healthy while failing every request. Since the engine reports an
+unknown Pokémon and an invalid filter the same way, the code of a refusal
+depends on the route called, not on its cause.
 
 The address, name and key of the model server are read from the environment, so
 the other paths can target a different server depending on whether they run in a
@@ -1228,6 +1230,12 @@ The project had to be usable without installing LM Studio. The web interface now
 runs in a container, and an optional service serves Qwen with Ollama; outside a
 container, LM Studio remains the default target. The model is fetched on first
 start, and the interface waits until it is ready.
+
+The document index is published alongside the database, so that nobody has to
+rebuild the corpus. The local folder could not be archived as it was: it also
+held leftovers from earlier ingestions and a collection foreign to the project.
+A script copies the Poképédia collection alone and checks the copy before
+archiving it, which brings the archive from 298 MB down to 112 MB.
 
 Two measurements guided the containerisation. Read from a shared Windows folder,
 the document index loaded in 44 seconds; placed in a volume, in 12. That loading

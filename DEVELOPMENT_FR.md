@@ -1246,9 +1246,11 @@ poser une requête.
 Les routes ne redéfinissent rien : chacune appelle la fonction d'un outil MCP
 structuré, avec les mêmes arguments, les mêmes valeurs admises et les mêmes
 validations. Un argument ajouté à un outil apparaît donc aussi dans l'API. Les
-réponses distinguent un Pokémon introuvable, un filtre refusé par le moteur, une
-valeur hors du schéma et une base absente ; dans ce dernier cas le service se
-déclare indisponible au lieu de se dire sain tout en échouant à chaque requête.
+réponses distinguent un refus du moteur, une valeur hors du schéma et une base
+absente ; dans ce dernier cas le service se déclare indisponible au lieu de se
+dire sain tout en échouant à chaque requête. Le moteur signalant de la même
+façon un Pokémon introuvable et un filtre invalide, le code d'un refus dépend de
+la route appelée, pas de sa cause.
 
 L'adresse, le nom et la clé du serveur de modèle se lisent dans l'environnement,
 ce qui permet aux autres parcours de viser un serveur différent selon qu'ils
@@ -1292,6 +1294,12 @@ Le projet devait pouvoir être essayé sans installer LM Studio. L'interface Web
 tourne désormais dans un conteneur, et un service optionnel sert Qwen avec
 Ollama ; hors conteneur, LM Studio reste la cible par défaut. Le modèle est
 récupéré au premier démarrage, et l'interface attend qu'il soit prêt.
+
+L'index documentaire est publié avec la base, pour éviter à chacun de
+reconstruire le corpus. Le dossier local ne pouvait pas être archivé tel quel :
+il contenait aussi les restes d'anciennes ingestions et une collection étrangère
+au projet. Un script recopie la seule collection Poképédia et vérifie la copie
+avant de l'archiver, ce qui ramène l'archive de 298 à 112 Mo.
 
 Deux mesures ont guidé la mise en conteneur. Lu depuis un dossier Windows
 partagé, l'index documentaire se chargeait en 44 secondes ; placé dans un volume,
