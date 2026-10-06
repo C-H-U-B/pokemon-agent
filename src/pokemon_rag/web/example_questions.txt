@@ -9,16 +9,36 @@ Quelles capacités signature possède Morpeko ?
 Quels sont les types de Draïeul ?
 Quel est le numéro du Pokédex national de Krakos ?
 
-Quels Pokémon sont de type Spectre ?
+Quelle est la Défense Spéciale de Méga-Dardargnan ?
+Quelle est la Vitesse de Katagami ?
+Combien de PV a Goinfrex ?
+Quelles sont les statistiques de base de Draïeul ?
+Quelle est l'Attaque Spéciale de Concombaffe ?
+Quelles sont les statistiques de base de Hexagel ?
+Quelle est la Défense de Caratroc ?
+Quel est le total des statistiques de Trépassable ?
+
+Quels sont les talents de Concombaffe ?
+Quels sont les talents de Gouroutan ?
+Quel est le talent caché de Bacabouh ?
+Quels sont les talents de Draïeul ?
+En quoi Malamandre est-il particulier ?
+En quoi Katagami est-il particulier ?
+En quoi Sinistrail est-il particulier ?
+Quel est le sous-groupe de Katagami ?
+Comment obtenait-on Sovkipou à sa sortie ?
+Quel dresseur mettait Hexagel en avant à sa sortie ?
+
 Quels Pokémon sont à la fois Eau et Vol ?
-Quels Pokémon sont de type Glace ?
 Quels Pokémon sont à la fois Roche et Fée ?
-Quels Pokémon sont de type Dragon ?
 Quels Pokémon sont à la fois Insecte et Acier ?
-Quels Pokémon sont de type Ténèbres ?
 Quels Pokémon sont à la fois Feu et Spectre ?
-Quels Pokémon sont de type Sol ?
 Quels Pokémon sont à la fois Électrik et Fée ?
+Combien de Pokémon sont de type Spectre ?
+Combien de Pokémon sont de type Glace ?
+Combien de Pokémon sont de type Dragon ?
+Combien de Pokémon sont de type Ténèbres ?
+Combien de Pokémon sont de type Sol ?
 
 Quel est le Pokémon numéro 369 du Pokédex national ?
 Quel est le Pokémon numéro 626 du Pokédex national ?
@@ -26,16 +46,30 @@ Quel est le Pokémon numéro 781 du Pokédex national ?
 Quel est le Pokémon numéro 870 du Pokédex national ?
 Quel est le Pokémon numéro 977 du Pokédex national ?
 
-Quels sont les Pokémon légendaires introduits en première génération ?
 Quels sont les Pokémon légendaires introduits en deuxième génération ?
-Quels sont les Pokémon légendaires introduits en troisième génération ?
 Quels sont les Pokémon légendaires introduits en quatrième génération ?
-Quels sont les Pokémon légendaires introduits en cinquième génération ?
 Quels sont les Pokémon légendaires introduits en sixième génération ?
-Quels sont les Pokémon légendaires introduits en septième génération ?
 Quels sont les Pokémon légendaires introduits en huitième génération ?
-Quels sont les Pokémon légendaires introduits en neuvième génération ?
-Quels sont les Pokémon fabuleux introduits en quatrième génération ?
+Quels sont les Pokémon fabuleux introduits en cinquième génération ?
+
+Quel est le fossile le plus rapide ?
+Quels sont les fossiles de la quatrième génération ?
+Quels sont les fossiles de la huitième génération ?
+Quels sont les pseudo-légendaires de la sixième génération ?
+Combien y a-t-il d'Ultra-Chimères ?
+Quelle est l'Ultra-Chimère la plus rapide ?
+Quel paradoxe antique a le plus d'Attaque ?
+Quels sont les Pokémon bébés de la deuxième génération ?
+Quel Pokémon bébé est le plus rapide ?
+Quelles sont les espèces convergentes ?
+
+Quels Pokémon ont le talent Momie ?
+Quels Pokémon ont le talent Piège Sable ?
+Quels Pokémon ont le talent Peau Gelée ?
+Quels Pokémon ont le talent Toison Herbue ?
+Quels Pokémon ont le talent Mûrissement ?
+Quel Pokémon sans évolution a le plus d'Attaque ?
+Quel Pokémon sans évolution a la meilleure Défense ?
 
 Quelles attaques Feu peut apprendre Boumata ?
 Quelles attaques Vol spéciales peut apprendre Lestombaile ?
@@ -70,46 +104,39 @@ Quelles attaques spéciales de puissance supérieure ou égale à 90 peut appren
 Quelles attaques physiques de puissance supérieure ou égale à 90 peut apprendre Chelours ?
 Quelles attaques spéciales de puissance supérieure ou égale à 100 peut apprendre Astronelle ?
 
-Quels Pokémon Eau peuvent apprendre une attaque Glace spéciale ?
-Quels Pokémon Roche peuvent apprendre une attaque Sol physique ?
-Quels Pokémon Spectre peuvent apprendre une attaque Combat physique ?
-Quels Pokémon Plante peuvent apprendre une attaque Poison spéciale ?
-Quels Pokémon Acier peuvent apprendre une attaque Électrik spéciale ?
-Quels Pokémon Sol peuvent apprendre une attaque Roche physique ?
-Quels Pokémon Psy peuvent apprendre une attaque Fée spéciale ?
-Quels Pokémon Ténèbres peuvent apprendre une attaque Poison physique ?
-Quels Pokémon Insecte peuvent apprendre une attaque Vol physique ?
-Quels Pokémon Combat peuvent apprendre une attaque Feu physique ?
+Quels Pokémon Eau de septième génération peuvent apprendre une attaque Glace spéciale ?
+Quels Pokémon Roche de sixième génération peuvent apprendre une attaque Sol physique ?
+Quels Pokémon Spectre de septième génération peuvent apprendre une attaque Combat physique ?
+Quels Pokémon Acier de cinquième génération peuvent apprendre une attaque Électrik spéciale ?
+Quels Pokémon Insecte de neuvième génération peuvent apprendre une attaque Vol physique ?
 
 Quelles capacités Opermine apprend-il entre les niveaux 10 et 25 ?
-Quelles capacités Couafarel apprend-il en montant de niveau ?
-Quelles CT peut apprendre Strassie ?
-Quelles CT peut apprendre Quartermac ?
+Quelles capacités Couafarel apprend-il entre les niveaux 20 et 40 ?
+Quelles capacités Bacabouh apprend-il entre les niveaux 10 et 30 ?
+Quelles capacités Froussardine apprend-il entre les niveaux 1 et 30 ?
+Combien de CT Strassie peut-il apprendre ?
+Combien de CT Quartermac peut-il apprendre dans Pokémon Soleil et Lune ?
 Comment Sepiatroce peut-il apprendre Tricherie ?
 Comment Maracachi peut-il apprendre Giga-Sangsue ?
-Quelles capacités apprend Froussardine en montant de niveau ?
-Quelles CT peut apprendre Draïeul ?
 Comment Vorastérie peut-il apprendre Soin ?
-Quelles capacités apprend Bacabouh en montant de niveau ?
 
 À quoi ressemble Sovkipou ?
+À quoi ressemble Katagami ?
+Décris Tutafeh.
+Décris Concombaffe.
 Que sait-on du comportement de Mimantis ?
 Que sait-on de l'habitat de Bacabouh ?
-Quelles particularités possède Lampignon ?
-Que sait-on de la biologie de Froussardine ?
-Que raconte le Pokédex à propos de Croquine ?
 Que sait-on de l'origine de Sarmuraï ?
-Quelles particularités physiques possède Bombydou ?
 Que sait-on du comportement de Chelours ?
-Que sait-on des apparitions de Météno ?
+Que sait-on du comportement de Gouroutan ?
+Que sait-on de l'origine de Sorcilence ?
+Que sait-on du comportement de Craparoi ?
+Quelle est l'apparence de Bombydou ?
+Quel est l'habitat de Dodoala ?
+Quelle est l'origine de Météno ?
 
 Pourquoi le corps de Trépassable est-il constitué de sable ?
-Quelles particularités possède Boumata ?
-Que sait-on du mode de vie de Dodoala ?
 Comment Araqua utilise-t-il sa bulle d'eau ?
-Que sait-on du comportement de Gouroutan ?
-Quelles particularités possède Quartermac ?
-Que sait-on de l'origine de Sorcilence ?
+Que raconte le Pokédex à propos de Croquine ?
+Que sait-on de la biologie de Froussardine ?
 Quelles informations connaît-on sur la biologie de Nigirigon ?
-Que sait-on du comportement de Craparoi ?
-Quelles particularités possède Ferdeter ?
