@@ -249,6 +249,15 @@ CASES = [
         ("Corrosion", "Poison"),
         note="Fiche d'unicité : talent signature et double type unique à l'introduction.",
     ),
+    Case(
+        "category-of-named-pokemon",
+        "Carapuce est-il un légendaire ?",
+        "pokemon_particularities",
+        {"pokemon": "carapuce"},
+        ("Starter",),
+        ("Oui",),
+        note="Catégorie interrogée pour un Pokémon nommé : le guard désigne la fiche, et la réponse est non.",
+    ),
 
     # --- Recherche par sous-groupe, talent et stade d'évolution ---
     Case(
