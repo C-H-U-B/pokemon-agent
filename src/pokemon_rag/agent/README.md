@@ -14,7 +14,7 @@ présentes dans l'environnement sont conservées, vérifier qu'elles ciblent bie
 le serveur voulu avant toute exécution.
 
 L'agent unique dispose désormais de `McpToolset`, qui démarre le serveur Pokémon
-en stdio avec le même interpréteur Python. Le filtre expose les dix outils :
+en stdio avec le même interpréteur Python. Le filtre expose les douze outils :
 `pokemon_evolutions`, `pokemon_level_up_moves`, `pokemon_move_learning_methods`,
 `pokemon_machine_moves`, `pokemon_types`, `pokemon_pokedex_identity`,
 `pokemon_signature_moves`, `pokemon_rag_search`, `pokemon_search` et
@@ -182,7 +182,7 @@ retirées et un argument facultatif décrit comme « type ou null, défaut null 
 devient son type simple ; enums, bornes, propriétés, défauts non nuls, arguments
 requis et descriptions d'arguments sont conservés. Le schéma MCP n'est pas modifié.
 Cette simplification libère de quoi garder le catalogue après un refus du guard,
-pour que le modèle puisse réessayer. Au-delà de 12000 octets
+pour que le modèle puisse réessayer. Au-delà de 13500 octets
 d'instructions, messages et schémas sérialisés, ou après quatre appels
 dans la même invocation, le callback renvoie une abstention locale. Il ne
 supprime aucune contrainte utilisateur. Ce budget en octets est conservateur
@@ -218,6 +218,13 @@ suffit à laisser passer la réponse. Le contrôle ne couvre pas une réponse
 donnée sans aucun appel d'outil. Le délai d'un appel d'outil est
 `MCP_TIMEOUT_SECONDS` dans `config.py` : la première recherche documentaire
 charge modèles et corpus, bien au-delà du défaut ADK de 5 secondes.
+Une question purement descriptive (« décris », « ressemble », apparence,
+habitat, comportement, origine, histoire, sans demande structurée) n'admet que
+`pokemon_rag_search` : le guard refuse tout autre outil avec
+`documentary_question_requires_search` et désigne la recherche. Si le modèle
+rédige sans aucun passage, y compris sans appeler d'outil, sa réponse est
+remplacée par la même abstention. La recherche documentaire reste soumise aux
+contrôles de contraintes habituels. Une question composée garde ses outils.
 Une recherche documentaire vide compte comme l'absence de fait : seule, elle
 déclenche la même abstention. Une liste structurée vide reste un fait.
 `after_tool_budget` retire `timings` et `execution_time` de la vue du modèle
@@ -283,7 +290,26 @@ Les tests `tests/integration/test_adk_mcp_toolset.py` et
 `tests/integration/test_mcp_stdio.py` découvrent les outils sans appeler de LLM
 ni exécuter de recherche. Le serveur importe le module RAG uniquement lors
 d'un appel à `pokemon_rag_search`, pour ne pas retarder l'initialisation MCP.
-Le test de découverte ADK vérifie exactement le catalogue des dix outils.
+Le test de découverte ADK vérifie exactement le catalogue des douze outils.
+
+Le budget de requête est passé de 12000 à 13500 octets avec les outils
+`pokemon_base_stats` et `pokemon_particularities` : le catalogue réel est passé
+de 7953 à 9228 octets, et la marge laissée à une reprise après refus du guard
+tombait de 1650 à 400 octets. Les traces Web montrent qu'une requête proche de
+la limite consomme environ 3000 tokens sur les 16384 du contexte ; la limite
+borne surtout le temps de lecture de la requête par le modèle.
+
+Une question nommant un Pokémon et une statistique, proposée à
+`pokemon_search`, est refusée en désignant `pokemon_base_stats` et ses
+arguments : sans outil désigné, le modèle n'avait aucune issue et répondait de
+mémoire. Les deux nouveaux outils reçoivent le Pokémon et la forme de la
+question comme les outils de types et d'identité. Un sous-groupe nommé littéralement dans la question (starter, fossile,
+pseudo-légendaire, bébé, Ultra-Chimère, Paradoxe…) est une contrainte reconnue :
+le guard le restaure dans `subgroup`, refuse un outil sans ce filtre, et retire
+un filtre légendaire ou fabuleux que la question ne mentionne pas. Ces noms
+suffisent aussi à reconnaître un classement sans le mot « Pokémon » (« le
+fossile le plus rapide »). `evolution_stage` et `talent` ne sont pas extraits
+de la question : le guard ne les restaure pas et ne les retire pas.
 Les événements de function call ne prouvent pas à eux seuls les arguments
 corrigés envoyés au serveur. La campagne structurée instrumente les callbacks
 pour séparer proposition, arguments exécutés, MCP brut et adaptation ADK.

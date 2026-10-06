@@ -354,3 +354,108 @@ def test_blocks_tool_that_cannot_preserve_form_constraint() -> None:
         "question": "Parle-moi de Raichu d'Alola.",
         "pokemon": "Raichu",
     }
+
+
+NAMES = [("Méga-Dardargnan", "Dardargnan", "beedrill-mega"), ("Dardargnan", "Dardargnan", None),
+         ("Dracolosse", "Dracolosse", None), ("Carabaffe", "Carabaffe", None)]
+
+
+@pytest.fixture
+def catalogue(monkeypatch):
+    monkeypatch.setattr("pokemon_rag.agent.tool_guard.pokemon_name_catalogue", lambda: NAMES)
+
+
+@pytest.mark.parametrize("question", [
+    "Quelle est la défense spéciale de Méga-Dardargnan ?",
+    "Quelles sont les statistiques de Méga-Dardargnan ?",
+    "Combien de PV a Méga-Dardargnan ?",
+])
+def test_stat_of_a_named_pokemon_is_sent_to_the_stats_tool_not_left_without_issue(catalogue, question):
+    # Régression : la recherche était refusée sans outil désigné ; le modèle répondait de mémoire.
+    args = {"form_category": "mega", "sort_by": "special-defense"}
+    refusal = before_tool_guard(_tool("pokemon_search"), args, _context(question))
+    assert refusal["error"] == "unsupported_named_pokemon_constraint"
+    assert refusal["required_tool"] == "pokemon_base_stats"
+    assert refusal["required_arguments"] == {"pokemon": "Dardargnan", "form": "beedrill-mega"}
+    assert args == {"form_category": "mega", "sort_by": "special-defense"}
+
+
+@pytest.mark.parametrize("tool", ["pokemon_base_stats", "pokemon_particularities"])
+@pytest.mark.parametrize("proposed", [{"pokemon": "Beedrill"}, {"pokemon": "Dardargnan"}, {}])
+def test_named_tools_receive_the_pokemon_and_form_of_the_question(catalogue, tool, proposed):
+    args = dict(proposed)
+    assert before_tool_guard(_tool(tool), args, _context("Quelles sont les statistiques de Méga-Dardargnan ?")) is None
+    assert args == {"pokemon": "Dardargnan", "form": "beedrill-mega"}
+
+
+def test_stats_tool_is_refused_for_a_ranking_without_named_pokemon(catalogue):
+    args = {"pokemon": "Regieleki"}
+    refusal = before_tool_guard(_tool("pokemon_base_stats"), args, _context("Quel est le Pokémon le plus rapide ?"))
+    assert refusal["error"] == "unsupported_search_constraints" and args == {"pokemon": "Regieleki"}
+
+
+def test_move_question_naming_a_stat_word_does_not_point_to_the_stats_tool(catalogue):
+    # « attaque » désigne ici une capacité : aucune réorientation vers les statistiques.
+    refusal = before_tool_guard(_tool("pokemon_search"), {"move_type": "water"},
+                                _context("Quelle attaque de type Eau Carabaffe apprend-il ?"))
+    assert refusal.get("required_tool") != "pokemon_base_stats"
+
+
+@pytest.mark.parametrize("question", [
+    "Décris Dracolosse", "À quoi ressemble Dracolosse ?", "Quel est l'habitat de Dracolosse ?",
+    "Quelle est l'origine de Dracolosse ?", "décris-moi le comportement de dracolosse",
+])
+@pytest.mark.parametrize("tool", ["pokemon_types", "pokemon_pokedex_identity", "pokemon_particularities", "pokemon_search"])
+def test_description_question_refuses_every_tool_but_the_document_search(catalogue, question, tool):
+    # Régression : « décris Tutafeh » recevait les types, puis une description rédigée de mémoire.
+    args = {"pokemon": "Dracolosse"}
+    refusal = before_tool_guard(_tool(tool), args, _context(question))
+    assert refusal["error"] == "documentary_question_requires_search"
+    assert refusal["required_tool"] == "pokemon_rag_search"
+    assert refusal["required_arguments"] == {"question": question, "pokemon": "Dracolosse"}
+    assert args == {"pokemon": "Dracolosse"}
+
+
+def test_description_question_lets_the_document_search_through_unchanged(catalogue):
+    args = {"question": "Décris Dracolosse", "pokemon": "Dracolosse"}
+    assert before_tool_guard(_tool("pokemon_rag_search"), args, _context("Décris Dracolosse")) is None
+    assert args == {"question": "Décris Dracolosse", "pokemon": "Dracolosse"}
+
+
+@pytest.mark.parametrize("question, tool", [
+    ("Décris Dracolosse et donne ses types", "pokemon_types"),          # demande composée
+    ("Quels sont les types de Dracolosse ?", "pokemon_types"),          # aucune demande de description
+    ("Quelle est l'origine du talent de Dracolosse ?", "pokemon_particularities"),
+])
+def test_structured_part_of_a_question_keeps_its_tools(catalogue, question, tool):
+    refusal = before_tool_guard(_tool(tool), {"pokemon": "Dracolosse"}, _context(question))
+    assert refusal is None or refusal["error"] != "documentary_question_requires_search"
+
+
+def test_description_without_a_recognised_name_still_points_to_the_search(catalogue):
+    refusal = before_tool_guard(_tool("pokemon_types"), {"pokemon": "Fauxkémon"}, _context("Décris Fauxkémon"))
+    assert refusal["required_arguments"] == {"question": "Décris Fauxkémon"}
+
+
+@pytest.mark.parametrize("proposed", [
+    {"sort_by": "speed", "sort_order": "desc", "best_only": True},                # sous-groupe oublié
+    {"subgroup": "Starter", "sort_by": "speed", "sort_order": "desc", "best_only": True},   # mauvais sous-groupe
+    {"subgroup": "Fossile", "legendary": True, "sort_by": "attack"},              # filtre et tri inventés
+])
+def test_named_subgroup_is_restored_in_a_ranking_without_the_word_pokemon(catalogue, proposed):
+    args = dict(proposed)
+    assert before_tool_guard(_tool("pokemon_search"), args, _context("Quel est le fossile le plus rapide ?")) is None
+    assert args["subgroup"] == "Fossile" and "legendary" not in args
+    assert (args["sort_by"], args["sort_order"], args["best_only"]) == ("speed", "desc", True)
+
+
+def test_pseudo_legendaries_are_listed_without_the_legendary_filter(catalogue):
+    args = {"legendary": True}
+    assert before_tool_guard(_tool("pokemon_search"), args, _context("Quels sont les pseudo-légendaires ?")) is None
+    assert args.get("subgroup") == "Pseudo-légendaire" and "legendary" not in args
+
+
+def test_subgroup_question_cannot_be_sent_to_a_tool_that_has_no_such_filter(catalogue):
+    refusal = before_tool_guard(_tool("pokemon_types"), {"pokemon": "Ptéra"}, _context("Quel est le fossile le plus rapide ?"))
+    assert refusal["error"] == "unsupported_search_constraints"
+    assert refusal["required_arguments"]["subgroup"] == "Fossile"

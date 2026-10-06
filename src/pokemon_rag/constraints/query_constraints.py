@@ -35,6 +35,24 @@ BASE_STAT_NAMES = {
     "speed": "Vitesse", "base-stat-total": "Total des statistiques",
 }
 
+# Mots d'une question désignant un sous-groupe du tableur -> valeur exacte attendue par le moteur.
+# « légendaire », « fabuleux » et « Méga » seuls restent des classifications ou une catégorie de formes.
+SUBGROUP_ALIASES = {
+    r"starters?": "Starter", r"pokemons?-de-depart": "Starter",
+    r"pseudo-legendaires?": "Pseudo-légendaire",
+    r"fossiles?": "Fossile",
+    r"bebes?": "Pokémon bébé",
+    r"ultra-chimeres?": "Ultra-Chimère",
+    r"paradoxes?-antiques?": "Paradoxe antique", r"paradoxes?-futuristes?": "Paradoxe futuriste",
+    r"clones?-de-pikachu": "Clone de Pikachu",
+    r"evolitions?": "Évolition",
+    r"especes?-convergentes?": "Espèce convergente",
+    r"legendaires?-secondaires?": "Légendaire secondaire",
+    r"legendaires?-emblematiques?": "Légendaire emblématique d’une version",
+}
+# Noms qui désignent des Pokémon dans une question de classement ou un « top N ».
+_POKEMON_NOUNS = "|".join(["pokemons?", "megas?", "legendaires?", "fabuleux", "mythiques?", *SUBGROUP_ALIASES])
+
 _TYPE_NAMES = {
     "normal":"Normal", "fire":"Feu", "water":"Eau", "electric":"Électrik",
     "grass":"Plante", "ice":"Glace", "fighting":"Combat", "poison":"Poison",
@@ -113,6 +131,7 @@ class ExplicitConstraints:
     mythical: bool | None = None
     ranking: dict | None = None
     form_category: str | None = None
+    subgroup: str | None = None
 
 
 def normalize(text: str | None) -> str:
@@ -146,6 +165,28 @@ def extract_named_pokemon(question: str, catalogue: list[tuple[str, str, str | N
 def is_named_identity_question(question: str) -> bool:
     text = normalize(question)
     return bool(re.search(r"(?:^|-)(?:numero-(?:national|du-pokedex)|(?:numero|identite)-.*pokedex)(?:-|$)", text))
+
+
+DOCUMENTARY_PATTERN = (r"(?:^|-)(?:apparence|habitat|comportement|origine|histoire|description|"
+                       r"decris|decrire|decrivez|ressemble)(?:-|$)")
+_STRUCTURED_CUES = (r"(?:^|-)(?:types?|numeros?|generations?|evolu[a-z]*|capacites?|attaques?|statistiques?|stats?|"
+                    r"talents?|ct|cs|niveaux?|pv|vitesse|defense)(?:-|$)")
+
+
+def is_purely_documentary(question: str) -> bool:
+    """Question de description sans aucune demande structurée : seule la recherche documentaire y répond.
+
+    Reconnaissance par mots littéraux, volontairement étroite : hors de ces motifs, rien n'est imposé.
+    """
+    text = normalize(question)
+    return bool(re.search(DOCUMENTARY_PATTERN, text)) and not re.search(_STRUCTURED_CUES, text)
+
+
+def is_named_stat_question(question: str) -> bool:
+    """Mention littérale d'une statistique de base ou des statistiques, hors filtre de capacités."""
+    text = "-" + normalize(question) + "-"
+    named = any(f"-{normalize(label)}-" in text for label in BASE_STAT_NAMES.values())
+    return (named or bool(re.search(r"-(?:statistiques?|stats?)-", text))) and not extract_move_constraints(question)
 
 
 def extract_generation(question: str) -> int | None:
@@ -183,7 +224,8 @@ def extract_classifications(question: str) -> dict[str, bool]:
                  rf"{token}-(?:et-)?ou-{token}", text):
         raise ValueError("Classification ambiguë ou négative : précisez les filtres.")
     result = {}
-    if re.search(r"(?:^|-)legendaires?(?=-|$)", text):
+    # Un pseudo-légendaire n'est pas un légendaire : le filtre viderait la recherche.
+    if re.search(r"(?:^|-)(?<!pseudo-)legendaires?(?=-|$)", text):
         result["legendary"] = True
     if re.search(r"(?:^|-)(?:fabuleux|mythiques?)(?=-|$)", text):
         result["mythical"] = True
@@ -246,6 +288,15 @@ def without_unnamed_learning_method(question: str, arguments: dict) -> dict:
     return {key: value for key, value in arguments.items() if key != "learning_method"}
 
 
+def extract_subgroup(question: str) -> str | None:
+    """Sous-groupe nommé littéralement dans la question ; plusieurs sous-groupes ne sont pas représentables."""
+    text = normalize(question)
+    found = {value for pattern, value in SUBGROUP_ALIASES.items() if re.search(rf"(?:^|-){pattern}(?=-|$)", text)}
+    if len(found) > 1:
+        raise ValueError("Plusieurs sous-groupes explicites : précisez-en un seul.")
+    return found.pop() if found else None
+
+
 def extract_pokemon_types(question: str) -> dict:
     """Types littéraux d'un groupe de Pokémon, hors clauses de capacités."""
     text = normalize(question)
@@ -295,6 +346,11 @@ def reconcile_search_args(question: str, arguments: dict) -> dict:
                 result[key] = True
             else:
                 result.pop(key, None)
+    elif extract_subgroup(question):
+        # Sous-groupe nommé sans « légendaire » ni « fabuleux » dans la question : ces filtres sont
+        # inventés, et « légendaire » viderait par exemple la liste des pseudo-légendaires.
+        result.pop("legendary", None)
+        result.pop("mythical", None)
     return result
 
 
@@ -308,7 +364,7 @@ def extract_stat_ranking_args(question: str) -> dict | None:
     text = normalize(question)
     ranking_text = re.sub(r"entre-(?:les-)?niveaux-\d+-et-\d+|"
                           r"entre-(?:le-)?niveau-\d+-et-(?:le-)?niveau-\d+", "", text)
-    if (not re.search(r"(?:^|-)(?:pokemons?|megas?|top-?\d+|les-\d+-plus)(?:-|$)", text)
+    if (not re.search(rf"(?:^|-)(?:{_POKEMON_NOUNS}|top-?\d+|les-\d+-plus)(?:-|$)", text)
             or re.search(r"(?:^|-)(?:entre|compare|comparaison|page|offset|suivants|suivantes)(?:-|$)", ranking_text)):
         return None
     aliases = {normalize(label): identifier for identifier, label in BASE_STAT_NAMES.items()}
@@ -345,7 +401,7 @@ def extract_stat_ranking_args(question: str) -> dict | None:
         raise ValueError("Classement ambigu : précisez une statistique et un seul ordre.")
     stat, order = matches.pop()
     counts = {int(match.group(1)) for match in re.finditer(
-        r"(?:^|-)(?:top-|les-)?(\d+)-(?:pokemons?|megas?)(?:-|$)", text)}
+        rf"(?:^|-)(?:top-|les-)?(\d+)-(?:{_POKEMON_NOUNS})(?:-|$)", text)}
     counts.update(int(match.group(1)) for match in re.finditer(r"(?:^|-)top-?(\d+)(?:-|$)", text))
     counts.update(int(match.group(1)) for match in re.finditer(r"(?:^|-)les-(\d+)-plus(?:-|$)", text))
     if len(counts) > 1 or any(not 1 <= count <= 100 for count in counts):
@@ -608,4 +664,5 @@ def extract_explicit_constraints(
         mythical=classification.get("mythical"),
         ranking=extract_stat_ranking_args(question),
         form_category="mega" if re.search(r"(?:^|-)pokemons?-megas?(?=-|$)|(?:^|-)les-megas?(?=-|$)", normalized) else None,
+        subgroup=extract_subgroup(question),
     )

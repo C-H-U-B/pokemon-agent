@@ -151,6 +151,14 @@ catalogue lié, sans substitution d'une forme. Cette couverture est calculée
 depuis les données, pas une liste d'exceptions codée en dur. La base actuelle est
 complète, ce que vérifie un test `real_data`.
 
+`get_base_stats` et `get_particularities` lisent la ligne du tableur
+(`custom_pokedex_fr`) de l'entrée résolue. Le total des statistiques est une
+somme SQL, pas la valeur stockée. `search_pokemon` filtre aussi par
+`subgroup` (une composante d'une valeur composée comme « Starter ; Fossile »),
+`evolution_stage` (base, intermediate, final, no-evolution, baby) et `ability`
+(talent 1, 2 ou caché). Ces opérations ne sont pas proposées par le routeur du
+graphe : seuls MCP, l'agent ADK et l'API HTTP y accèdent.
+
 Les types, l'identité et les capacités signature se résolvent par entrée du
 catalogue. Un nom d'espèce seul désigne l'entrée par défaut ; lorsque plusieurs
 formes partagent un `pokemon_id` (Arceus, Silvallié, Ceriflor, Xerneas) et portent

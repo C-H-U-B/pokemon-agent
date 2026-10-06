@@ -69,6 +69,8 @@ TOOL_LABELS = {
     "pokemon_move_learning_methods": "Méthodes d'apprentissage",
     "pokemon_machine_moves": "CT et CS",
     "pokemon_signature_moves": "Capacités signature",
+    "pokemon_base_stats": "Statistiques de base",
+    "pokemon_particularities": "Talents et particularités",
     "pokemon_rag_search": "Recherche documentaire Poképédia",
 }
 EXAMPLE_QUESTIONS_PATH = Path(__file__).with_name("example_questions.txt")

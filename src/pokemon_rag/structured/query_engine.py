@@ -21,6 +21,25 @@ BASE_STAT_FIELDS = {identifier: (column, BASE_STAT_NAMES[identifier]) for identi
 }.items()}
 BASE_STAT_TOTAL = "base-stat-total"
 
+# Stades d'évolution du tableur : identifiant accepté -> libellé stocké (éventuellement suivi de « · … »).
+EVOLUTION_STAGES = {"base": "Base", "intermediate": "Intermédiaire", "final": "Final",
+                    "no-evolution": "Sans évolution", "baby": "Bébé"}
+
+# Colonnes éditoriales du tableur et leur libellé de restitution. « à l'introduction » fait partie
+# du libellé : ces faits décrivent la sortie du Pokémon, pas forcément les jeux récents.
+PARTICULARITY_FIELDS = (
+    ("talent_1", "Talent 1"), ("talent_2", "Talent 2"), ("talent_cache", "Talent caché"),
+    ("talent_signature", "Talent signature"),
+    ("double_type_unique_a_l_introduction", "Double type unique à l'introduction"),
+    ("stade_d_evolution", "Stade d'évolution"), ("sous_groupe", "Sous-groupe"),
+    ("analyse_des_statistiques", "Statistiques remarquables"),
+    ("mise_en_avant_a_l_introduction", "Mise en avant à l'introduction"),
+    ("rencontre_ou_obtention_a_l_introduction", "Rencontre ou obtention à l'introduction"),
+    ("particularite_du_movepool", "Particularité du movepool"),
+    ("autre_particularite", "Autre particularité"),
+    ("differences_physiques_selon_le_sexe", "Différences selon le sexe"),
+)
+
 
 def _stat_sort(value: str) -> tuple[str, str | None, str | None]:
     """Résout la whitelist de tri et les libellés français, sans SQL utilisateur."""
@@ -248,6 +267,7 @@ def search_pokemon(
     max_level: int | None = None, limit: int = 30, offset: int = 0,
     sort_by: str = "national_number", sort_order: str = "asc",
     best_only: bool = False, form_category: str | None = None,
+    subgroup: str | None = None, evolution_stage: str | None = None, ability: str | None = None,
 ) -> dict[str, Any]:
     """Recherche SQL sur le catalogue personnalisé lié, génération de l'espèce.
 
@@ -304,6 +324,19 @@ def search_pokemon(
                 clauses.append("(CASE WHEN cp.type_1_fr IS NULL THEN 0 ELSE 1 END + "
                                "CASE WHEN cp.type_2_fr IS NULL THEN 0 ELSE 1 END)=?")
                 params.append(len(resolved))
+        # Filtres du tableur : la valeur demandée est d'abord ramenée à une valeur exacte de la base.
+        subgroup = _catalogue_value(conn, "subgroup", subgroup, ("sous_groupe",), separator=" ; ")
+        if subgroup is not None:
+            clauses.append("(' ; ' || stats.sous_groupe || ' ; ') LIKE '% ; ' || ? || ' ; %'")
+            params.append(subgroup)
+        if evolution_stage is not None:
+            stage = _evolution_stage(evolution_stage)
+            clauses.append("(stats.stade_d_evolution=? OR stats.stade_d_evolution LIKE ? || ' ·%')")
+            params.extend([stage, stage])
+        ability = _catalogue_value(conn, "ability", ability, ("talent_1", "talent_2", "talent_cache"))
+        if ability is not None:
+            clauses.append("? IN (stats.talent_1, stats.talent_2, stats.talent_cache)")
+            params.append(ability)
         version_id = _resolve_version_id(conn, version_group)
         move_where, move_params, method_id = _movepool_filters(conn, move_type, damage_class, min_power,
                                                   max_power, learning_method, min_level, max_level)
@@ -316,7 +349,8 @@ def search_pokemon(
             if version_id is not None:
                 params.append(version_id)
             params.extend(move_params)
-        stats_join = "JOIN custom_pokedex_fr stats ON stats.source_row=cp.source_row" if stat_expression else ""
+        needs_spreadsheet = stat_expression or subgroup or evolution_stage or ability
+        stats_join = "JOIN custom_pokedex_fr stats ON stats.source_row=cp.source_row" if needs_spreadsheet else ""
         if stat_expression:
             clauses.append(f"{stat_expression} IS NOT NULL")
         source = f"""FROM custom_pokedex cp JOIN pokemon p ON p.id=cp.pokemon_id
@@ -1269,6 +1303,71 @@ def _pokedex_result(operation: str, pokemon: str, form: str | None) -> dict[str,
 
 def get_pokemon_types(pokemon: str, form: str | None = None) -> dict[str, Any]:
     return _pokedex_result("get_pokemon_types", pokemon, form)
+
+
+def _catalogue_value(conn: sqlite3.Connection, name: str, value: str | None,
+                     columns: tuple[str, ...], separator: str | None = None) -> str | None:
+    """Valeur du tableur désignée par un filtre, comparée exactement après normalisation.
+
+    Une valeur inconnue est une erreur, jamais une liste vide : le modèle doit pouvoir corriger
+    son argument. Les colonnes sont des constantes internes, pas des arguments du modèle.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str) or not _normalize(value):
+        raise ValueError(f"{name} doit être une chaîne non vide.")
+    known: set[str] = set()
+    for column in columns:
+        for (cell,) in conn.execute(f"SELECT DISTINCT {column} FROM custom_pokedex_fr WHERE {column} IS NOT NULL"):
+            known.update(part.strip() for part in (cell.split(separator) if separator else [cell]) if part.strip())
+    wanted = _normalize(value)
+    match = next((item for item in sorted(known) if _normalize(item) == wanted), None)
+    if match is None:
+        values = f" Valeurs : {', '.join(sorted(known))}." if len(known) <= 40 else ""
+        raise ValueError(f"{name} inconnu : {value!r}.{values}")
+    return match
+
+
+def _evolution_stage(value: str) -> str:
+    normalized = _normalize(value) if isinstance(value, str) else ""
+    for identifier, label in EVOLUTION_STAGES.items():
+        if normalized in {identifier, _normalize(label)}:
+            return label
+    raise ValueError("evolution_stage invalide : " + ", ".join(EVOLUTION_STAGES) + ".")
+
+
+def _spreadsheet_result(operation: str, pokemon: str, form: str | None, select: str) -> tuple[dict, sqlite3.Row, float]:
+    """Entrée du Pokédex résolue comme pour les types, puis sa ligne du tableur."""
+    start = time.perf_counter()
+    entry = _pokedex_entry(pokemon, form)
+    if entry.get("source_row") is None:
+        raise ValueError("Entrée sans ligne de tableur associée.")
+    with closing(_connect()) as conn:
+        row = conn.execute(f"SELECT {select} FROM custom_pokedex_fr WHERE source_row=?", (entry["source_row"],)).fetchone()
+    if row is None:
+        raise ValueError("Ligne du tableur introuvable pour cette entrée.")
+    result = {"operation": operation, "pokemon": entry["name_fr"], "form": entry.get("form_fr"),
+              "source": "Pokédex personnalisé", "count": 1}
+    return result, row, start
+
+
+def get_base_stats(pokemon: str, form: str | None = None) -> dict[str, Any]:
+    """Six statistiques de base d'un Pokémon nommé et leur somme, calculée en SQL."""
+    columns = [column for column, _ in BASE_STAT_FIELDS.values()]
+    result, row, start = _spreadsheet_result(
+        "get_base_stats", pokemon, form, ", ".join(columns) + ", (" + " + ".join(columns) + ") AS total")
+    stats = {label: row[column] for column, label in BASE_STAT_FIELDS.values()}
+    return {**result, "rows": [{"name_fr": result["pokemon"], **stats, "Total des statistiques": row["total"]}],
+            "execution_time": time.perf_counter() - start}
+
+
+def get_particularities(pokemon: str, form: str | None = None) -> dict[str, Any]:
+    """Ce que le tableur note de particulier pour un Pokémon nommé ; les rubriques vides sont omises."""
+    result, row, start = _spreadsheet_result(
+        "get_particularities", pokemon, form, ", ".join(column for column, _ in PARTICULARITY_FIELDS))
+    facts = {label: row[column] for column, label in PARTICULARITY_FIELDS if row[column] not in (None, "")}
+    return {**result, "rows": [{"name_fr": result["pokemon"], **facts}],
+            "execution_time": time.perf_counter() - start}
 
 
 def get_pokedex_identity(pokemon: str, form: str | None = None) -> dict[str, Any]:

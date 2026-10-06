@@ -23,6 +23,8 @@ ROUTES = {
     "/pokemon/{pokemon}/identity": tools.pokemon_pokedex_identity,
     "/pokemon/{pokemon}/evolutions": tools.pokemon_evolutions,
     "/pokemon/{pokemon}/signature-moves": tools.pokemon_signature_moves,
+    "/pokemon/{pokemon}/stats": tools.pokemon_base_stats,
+    "/pokemon/{pokemon}/particularities": tools.pokemon_particularities,
     "/pokemon/{pokemon}/moves": tools.pokemon_moves,
     "/pokemon/{pokemon}/level-up-moves": tools.pokemon_level_up_moves,
     "/pokemon/{pokemon}/machine-moves": tools.pokemon_machine_moves,

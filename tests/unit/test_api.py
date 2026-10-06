@@ -8,12 +8,13 @@ from pokemon_rag.mcp import server as tools
 client = TestClient(api.app)
 
 ENGINE = ["search_pokemon", "get_pokemon_types", "get_pokedex_identity", "get_evolutions", "get_signature_moves",
-          "get_pokemon_moves", "get_level_up_moves", "get_machine_moves", "get_move_learning_methods"]
+          "get_pokemon_moves", "get_level_up_moves", "get_machine_moves", "get_move_learning_methods",
+          "get_base_stats", "get_particularities"]
 
 
 @pytest.fixture
 def engine(monkeypatch):
-    """Remplace les neuf fonctions du moteur ; renvoie les appels reçus, par nom."""
+    """Remplace les fonctions du moteur ; renvoie les appels reçus, par nom."""
     calls = []
     for name in ENGINE:
         monkeypatch.setattr(tools, name, lambda _name=name, **kwargs: calls.append((_name, kwargs)) or {"operation": _name})
@@ -51,6 +52,12 @@ def test_health_is_unavailable_when_the_database_file_is_missing(monkeypatch, tm
     ("/pokemon/Évoli/evolutions", {"version_group": "sword-shield"}, "get_evolutions",
      {"pokemon": "Évoli", "form": None, "version_group": "sword-shield"}),
     ("/pokemon/Pikachu/signature-moves", {}, "get_signature_moves", {"pokemon": "Pikachu", "form": None}),
+    ("/pokemon/Dardargnan/stats", {"form": "beedrill-mega"}, "get_base_stats",
+     {"pokemon": "Dardargnan", "form": "beedrill-mega"}),
+    ("/pokemon/Dracolosse/particularities", {}, "get_particularities", {"pokemon": "Dracolosse", "form": None}),
+    # Les filtres du tableur ; « talent » dans l'URL devient « ability » pour le moteur.
+    ("/pokemon", {"subgroup": "Fossile", "evolution_stage": "no-evolution", "talent": "Glissade"},
+     "search_pokemon", {"subgroup": "Fossile", "evolution_stage": "no-evolution", "ability": "Glissade"}),
     ("/pokemon/Pikachu/moves", {"move_type": "Électrik", "damage_class": "special", "min_power": 80, "limit": 0},
      "get_pokemon_moves", {"pokemon": "Pikachu", "move_type": "Électrik", "damage_class": "special",
                            "min_power": 80, "max_power": None, "limit": 0}),
@@ -73,7 +80,8 @@ def test_routes_cover_the_structured_tools_and_not_document_search():
     names = {route.name for route in api.app.routes if route.path.startswith("/pokemon")}
     assert names == {"pokemon_search", "pokemon_types", "pokemon_pokedex_identity", "pokemon_evolutions",
                      "pokemon_signature_moves", "pokemon_moves", "pokemon_level_up_moves",
-                     "pokemon_machine_moves", "pokemon_move_learning_methods"}
+                     "pokemon_machine_moves", "pokemon_move_learning_methods",
+                     "pokemon_base_stats", "pokemon_particularities"}
     # Aucune route n'attend de corps : tous les arguments viennent de l'URL.
     assert not any(route.body_field for route in api.app.routes if route.path.startswith("/pokemon"))
 
@@ -96,6 +104,7 @@ def test_engine_refusal_keeps_its_message_and_is_never_a_500(monkeypatch, url, f
     ("/pokemon", {"sort_by": "vitesse"}),
     ("/pokemon", {"type_match": "some"}),
     ("/pokemon", {"generation": "six"}),
+    ("/pokemon", {"evolution_stage": "adulte"}),
     ("/pokemon/Pikachu/level-up-moves", {"min_level": "dix"}),
 ])
 def test_value_outside_the_schema_is_rejected_before_the_engine(engine, url, params):

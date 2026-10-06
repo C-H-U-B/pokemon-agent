@@ -16,7 +16,7 @@ Everything runs locally: SQLite, ChromaDB and an 8B Qwen model served by LM Stud
 | Relational database | 30 tables, 51 indexes, 8 views; 638,000 move-learning rows across 32 game groups |
 | Reference data | 1,025 species, 1,351 Pokémon, 1,579 forms, 937 moves |
 | Document index | 36,280 embedded chunks |
-| Tests | 1018 tests, 934 of which need no model |
+| Tests | 1134 tests, 1044 of which need no model |
 | End-to-end campaign | 31 of 31 questions passed with a local 8-billion-parameter model |
 
 ## Data flow
@@ -75,7 +75,7 @@ One data anomaly met along the way shows why these checks matter: the most recen
 
 - **SQL engine.** Parameterised functions cover evolutions, moves, types, multi-criteria search and rankings by statistic. Filters, sorts, totals and ties are computed in SQL. The language model never writes SQL: it picks an operation and its arguments.
 - **Document search.** Combined lexical and vector search, awareness of section structure, then reranking.
-- **MCP server.** Ten tools expose these functions to any compatible client.
+- **MCP server.** Twelve tools expose these functions to any compatible client.
 
 Three ways of answering a question rely on the same data:
 

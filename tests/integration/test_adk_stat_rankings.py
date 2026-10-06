@@ -249,3 +249,31 @@ def test_sql_time_reaches_the_interface_through_the_session_state_and_not_the_mo
     # Ni le retour d'outil ni la requête envoyée au modèle ne contiennent la mesure.
     assert "execution_time" not in responses[-1]
     assert all("execution_time" not in request and "tool_timings" not in request for request in model.requests)
+
+
+@pytest.mark.real_data
+@pytest.mark.parametrize("question, tool, proposed, expected", [
+    # Nom anglais et forme oubliée : le guard remet le Pokémon et la forme de la question.
+    ("Quelle est la Défense Spéciale de Méga-Dardargnan ?", "pokemon_base_stats", {"pokemon": "Beedrill"},
+     {"name_fr": "Méga-Dardargnan", "Défense Spéciale": 80, "Total des statistiques": 495}),
+    ("Quels sont les talents de Dracolosse ?", "pokemon_particularities", {"pokemon": "Dragonite"},
+     {"name_fr": "Dracolosse", "Talent 1": "Attention", "Talent caché": "Multiécaille", "Sous-groupe": "Pseudo-légendaire"}),
+])
+def test_named_stats_and_particularities_reach_formulation_in_the_real_runner(question, tool, proposed, expected):
+    model, responses, texts = asyncio.run(_run_simulated(question, tool, proposed))
+    row = responses[-1]["rows"][0]
+    assert expected.items() <= row.items(), responses[-1]
+    assert "execution_time" not in responses[-1]
+    # Réponse complète : le catalogue n'est plus transmis pour la rédaction.
+    assert texts == ["Réponse simulée après résultat SQL."] and model.calls == 2 and model.tool_counts[-1] == 0
+
+
+@pytest.mark.real_data
+def test_description_answered_from_types_is_refused_then_replaced_in_the_real_runner():
+    # Le modèle simulé choisit les types puis rédige : le guard refuse, la réponse est remplacée.
+    model, responses, texts = asyncio.run(_run_simulated(
+        "Décris Tutafeh", "pokemon_types", {"pokemon": "Tutafeh"}))
+    assert responses[-1]["error"] == "documentary_question_requires_search"
+    assert responses[-1]["required_tool"] == "pokemon_rag_search"
+    assert responses[-1]["required_arguments"] == {"question": "Décris Tutafeh", "pokemon": "Tutafeh"}
+    assert texts == [TOOL_FAILURE_ABSTENTION] and model.tool_counts[-1] > 0  # catalogue gardé pour la reprise

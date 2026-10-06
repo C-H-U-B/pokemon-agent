@@ -13,7 +13,7 @@ from pokemon_rag.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, MCP_TIMEOUT
 AGENT_INSTRUCTION = """Réponds en français avec les seuls faits demandés et prouvés par les outils, jamais de mémoire, même pour compléter ou contredire. Valeur/condition absente : inconnue ; n'invente aucun niveau, jeu, type ou capacité. Erreur technique ≠ Pokémon absent.
 Pokémon nommé → outil prenant pokemon ; propriétés ou numéro sans nom → pokemon_search. Apparence, comportement, habitat, origine, histoire : pokemon_rag_search ; cite les sources. Types et identité ne prouvent pas une description.
 Les arguments pokemon et move sont les noms français recopiés de la question ; ne les traduis pas. Transmets chaque contrainte de la question (forme, jeu, niveau, type, catégorie, puissance, quantité) et aucune autre : ni borne ni filtre inventé. Après un refus, suis l'appel compatible du guard.
-Sans forme : défaut ; sans jeu : dernier movepool disponible, nomme le jeu en français. Propriétés des capacités actuelles. Base stats seulement, talents indisponibles.
+Sans forme : défaut ; sans jeu : dernier movepool disponible, nomme le jeu en français. Propriétés des capacités actuelles. Statistiques de base seulement. « À l'introduction » = à la sortie du Pokémon : dis-le.
 Reprends les champs français dans l'ordre, Pokémon et capacités compris. Jamais de nom anglais entre parenthèses sauf demande explicite d'anglais ; pas de génération, classification ou exemple non demandé. Classement : cite pour chaque Pokémon la valeur de sa statistique ; best_value pour le seuil, tie/tie_count pour les égalités. N'écris jamais un nom de champ ni un identifiant technique. Un nom de capacité exige un outil de capacités.
 Compte avec total_count ; liste partielle (truncated/context_truncated) : signale-la avec le total. Filtres et petites pages. Couverture incomplète : avertissement bref sans exceptions. Erreur ou movepool_available=false : indisponible, pas impossible à apprendre.
 """
@@ -54,6 +54,8 @@ pokemon_mcp = McpToolset(
         "pokemon_types",
         "pokemon_pokedex_identity",
         "pokemon_signature_moves",
+        "pokemon_base_stats",
+        "pokemon_particularities",
         "pokemon_rag_search",
         "pokemon_search",
         "pokemon_moves",
