@@ -100,6 +100,18 @@ documentaire n'est pas demandée. Une question posée pendant le chargement
 attend sa fin, sans le relancer. Un échec de ce démarrage anticipé est
 journalisé (`warm_up_failed`) et ne bloque pas l'interface.
 
+## Traces
+
+Chaque question ajoute une ligne à `traces/web_traces.jsonl` : modèle et serveur
+utilisés, question, issue (`answered`, `budget_abstention`,
+`tool_failure_abstention`, `no_final_response`, `error`), réponse, temps par
+étape, tokens, et pour chaque appel d'outil ses arguments, sa durée, ses mesures
+et le résultat tel que le modèle l'a reçu. Le service `web` de `compose.yaml`
+monte ce dossier. Une écriture impossible est journalisée (`web_trace_failed`)
+sans affecter la réponse. Le débit affiché dans le panneau rapporte les tokens
+générés à tout le temps passé chez le modèle, lecture des requêtes comprise :
+le serveur de modèle ne sépare pas les deux.
+
 ## Conversations et exemples
 
 `WebSession` conserve un `user_id` issu d'un UUID pour l'interface. Chaque question

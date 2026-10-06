@@ -7,10 +7,12 @@ import pytest
 
 
 @pytest.fixture
-def web(monkeypatch):
+def web(monkeypatch, tmp_path):
     monkeypatch.setenv("GRADIO_ANALYTICS_ENABLED", "False")
     monkeypatch.setenv("LITELLM_LOCAL_MODEL_COST_MAP", "True")
     from pokemon_rag.web import app
+    # Les questions simulées ne doivent pas s'ajouter aux traces réelles du projet.
+    monkeypatch.setattr(app, "WEB_TRACE_FILE", tmp_path / "web_traces.jsonl")
     return app
 
 
@@ -184,7 +186,7 @@ def test_panel_shows_database_loading_search_steps_sql_time_and_tokens(web):
             "reclassement 1.10 s) · 5 passage(s)") in panel
     assert "- Requête SQL : 48 ms" in panel
     # Analyse 4 s + préparation 10 s = 14 s de modèle pour 200 tokens générés.
-    assert "- Qwen : 3200 tokens lus, 200 générés · ≈ 14 tokens/s" in panel
+    assert "- Qwen : 3200 tokens lus, 200 générés · ≈ 14 tokens/s, lecture des requêtes comprise" in panel
     # Chaque mesure reste sous son propre appel.
     rag, sql = panel.split("### 1.2")
     assert "Recherche :" in rag and "Requête SQL" not in rag and "Requête SQL" in sql and "Recherche :" not in sql
@@ -238,3 +240,81 @@ def test_warm_up_starts_the_tool_server_and_never_breaks_the_page(web, monkeypat
     with caplog.at_level("WARNING", logger="pokemon_rag.web.app"):
         asyncio.run(web._warm_up())
     assert "warm_up_failed" in caplog.text
+
+
+def read_traces(web):
+    import json
+    return [json.loads(line) for line in web.WEB_TRACE_FILE.read_text(encoding="utf-8").splitlines()]
+
+
+def test_each_question_appends_one_trace_with_its_answer_and_outcome(web, monkeypatch):
+    monkeypatch.setattr(web, "runner", FakeRunner())
+
+    async def run():
+        for message in ("Palmaval ?", "Cocotine ?"):
+            [output async for output in web.chat(message, [], web.WebSession())]
+
+    asyncio.run(run())
+    first, second = read_traces(web)
+    assert (first["question"], first["answer"], first["outcome"]) == ("Palmaval ?", "Réponse", "answered")
+    assert second["question"] == "Cocotine ?" and first["trace_id"] != second["trace_id"]
+    assert first["model"] == web.LLM_MODEL and first["server"] == web.LLM_BASE_URL
+    assert first["tools"] == [] and first["error"] is None and first["seconds"]["total"] >= 0
+
+
+def test_failed_and_empty_requests_are_traced_as_such(web, monkeypatch):
+    class EmptyRunner(FakeRunner):
+        async def run_async(self, session_id, new_message, **kwargs):
+            yield SimpleNamespace(content=None, is_final_response=lambda: True)
+
+    async def run(runner):
+        monkeypatch.setattr(web, "runner", runner)
+        [output async for output in web.chat("Question", [], web.WebSession())]
+
+    asyncio.run(run(FakeRunner(fail=True)))
+    asyncio.run(run(EmptyRunner()))
+    failed, empty = read_traces(web)
+    assert failed["outcome"] == "error" and failed["error"] == "RuntimeError: outil indisponible"
+    assert empty["outcome"] == "no_final_response" and empty["error"] is None
+
+
+def test_trace_keeps_tool_arguments_measures_results_and_names_abstentions(web):
+    timing = web.ActivityTiming()
+    calls = [("pokemon_level_up_moves", {"pokemon": "Carabaffe", "min_level": 10}), ("pokemon_types", {"pokemon": "Carabaffe"})]
+    refusal = {"error": "invalid_explicit_constraints", "required_arguments": {"max_level": 30}}
+    types_result = {"operation": "get_pokemon_types", "rows": [{"name_fr": "Carabaffe", "type_1_fr": "Eau"}]}
+
+    def returned(name, response, measures=()):
+        event = tool_event(measures=measures)
+        event.content = SimpleNamespace(parts=[SimpleNamespace(
+            function_response=SimpleNamespace(name=name, response=response))])
+        return event
+
+    timing.observe(calls[:1], [], 1.0)
+    timing.observe([], ["pokemon_level_up_moves"], 1.5, returned("pokemon_level_up_moves", refusal))
+    timing.observe(calls[1:], [], 3.0)
+    timing.observe([], ["pokemon_types"], 3.25, returned(
+        "pokemon_types", types_result, [{"tool": "pokemon_types", "execution_time": 0.04}]))
+    timing.transition("finished", 9.0)
+    trace = web._web_trace("Question", "Carabaffe est de type Eau.", "answered", None, calls, timing, 9.0)
+    assert trace["tools"] == [
+        {"name": "pokemon_level_up_moves", "arguments": calls[0][1], "seconds": 0.5, "result": refusal},
+        {"name": "pokemon_types", "arguments": calls[1][1], "seconds": 0.25, "execution_time": 0.04, "result": types_result},
+    ]
+    assert trace["seconds"] == {"total": 9.0, "analysis": 1.0, "tools": 0.75, "generation": 7.25}
+    for text, outcome in ((web.TOOL_FAILURE_ABSTENTION, "tool_failure_abstention"),
+                          (web.BUDGET_ABSTENTION, "budget_abstention")):
+        assert web._web_trace("Question", text, "answered", None, [], web.ActivityTiming(), 1.0)["outcome"] == outcome
+
+
+def test_unwritable_trace_never_breaks_an_answer(web, monkeypatch, tmp_path, caplog):
+    # Le chemin de trace est un dossier : l'écriture échoue, la réponse doit rester affichée.
+    monkeypatch.setattr(web, "WEB_TRACE_FILE", tmp_path)
+    monkeypatch.setattr(web, "runner", FakeRunner())
+
+    async def run():
+        return [output async for output in web.chat("Palmaval ?", [], web.WebSession())]
+
+    with caplog.at_level("WARNING", logger="pokemon_rag.web.app"):
+        outputs = asyncio.run(run())
+    assert outputs[-1][0][-1]["content"] == "Réponse" and "web_trace_failed" in caplog.text

@@ -27,6 +27,9 @@ TOOL_FAILURE_ABSTENTION = (
     "appel refusé, donnée introuvable ou aucun passage trouvé). Je ne réponds pas de mémoire : "
     "reformulez la question ou réessayez dans un instant.")
 
+BUDGET_ABSTENTION = ("Je n'ai pas pu obtenir une réponse fiable dans les limites de traitement. "
+                     "Précisez les filtres ou demandez une liste plus courte.")
+
 logger = logging.getLogger(__name__)
 
 # Marqueurs posés par ADK autour des descriptions fournies par un serveur MCP.
@@ -347,9 +350,7 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
                        "too_many_model_calls" if calls >= MAX_MODEL_CALLS else "request_too_large",
                        request_bytes, MAX_REQUEST_BYTES, _size(llm_request.contents),
                        _size(config.tools), calls)
-        return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=(
-            "Je n'ai pas pu obtenir une réponse fiable dans les limites de traitement. "
-            "Précisez les filtres ou demandez une liste plus courte."))]))
+        return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=BUDGET_ABSTENTION)]))
     callback_context.state["temp:model_calls"] = calls + 1
     callback_context.state["temp:every_tool_call_failed"] = _every_tool_call_failed(llm_request.contents)
     return None
