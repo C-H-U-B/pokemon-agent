@@ -129,6 +129,21 @@ def test_final_ranking_formulation_omits_tools_only_for_complete_results(best,to
     assert req.contents == original
 
 
+@pytest.mark.parametrize("turns", [
+    ("Décris Pikachu", "Quels sont les types de Pikachu ?"),
+    ("Quels sont les types de Pikachu ?", "Décris Pikachu"),
+])
+def test_double_request_refusal_reads_the_current_turn_only(turns):
+    """Deux questions simples successives ne forment pas une double demande ; une seule qui en mêle deux, si."""
+    req = request(turns[0])
+    req.contents += [types.Content(role="model", parts=[types.Part(text="Réponse précédente.")]),
+                     types.Content(role="user", parts=[types.Part(text=turns[1])])]
+    assert before_model_budget(SimpleNamespace(state={}), req) is None
+    req.contents.append(types.Content(role="model", parts=[types.Part(text="Réponse précédente.")]))
+    req.contents.append(types.Content(role="user", parts=[types.Part(text="Décris Pikachu et donne ses types")]))
+    assert before_model_budget(SimpleNamespace(state={}), req).content.parts[0].text == DOUBLE_REQUEST_REFUSAL
+
+
 def test_call_limit_is_per_context_and_returns_final_text():
     ctx = SimpleNamespace(state={})
     for _ in range(4):

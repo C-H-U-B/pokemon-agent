@@ -372,8 +372,10 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
     """Réponse locale avant dépassement du budget ou répétition excessive."""
     config = llm_request.config
     config.max_output_tokens = min(config.max_output_tokens or MAX_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS)
-    question = " ".join(part.text for content in llm_request.contents if content.role == "user"
-                        for part in content.parts or [] if part.text)
+    # Tour courant seulement : lues ensemble, deux questions successives passaient pour une double demande.
+    question = next((" ".join(part.text for part in content.parts if part.text)
+                     for content in reversed(llm_request.contents)
+                     if content.role == "user" and any(part.text for part in content.parts or [])), "")
     compound = re.search(r"(?:^|-)(?:et|puis|ainsi-que)-(?:leurs?-|ses-|son-|sa-|les-|le-|la-)?"
                          r"(?:types?|numeros?|evolutions?|attaques?|capacites?|statistiques?|vitesse|defense)(?:-|$)",normalize(question))
     documentary = re.search(DOCUMENTARY_PATTERN, normalize(question))
