@@ -148,3 +148,17 @@ def test_invalid_inputs_raise_value_error(
 ) -> None:
     with pytest.raises(ValueError):
         get_evolutions(pokemon, form=form)
+
+
+@pytest.mark.real_data
+@pytest.mark.parametrize("pokemon, trigger, trigger_fr, minimum_level", [
+    ("Capumain", "level-up", "gain d'un niveau, quel que soit le niveau", None),   # condition : capacité connue
+    ("Salamèche", "level-up", "montée de niveau", 16),
+    ("Kadabra", "trade", "échange", None),
+    ("Évoli", "use-item", "utilisation d'un objet", None),
+])
+def test_evolution_trigger_is_stated_in_french_and_never_implies_a_level(pokemon, trigger, trigger_fr, minimum_level):
+    from pokemon_rag.structured.query_engine import get_evolutions
+    evolution = get_evolutions(pokemon)["evolutions"][0]
+    assert (evolution["trigger"], evolution["trigger_fr"]) == (trigger, trigger_fr)
+    assert evolution["conditions"].get("minimum_level") == minimum_level

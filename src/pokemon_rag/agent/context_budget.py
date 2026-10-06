@@ -87,6 +87,41 @@ def _abridged_description(description: str) -> str:
     return f"{_FENCE_BEGIN}\n{description}\n{_FENCE_END}" if fenced else description
 
 
+# Conditions d'évolution telles que le modèle les lit : une clé technique anglaise à côté d'un
+# nombre nu (« minimum_steps: 1000 ») était omise ou niée dans la réponse.
+EVOLUTION_CONDITIONS_FR = {
+    "minimum_level": "niveau minimum", "minimum_happiness": "bonheur minimum", "minimum_beauty": "beauté minimum",
+    "minimum_affection": "affection minimum", "minimum_steps": "nombre de pas minimum",
+    "minimum_move_count": "nombre minimum d'utilisations de la capacité",
+    "minimum_damage_taken": "dégâts subis minimum", "time_of_day": "moment de la journée",
+    "trigger_item": "objet utilisé", "held_item": "objet tenu", "known_move": "capacité connue",
+    "used_move": "capacité utilisée", "known_move_type": "type d'une capacité connue", "location": "lieu",
+    "region": "région", "party_species": "Pokémon présent dans l'équipe", "party_type": "type présent dans l'équipe",
+    "trade_species": "Pokémon échangé contre", "gender": "sexe", "needs_overworld_rain": "pluie nécessaire",
+    "turn_upside_down": "console retournée", "needs_multiplayer": "multijoueur nécessaire",
+    "near_special_rock": "près d'un rocher spécial", "percentage_chance": "probabilité en pourcentage",
+}
+_CONDITION_VALUES_FR = {"day": "jour", "night": "nuit", "dusk": "crépuscule", "full-moon": "pleine lune",
+                        "female": "femelle", "male": "mâle", "genderless": "asexué"}
+_CONDITION_FLAGS = {"needs_overworld_rain", "turn_upside_down", "needs_multiplayer", "near_special_rock"}
+
+
+def _french_conditions(conditions: dict) -> dict:
+    """Clés et valeurs françaises pour le modèle ; une clé sans libellé connu reste telle quelle."""
+    result = {}
+    for key, value in conditions.items():
+        if isinstance(value, dict) and set(value) == {"fr"}:
+            value = value["fr"]                      # nom déjà réduit au français
+        elif isinstance(value, dict) and value.get("name_fr") and "name_en" not in value:
+            value = value["name_fr"]                 # espèce requise
+        elif key in _CONDITION_FLAGS and value == 1:
+            value = "oui"
+        elif isinstance(value, str):
+            value = _CONDITION_VALUES_FR.get(value, value)
+        result[EVOLUTION_CONDITIONS_FR.get(key, key)] = value
+    return result
+
+
 def _french_fields(value: Any) -> Any:
     """Masque les traductions anglaises seulement quand leur paire française existe."""
     if isinstance(value, list):
@@ -186,6 +221,12 @@ def _presentation_data(data: dict, question: str, args: dict) -> dict:
                 if row.get("method") == "machine":
                     row.pop("level", None)  # 0 n'est pas un niveau d'obtention de CT.
         data["context_compacted"] = True
+    if operation == "get_evolutions":
+        for evolution in data.get("evolutions", []):
+            if isinstance(evolution, dict) and evolution.get("trigger_fr"):
+                evolution["trigger"] = evolution.pop("trigger_fr")  # libellé français seul pour le modèle
+            if isinstance(evolution, dict) and isinstance(evolution.get("conditions"), dict):
+                evolution["conditions"] = _french_conditions(evolution["conditions"])
     if operation:
         data.pop("execution_time", None)
         def game_names(value):

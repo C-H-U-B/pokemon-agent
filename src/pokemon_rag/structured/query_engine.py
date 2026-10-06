@@ -21,6 +21,9 @@ BASE_STAT_FIELDS = {identifier: (column, BASE_STAT_NAMES[identifier]) for identi
 }.items()}
 BASE_STAT_TOTAL = "base-stat-total"
 
+# Déclencheurs d'évolution les plus courants ; les autres gardent leur seul identifiant PokéAPI.
+EVOLUTION_TRIGGERS_FR = {"level-up": "montée de niveau", "use-item": "utilisation d'un objet", "trade": "échange"}
+
 # Stades d'évolution du tableur : identifiant accepté -> libellé stocké (éventuellement suivi de « · … »).
 EVOLUTION_STAGES = {"base": "Base", "intermediate": "Intermédiaire", "final": "Final",
                     "no-evolution": "Sans évolution", "baby": "Bébé"}
@@ -924,6 +927,12 @@ def get_evolutions(
                     "conditions": _condition_details(conn, row),
                 }
             )
+            # « level-up » sans niveau minimum est lu à tort comme « à partir d'un certain niveau ».
+            trigger_fr = EVOLUTION_TRIGGERS_FR.get(row["trigger_identifier"])
+            if row["trigger_identifier"] == "level-up" and "minimum_level" not in evolutions[-1]["conditions"]:
+                trigger_fr = "gain d'un niveau, quel que soit le niveau"
+            if trigger_fr:
+                evolutions[-1]["trigger_fr"] = trigger_fr
 
         return {
             "operation": "get_evolutions",

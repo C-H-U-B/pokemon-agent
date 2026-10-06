@@ -82,6 +82,15 @@ CASES = [
         {"pokemon": "lovdisc"},
         note="Cas sans évolution : la réponse doit provenir de la DB, pas d'une supposition du modèle.",
     ),
+    Case(
+        "evolutions-leboulerou-steps",
+        "En quoi Léboulérou évolue-t-il ?",
+        "pokemon_evolutions",
+        {"pokemon": "léboulérou"},
+        ("Bérasca",),
+        note="Gain de niveau sans seuil avec une condition rare (1 000 pas) : ni niveau inventé, "
+             "ni condition omise ou niée. Le contrôle générique des conditions accepte « 1 000 ».",
+    ),
 
     # --- Capacités par niveau / CT / méthode ---
     Case(
@@ -462,6 +471,38 @@ def _localized_pairs(value):
     return pairs + [pair for item in value.values() for pair in _localized_pairs(item)]
 
 
+_DAY_PARTS = {"day": r"jour(?:née)?|diurne", "jour": r"jour(?:née)?|diurne", "night": r"nuit|nocturne", "nuit": r"nuit|nocturne"}
+
+
+def _evolution_condition_checks(result, answer):
+    """Chaque condition renvoyée pour une évolution doit se retrouver dans la réponse.
+
+    Contrôle par valeur, quel que soit le nom de la clé : nombre, nom français, moment de la
+    journée. Limité aux résultats courts, où omettre une condition rend la réponse trompeuse.
+    Il ne détecte pas une condition citée puis niée dans la même phrase.
+    """
+    evolutions = result.get("evolutions") or []
+    if result.get("operation") != "get_evolutions" or not 0 < len(evolutions) <= 3:
+        return []
+    # « 1 000 » et « 1000 » désignent le même nombre.
+    text = re.sub(r"(?<=\d)[\s\u00a0\u202f](?=\d{3}(?!\d))", "", answer)
+    checks = []
+    for evolution in evolutions:
+        for key, value in (evolution.get("conditions") or {}).items():
+            if isinstance(value, dict):
+                value = value.get("fr")
+            if type(value) in {int, float} and value > 1:  # 1 est un simple indicateur (rocher spécial…)
+                present = bool(re.search(rf"(?<!\d){re.escape(str(value))}(?!\d)", text))
+            elif isinstance(value, str) and normalize(value) in _DAY_PARTS:
+                present = bool(re.search(rf"\b(?:{_DAY_PARTS[normalize(value)]})\b", text, re.I))
+            elif isinstance(value, str) and value:
+                present = value.casefold() in text.casefold()
+            else:
+                continue
+            checks.append((present, f"Condition restituée : {key}={value}", f"Condition omise : {key}={value}"))
+    return checks
+
+
 def _factual_checks(result, answer):
     """Contrôles typés limités, pas un juge général de toute formulation libre."""
     checks = []
@@ -475,12 +516,13 @@ def _factual_checks(result, answer):
         return []
     levels = values(result.get("moves",[]), {"level"}) + values(result.get("methods",[]),{"level"})
     levels += values(result.get("results",[]), {"level"})  # pokemon_moves : niveaux dans learning
-    levels += values(result.get("evolutions",[]), {"minimum_level"})
+    levels += values(result.get("evolutions",[]), {"minimum_level", "niveau minimum"})
     for match in re.finditer(r"\bniveau\s*(?:de\s*)?(\d+)\b",answer,re.I):
         level = int(match.group(1))
         checks.append((level in levels,f"Niveau {level} prouvé",f"Niveau {level} absent du résultat outil"))
     for french,english,added in _english_additions(_localized_pairs(result),answer):
         checks.append((not added,f"Libellé français privilégié : {french}",f"Nom anglais ajouté : {english}"))
+    checks.extend(_evolution_condition_checks(result, answer))
     def games(value):
         if isinstance(value,dict):
             return [value["version_group"]] if isinstance(value.get("version_group"),str) else [

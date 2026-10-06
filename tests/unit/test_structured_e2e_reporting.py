@@ -52,7 +52,8 @@ def test_added_evolution_level_absent_from_tool_is_rejected_generically(reportin
     checks = reporting["_factual_checks"](result,f"Évolue au niveau {level} en connaissant Capacité française.")
     assert not all(ok for ok,_,_ in checks)
     result["evolutions"][0]["conditions"]["minimum_level"] = level
-    assert all(ok for ok,_,_ in reporting["_factual_checks"](result,f"Évolue au niveau {level}."))
+    # La capacité reste citée : chaque condition renvoyée doit désormais se retrouver dans la réponse.
+    assert all(ok for ok,_,_ in reporting["_factual_checks"](result,f"Évolue au niveau {level} en connaissant Capacité française."))
 
 
 def test_english_added_even_after_adk_projection_is_detected_from_raw_mcp(reporting):
@@ -133,3 +134,46 @@ def test_level_from_a_filtered_movepool_row_is_a_proven_level(reporting):
 def test_french_game_title_containing_its_identifier_is_not_an_english_name(reporting):
     result = {"operation":"get_pokemon_moves","version_group":"champions","results":[]}
     assert all(ok for ok,_,_ in reporting["_factual_checks"](result,"Dans Pokémon Champions, aucune capacité."))
+
+
+def evolution(conditions, count=1):
+    return {"operation": "get_evolutions", "count": count, "evolutions": [
+        {"to": {"name_fr": "Cible"}, "trigger": "gain d'un niveau", "conditions": conditions}] * count}
+
+
+@pytest.mark.parametrize("conditions, answer, passes", [
+    # Régression : « 1000 pas » était omis, puis nié, sans que la campagne le voie hors du cas écrit à la main.
+    ({"minimum_steps": 1000}, "Évolue en gagnant un niveau.", False),
+    ({"minimum_steps": 1000}, "Évolue en gagnant un niveau après 1000 pas.", True),
+    ({"minimum_steps": 1000}, "Évolue en gagnant un niveau après 1 000 pas.", True),
+    ({"minimum_steps": 1000}, "Évolue après 10000 pas.", False),                      # autre nombre
+    # Cas Riolu : la réponse « passait » en niant le bonheur.
+    ({"time_of_day": "day", "minimum_happiness": 160}, "Conditions : le jour. Aucune contrainte de bonheur.", False),
+    ({"time_of_day": "day", "minimum_happiness": 160}, "Au moins 160 points d'amitié, pendant la journée.", True),
+    ({"time_of_day": "night", "held_item": {"fr": "Griffe Rasoir"}}, "En tenant une Griffe Rasoir.", False),   # nuit omise
+    ({"time_of_day": "night", "held_item": {"fr": "Griffe Rasoir"}}, "De nuit, en tenant une griffe rasoir.", True),
+    ({"known_move": {"fr": "Coup Double"}}, "En connaissant Coup Double.", True),
+    ({"known_move": {"fr": "Coup Double"}}, "En connaissant une capacité.", False),
+    ({"near_special_rock": 1, "location": {"fr": "Forêt Vestigion"}}, "Dans la Forêt Vestigion.", True),      # 1 = indicateur
+    # Clés et valeurs déjà en français : le contrôle porte sur les valeurs.
+    ({"moment de la journée": "jour", "bonheur minimum": 160}, "De jour, avec 160 de bonheur.", True),
+    ({"moment de la journée": "jour", "bonheur minimum": 160}, "Avec 160 de bonheur.", False),
+    ({}, "Évolue par échange.", True),
+])
+def test_every_returned_evolution_condition_must_reach_the_answer(reporting, conditions, answer, passes):
+    checks = reporting["_evolution_condition_checks"](evolution(conditions), answer)
+    assert all(ok for ok, _, _ in checks) is passes
+    assert reporting["_factual_checks"](evolution(conditions), answer)[-len(checks) or len(checks):] == checks or not checks
+
+
+def test_condition_check_is_limited_to_short_evolution_results(reporting):
+    # Huit évolutions (Évoli) : une liste, pas une réponse dont chaque condition doit être recopiée.
+    assert reporting["_evolution_condition_checks"](evolution({"minimum_steps": 1000}, count=8), "Liste.") == []
+    assert reporting["_evolution_condition_checks"]({"operation": "search_pokemon", "results": []}, "x") == []
+
+
+def test_level_proven_under_its_french_condition_key_is_accepted(reporting):
+    # La vue du modèle nomme la condition en français : le niveau reste un niveau prouvé.
+    result = evolution({"niveau minimum": 16})
+    assert all(ok for ok, _, _ in reporting["_factual_checks"](result, "Évolue au niveau 16."))
+    assert not all(ok for ok, _, _ in reporting["_factual_checks"](result, "Évolue au niveau 30."))
