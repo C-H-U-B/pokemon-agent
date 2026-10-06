@@ -23,10 +23,16 @@ Les scripts de construction sont des outils de préparation, pas une étape de d
 | Corpus brut | `pokepedia/download.py` | API Poképédia → `data/pokepedia/raw/` selon la configuration actuelle |
 | Nettoyage wiki | `pokepedia/clean.py` | JSON bruts → Markdown dans `data/pokepedia/cleaned/` |
 | Index documentaire | `pokepedia/ingest.py` | Markdown → collection `pokemon_documents` dans `chroma_db/` |
+| Export pour une release | `pokepedia/export_index.py` | Collection `pokemon_documents` → `dist/chroma_db/` et `dist/chroma_db.tar.gz` ; ne modifie pas `chroma_db/` |
 
 Des fichiers locaux anciens peuvent encore être dans `data/raw/` : leur présence
 ne change pas les chemins attendus par les scripts actuels. Ne pas déplacer ni
 recréer ces données automatiquement pour réconcilier les emplacements.
+
+Ne jamais publier `chroma_db/` tel quel : ce dossier local peut contenir d'autres
+collections et les restes d'anciennes ingestions. `export_index.py` recopie la
+seule collection du projet dans un index neuf, sans charger de modèle, crée
+l'archive et vérifie qu'elle se rouvre avec tous ses fragments.
 
 Le conteneur Web lit l'index depuis un volume Docker, pas depuis `chroma_db/` :
 après une réindexation, recopier l'index avec la commande notée dans

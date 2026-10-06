@@ -3,8 +3,8 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pokemon-rag"
-version = "0.1.0"
+name = "pokemon-agent"
+version = "0.2.0"
 description = "Local hybrid RAG and structured query system for Pokémon data"
 requires-python = ">=3.10"
 
