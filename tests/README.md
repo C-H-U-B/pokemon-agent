@@ -211,10 +211,12 @@ doivent préserver la proposition d'origine et exposer les arguments requis.
 Il vérifie aussi qu'une méthode d'apprentissage absente de la question est
 retirée, et conservée dès que la question en mentionne une ; qu'un nom de jeu
 contenu dans un nom ou « dans la » ne produit pas de jeu, qu'une région citée
-comme lieu ne produit pas de forme, qu'une valeur de remplissage, une valeur
-absente de la base ou un filtre légendaire non demandé est retiré, et que
-`limit=0` n'est gardé que pour un comptage. Le catalogue des valeurs de filtres
-est injecté par `unit/conftest.py`. Les trois cas
+comme lieu ne produit pas de forme, qu'une valeur de remplissage ou un filtre
+que la question ne justifie pas (stade, talent, sous-groupe, jeu, légendaire) est
+retiré, et que `limit=0` n'est gardé que pour un comptage.
+`integration/test_constraint_vocabulary.py` vérifie aussi que chaque sous-groupe
+du tableur est reconnu par son nom : un sous-groupe inconnu de l'extraction ne
+pourrait pas être justifié. Les trois cas
 `moves-*` de la campagne attendent `learning_method` absent, pour qu'une
 méthode inventée apparaisse dans le diagnostic de proposition.
 `integration/test_mcp_server.py` vérifie aussi guard → vrai MCP stdio → SQLite :
@@ -246,7 +248,10 @@ Une recherche qui annonce un total sans transmettre de ligne (`limit=0` sur
 une question de liste) échoue, sauf pour un cas déclaré `count_only` : sans
 ligne, aucun contrôle de contenu ne s'exécutait et une liste inventée passait.
 Les termes attendus ignorent le style d'apostrophe ; les termes interdits se
-comparent par mot entier. Ce sont des contrôles de présence : ils ne détectent
+comparent par mot entier. Un nom renvoyé ne compte comme restitué que s'il figure
+dans au moins un passage qui ne nie pas son appartenance au résultat (« ne sont
+pas des légendaires », « à tort ») : une réponse citait trois légendaires pour
+dire qu'ils n'en étaient pas. Ce sont des contrôles de présence : ils ne détectent
 pas un fait ajouté à côté des faits attendus.
 `long/test_retrieval_quality.py` attend la section pertinente parmi les trois
 premiers passages, et non un mot courant du corpus.

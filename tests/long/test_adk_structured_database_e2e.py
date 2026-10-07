@@ -562,6 +562,19 @@ def _evolution_condition_checks(result, answer):
     return checks
 
 
+# Phrase qui nie l'appartenance d'un élément au résultat : « ne sont pas des légendaires », « à tort ».
+# Une négation sur une autre propriété (« Kartana, qui n'évolue pas ») ne compte pas.
+_DENIAL = re.compile(r"\b(?:ne|n['’])\s*(?:\w+\s+)?(?:sont|est|font|fait|figurent|figure|appartiennent|appartient|"
+                     r"comptent|compte)\s+pas\b|\bà\s+tort\b|\bexclus?\b", re.I)
+
+
+def _affirmed(name, answer):
+    """Le nom figure dans au moins un passage qui ne nie pas son appartenance au résultat."""
+    return any(_fold(name) in _fold(part) and not _DENIAL.search(part)
+               # Un point ne coupe qu'après un mot de trois lettres : « M. Mime » reste entier.
+               for part in re.split(r"[!?;\n()]|(?<=\w\w\w)\.(?=\s|$)", answer))
+
+
 def _factual_checks(result, answer):
     """Contrôles typés limités, pas un juge général de toute formulation libre."""
     checks = []
@@ -608,7 +621,7 @@ def _factual_checks(result, answer):
             for value in (row.get("name_fr"),stat_value(row)):
                 if value is not None and require_all:
                     present = (bool(re.search(rf"(?<!\d){re.escape(str(value))}(?!\d)",answer))
-                               if type(value) in {int,float} else str(value).casefold() in answer.casefold())
+                               if type(value) in {int,float} else _affirmed(str(value), answer))
                     checks.append((present,f"Résultat final restitue {value!r}",f"Résultat final omet {value!r}"))
         stat = result.get("stat_name_fr")
         if stat:
@@ -629,7 +642,7 @@ def _factual_checks(result, answer):
                                    if isinstance(row,dict) and row.get("name_fr")))
         if len(names) <= 10:
             for name in names:
-                checks.append((_fold(name) in _fold(answer),f"Liste restitue {name!r}",f"Liste omet {name!r}"))
+                checks.append((_affirmed(name, answer),f"Liste restitue {name!r}",f"Liste omet {name!r}"))
     if result.get("operation") == "get_move_learning_methods":
         # Niveau 0 : méthode sans niveau (CT, reproduction).
         for level in dict.fromkeys(level for level in values(result.get("methods",[]),{"level"}) if level):
