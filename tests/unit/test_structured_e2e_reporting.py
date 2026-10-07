@@ -255,3 +255,18 @@ def test_description_campaign_requires_search_and_passages_and_expects_double_re
     assert all(ok for ok, _ in documentary["_checks"](double, [], [], refusal))
     assert not all(ok for ok, _ in documentary["_checks"](double, search, found, "Trépassable est de type Géant et Sable."))
     assert not all(ok for ok, _ in documentary["_checks"](double, search, found, refusal))
+
+
+@pytest.mark.parametrize("answer,expected", [
+    # Réponse réelle du 7 octobre : trois légendaires renvoyés par l'outil, niés par le modèle.
+    ("Dialga, Palkia. (Note : Créhelf, Créfollet et Créfadet ne sont pas des Pokémon légendaires.)", False),
+    ("Créhelf est un légendaire de la quatrième génération.", True),
+    ("Kartana, qui n'évolue pas, a 181 d'Attaque.", True),
+])
+def test_a_returned_name_denied_in_its_sentence_is_not_restituted(reporting, answer, expected):
+    name = "Kartana" if "Kartana" in answer else "Créhelf"
+    assert reporting["_affirmed"](name, answer) is expected
+
+
+def test_a_name_with_an_abbreviation_point_is_not_split(reporting):
+    assert reporting["_affirmed"]("M. Mime", "Les Pokémon Psy de première génération : M. Mime et Kadabra.")
