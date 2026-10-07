@@ -14,7 +14,7 @@ from mcp.client.stdio import stdio_client
 from pokemon_rag.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
 from pokemon_rag.constraints.query_constraints import (
     extract_explicit_constraints, extract_national_pokedex_number, normalize, reconcile_search_args,
-    without_unnamed_learning_method,
+    without_unjustified_filters, without_unnamed_learning_method,
 )
 
 
@@ -206,7 +206,7 @@ def reconcile_tool_call(
 ) -> tuple[str, dict[str, Any]]:
     """Réconcilie le choix du LLM avec les contraintes certaines de la question."""
     constraints = extract_explicit_constraints(question)
-    reconciled = dict(arguments)
+    reconciled = without_unjustified_filters(question, arguments)
     if tool_name in {"pokemon_moves", "pokemon_search"}:
         reconciled = without_unnamed_learning_method(question, reconciled)
     try:

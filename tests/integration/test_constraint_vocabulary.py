@@ -38,3 +38,14 @@ def test_no_move_item_or_talent_name_adds_a_form():
     names = _french_names("move_names", "item_names")
     wrong = [name for name in names if extract_explicit_constraints(f"Que sais-tu de {name} ?").form]
     assert wrong == []
+
+
+def test_every_subgroup_of_the_spreadsheet_is_recognised_by_its_own_name():
+    # Un sous-groupe que l'extraction ne connaît pas ne peut pas être justifié : le guard le retirerait.
+    # Fabuleux et Méga-Évolution passent par les filtres mythical et form_category.
+    from pokemon_rag.constraints.query_constraints import extract_subgroup
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        subgroups = {part.strip() for (cell,) in conn.execute(
+            "SELECT DISTINCT sous_groupe FROM custom_pokedex_fr WHERE sous_groupe IS NOT NULL")
+            for part in cell.split(" ; ") if part.strip()} - {"Fabuleux", "Méga-Évolution"}
+    assert {name for name in subgroups if extract_subgroup(f"Quels sont les {name} ?") != name} == set()

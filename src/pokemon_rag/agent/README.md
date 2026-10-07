@@ -70,13 +70,16 @@ légendaire et de fabuleux restaurent leurs filtres indépendants ; sans ces mot
 dans la question, un filtre légendaire ou fabuleux proposé est retiré. Les cas
 négatifs ou alternatifs reconnus restent refusés. Une valeur de remplissage
 (`"none"`, `"null"`, chaîne vide…) est retirée de tout argument : Qwen proposait
-`talent="none"`, et le moteur refusait toute la recherche. Une valeur de
-`subgroup`, `talent` ou `version_group` absente de la base est aussi retirée
-quand la question ne nomme pas cette dimension (« sous-groupe », « talent », un
-jeu) et, pour un talent, ne contient pas la valeur : sous LM Studio, Qwen proposait
-`subgroup="Galar"`, `talent="speed"` ou `version_group="ruby"`. Une valeur nommée
-par la question reste transmise, et le refus du moteur, dont le texte atteint
-désormais le modèle, signale la faute de frappe. Sur `pokemon_search` et
+`talent="none"`, et le moteur refusait toute la recherche. Plus généralement, un
+filtre doit être justifié par la question, même avec une valeur valide
+(`without_unjustified_filters`, partagé avec le client MCP) : `evolution_stage`
+par un mot de stade (« stade », « base », « final », « évolution »…), `talent` par
+le mot « talent » ou la valeur citée, `subgroup` par un sous-groupe reconnu ou le
+mot « sous-groupe », `version_group` par un jeu nommé. Sous LM Studio, Qwen
+proposait `subgroup="Galar"`, `talent="speed"`, `version_group="ruby"`, ou
+`evolution_stage="final"` pour « le fossile le plus rapide », ce qui excluait
+Ptéra. Une valeur justifiée mais invalide reste transmise, et le refus du moteur,
+dont le texte atteint désormais le modèle, signale la faute de frappe. Sur `pokemon_search` et
 `pokemon_moves`, `limit=0` n'est gardé que pour une question de comptage
 (« combien », « nombre ») : sur une question de liste, la page vide passait pour
 complète et la liste était rédigée de mémoire.
@@ -142,11 +145,10 @@ bornes d'un intervalle sont rétablies ensemble, y compris une borne absente,
 pour enlever une limite contradictoire inventée. Les types de Pokémon et de
 capacités ont des contextes distincts ; une Attaque Spéciale de classement ne
 devient pas `damage_class=special`. Les filtres non explicitement reconnus restent
-du ressort du modèle, sous réserve des invariants existants des listes/classements :
-une forme, un talent ou un stade valides que la question ne mentionne pas sont
-conservés (« les starters de première génération » au stade de base est une
-interprétation légitime ; « Shaymin Céleste » désigne une forme sans le mot
-« forme »).
+du ressort du modèle, sous réserve des invariants existants des listes/classements
+et de la justification des filtres décrite plus haut. Une forme que la question ne
+mentionne pas reste conservée : « Shaymin Céleste » désigne une forme sans le mot
+« forme ».
 Un outil incompatible reçoit une erreur avec `selected_tool` et
 `required_arguments` ; le numéro national ajoute `required_tool=pokemon_search`.
 Aucun outil n'est changé automatiquement. La proposition n'est modifiée qu'après
@@ -336,8 +338,8 @@ le guard le restaure dans `subgroup`, refuse un outil sans ce filtre, et retire
 un filtre légendaire ou fabuleux que la question ne mentionne pas. Ces noms
 suffisent aussi à reconnaître un classement sans le mot « Pokémon » (« le
 fossile le plus rapide »). `evolution_stage` et `talent` ne sont pas extraits
-de la question : le guard ne les restaure pas et ne retire qu'une valeur de
-remplissage.
+de la question : le guard ne les restaure pas, et les retire quand la question ne
+les justifie pas.
 
 Quand la question nomme un Pokémon, un mot de catégorie (légendaire, fabuleux
 ou sous-groupe) n'est plus un filtre de liste mais une propriété interrogée

@@ -300,7 +300,7 @@ def test_web_trace_records_the_call_executed_after_the_guard_and_the_proposal_it
         calls.extend(new_calls)
         timing.observe(new_calls, _extract_function_responses(event), 0.0, event)
     tool = _web_trace(question, "", "answered", None, calls, timing, 1.0)["tools"][0]
-    assert tool["arguments"] == {"subgroup": "Starter", "evolution_stage": "base", "generation": 1}
+    assert tool["arguments"] == {"subgroup": "Starter", "generation": 1}
     assert tool["proposed_arguments"] == proposed
 
 

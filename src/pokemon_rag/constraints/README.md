@@ -133,7 +133,15 @@ compte que s'il suit un mot qui annonce un jeu (« Pokémon », « dans », « e
 Platine ») : ces mots apparaissent dans de nombreux noms de capacités, d'objets,
 de lieux et d'espèces (« Lance-Soleil », « Pierre Lune », « Rugit-Lune »). Les
 titres de plusieurs mots comptent toujours. `tests/integration/test_constraint_vocabulary.py`
-vérifie qu'aucun nom français de la base ne produit de jeu ni de forme.
+vérifie qu'aucun nom français de la base ne produit de jeu ni de forme, et que
+chaque sous-groupe du tableur est reconnu par son nom (Fabuleux et Méga-Évolution
+passent par `mythical` et `form_category`).
+
+`without_unjustified_filters(question, arguments)` retire les valeurs de
+remplissage et les filtres que la question ne justifie pas : stade sans mot de
+stade, talent sans le mot « talent » ni sa valeur, sous-groupe non reconnu sans le
+mot « sous-groupe », jeu non nommé. Le guard ADK et le client MCP l'appliquent
+avant de rétablir les contraintes extraites.
 
 ## Limites et évolution
 
