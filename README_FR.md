@@ -13,11 +13,11 @@ Le projet tourne entièrement en local : SQLite, ChromaDB et un modèle Qwen 8B 
 | | |
 | --- | --- |
 | Sources | 24 fichiers CSV PokéAPI, un tableur de référence maintenu à la main, 1 216 pages Poképédia |
-| Base relationnelle | 30 tables, 51 index, 8 vues ; 638 000 lignes d'apprentissage de capacités sur 32 groupes de jeux |
+| Base relationnelle | 30 tables, 51 index, 8 vues ; 638 000 lignes d'apprentissage de capacités sur 26 groupes de jeux |
 | Référentiel | 1 025 espèces, 1 351 Pokémon, 1 579 formes, 937 capacités |
 | Index documentaire | 36 280 fragments vectorisés |
-| Tests | 1181 tests, dont 1090 sans aucun modèle |
-| Campagne de bout en bout | 31 questions sur 31 réussies avec un modèle local de 8 milliards de paramètres |
+| Tests | 1 288 tests, dont 1 188 sans aucun modèle |
+| Campagne de bout en bout | 41 questions sur 42 réussies avec un modèle local de 8 milliards de paramètres ; l'échec, corrigé depuis, a ensuite réussi 2 fois sur 2 |
 
 ## Flux de données
 
@@ -31,7 +31,7 @@ flowchart LR
     R --> S[Index vectoriel<br/>ChromaDB]
     C --> E[Moteur SQL]
     S --> F[Recherche hybride]
-    E --> M[Serveur MCP<br/>10 outils]
+    E --> M[Serveur MCP<br/>12 outils]
     F --> M
     E --> G[Graphe LangGraph]
     F --> G
@@ -67,7 +67,7 @@ Chaque fragment garde le Pokémon, le fichier source et le chemin de section don
 - **Tests sur les données réelles.** Le rapprochement, les formes par défaut, les évolutions et les capacités sont vérifiés sur la base construite.
 - **Tests sur catalogue contrôlé.** La logique SQL est testée sur de petites bases SQLite créées pour chaque test, avec des cas adverses : identifiants dans le désordre, valeurs nulles, égalités, formes manquantes.
 - **Isolation.** Les tests légers échouent s'ils ouvrent les bases du projet ou chargent un modèle. Le moteur SQL n'importe aucun client de modèle, ce qu'un test vérifie.
-- **Intégration continue.** À chaque push, GitHub Actions installe le projet sur une machine vierge, lance le contrôle statique et les 682 tests qui ne dépendent ni des données locales ni d'un modèle.
+- **Intégration continue.** À chaque push, GitHub Actions installe le projet sur une machine vierge, lance le contrôle statique et les 993 tests qui ne dépendent ni des données locales ni d'un modèle.
 
 Une anomalie de données rencontrée en cours de route illustre l'intérêt de ces contrôles : le jeu le plus récent n'utilise qu'une seule méthode d'apprentissage, si bien qu'une recherche de capacités par niveau y renvoyait une liste vide pour plus de 300 Pokémon. La sélection du jeu tient désormais compte de la méthode demandée.
 
@@ -78,17 +78,17 @@ Une anomalie de données rencontrée en cours de route illustre l'intérêt de c
 - **Serveur MCP.** Douze outils exposent ces fonctions à n'importe quel client compatible.
 - **API HTTP.** Onze routes exposent le moteur SQL sans aucun modèle. Elles réutilisent les fonctions des outils MCP : mêmes arguments, mêmes validations.
 
-Trois façons de répondre à une question s'appuient sur ces mêmes données :
+Trois façons de répondre à une question s'appuient sur ces mêmes données. L'agent ADK et son interface Web sont le parcours principal. Le graphe LangGraph et le client MCP sont la première version du projet, gardée pour comparaison et non maintenue : le graphe couvre 7 opérations structurées contre les 12 outils de l'agent, mais il est le seul parcours à contrôler la fidélité d'une description.
 
 | Parcours | Principe | Garanties |
 | --- | --- | --- |
-| Graphe LangGraph | Routage entre SQL, recherche documentaire ou les deux | Plan contraint, contrôle de fidélité de la réponse, reprises bornées, abstention, traces |
-| Client MCP | Boucle d'agent minimale écrite à la main | Contraintes explicites de la question préservées |
-| Agent ADK et interface Web | Le modèle choisit les outils, un contrôle déterministe vérifie chaque appel | Arguments corrigés ou appel refusé, budget de contexte mesuré |
+| Agent ADK et interface Web (principal) | Le modèle choisit les outils, un contrôle déterministe vérifie chaque appel | Arguments corrigés ou appel refusé, filtres non justifiés par la question retirés, réponses confrontées aux listes sur lesquelles elles s'appuient, budget de contexte mesuré |
+| Graphe LangGraph (première version) | Routage entre SQL, recherche documentaire ou les deux | Plan contraint, contrôle de fidélité de la réponse, reprises bornées, abstention, traces |
+| Client MCP (première version) | Boucle d'agent minimale écrite à la main | Contraintes explicites de la question préservées |
 
 ## Fiabiliser un petit modèle
 
-Un modèle de 8 milliards de paramètres se trompe souvent sur les arguments : il oublie un filtre, invente une borne, remplace un nom rare par un nom plus courant. Plutôt que de lui faire confiance, un contrôle déterministe extrait les contraintes de la question et les compare à l'appel proposé avant son exécution.
+Un modèle de 8 milliards de paramètres se trompe souvent sur les arguments : il oublie un filtre, invente une borne, remplace un nom rare par un nom plus courant. Plutôt que de lui faire confiance, un contrôle déterministe extrait les contraintes de la question et les compare à l'appel proposé avant son exécution. La réponse est contrôlée de la même façon : quand le modèle omet ou nie une ligne d'une liste reçue en entier, la réponse est remplacée par la liste construite depuis les données.
 
 Résultats de la campagne de 31 questions, avant et après les derniers travaux de fiabilité :
 
@@ -98,7 +98,7 @@ Résultats de la campagne de 31 questions, avant et après les derniers travaux 
 | Appels corrects dès la proposition du modèle | 15 | 30 |
 | Réponses abandonnées pour dépassement de contexte | 5 | 0 |
 
-Depuis, deux outils et trois filtres ont été ajoutés, et la campagne rééquilibrée à 33 questions. Avec Qwen servi par Ollama dans Docker, le modèle propose 27 appels corrects d'emblée ; le contrôle corrige les 6 autres avant exécution, et les 33 questions passent.
+La campagne compte désormais 42 questions, dont des mots ordinaires qui ne doivent pas devenir des contraintes et des listes dont la réponse est contrôlée. Avec Qwen servi par LM Studio, le modèle propose 31 appels corrects d'emblée ; le contrôle en corrige 10 des 11 autres avant exécution, et 41 questions passent. Le contrôle des réponses en a remplacé une, qui niait que trois des Pokémon renvoyés soient légendaires. L'échec, un talent formé par les mots « type Feu » de la question, a été corrigé, et la question a ensuite réussi lors des deux exécutions.
 
 Chaque cause a été isolée avant d'être corrigée, en distinguant erreur de données, erreur de test et erreur d'orchestration. Le récit complet est dans [l'historique de développement](DEVELOPMENT_FR.md).
 
@@ -170,7 +170,8 @@ ruff check .
 ## Limites connues
 
 - La base applicative et l'index documentaire sont publiés ; la base PokéAPI intermédiaire et le corpus brut restent à reconstruire pour les régénérer.
-- Sur le parcours de l'agent, rien ne vérifie qu'une description est fidèle aux passages trouvés : elle peut recopier une fiche hors sujet ou extrapoler. Seul le graphe LangGraph contrôle cette fidélité.
+- Sur le parcours de l'agent, les listes structurées sont confrontées aux données, mais rien ne vérifie qu'une description est fidèle aux passages trouvés : elle peut recopier une fiche hors sujet ou extrapoler. Seul le graphe LangGraph contrôle cette fidélité.
+- Les contrôles de réponse sont lexicaux : ils voient un nom absent ou déformé et les négations courantes, pas toutes les tournures, et les listes de plus de 30 lignes ne sont pas contrôlées.
 - L'agent refuse une question qui mêle une description et un fait structuré ; il faut poser les deux séparément.
 - Les étapes de construction se lancent à la main, dans l'ordre ci-dessus, et reconstruisent tout.
 - L'intégration continue ne couvre pas les tests qui demandent les bases construites ou un modèle.
@@ -180,7 +181,7 @@ ruff check .
 
 - [Architecture](ARCHITECTURE.md) : flux, points d'entrée et frontières entre modules.
 - [Scripts et données](scripts/README.md) : chaînes de préparation.
-- [Moteur structuré](src/pokemon_rag/structured/README.md), [recherche documentaire](src/pokemon_rag/rag/README.md), [serveur MCP](src/pokemon_rag/mcp/README.md), [agent ADK](src/pokemon_rag/agent/README.md).
+- [Moteur structuré](src/pokemon_rag/structured/README.md), [recherche documentaire](src/pokemon_rag/rag/README.md), [serveur MCP](src/pokemon_rag/mcp/README.md), [agent ADK](src/pokemon_rag/agent/README.md), [interface Web](src/pokemon_rag/web/README.md).
 - [Tests](tests/README.md) : quelle validation lancer selon la modification.
 - [Historique de développement](DEVELOPMENT_FR.md) : décisions, problèmes rencontrés et corrections, dans l'ordre chronologique.
 

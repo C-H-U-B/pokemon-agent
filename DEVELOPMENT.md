@@ -1444,3 +1444,38 @@ question names them and the search does not filter on them. When filtered,
 their value is common to every row and stays omitted unless explicitly asked,
 which keeps the view short. No existing campaign case sees its view change; an
 added case checks the starters' types.
+
+
+## 80. [Bug fix] Ability formed by the words of another constraint
+
+During the full campaign, "Quels starters au stade final sont de type Feu en
+première génération ?" ("Which final-stage starters are Fire type in the first
+generation?") received a `type_feu` ability proposed by the model. Normalised,
+it matched the words "type Feu" of the question, which was enough to justify it;
+the engine refused it, and the model proposed the same call three times despite
+the error message, before the abstention.
+
+A cited value now justifies an ability only if it is an ability of the
+database; the word "talent" (ability) remains enough, so that a typo is reported
+by the engine. The guard reads the list of abilities once per database state,
+and only when the question cites a value without the word "talent".
+
+
+## 81. [Architecture] Role of the paths, documentation and dependencies
+
+The three paths were presented on an equal footing. The ADK agent and its web
+interface are now described as the main path; the LangGraph graph and the MCP
+client as the project's first version, kept for comparison and no longer
+maintained, with the capability gap: seven structured operations for the
+graph, twelve tools for the agent, but the only faithfulness check for
+descriptions in the graph.
+
+A review of the whole documentation corrected statements that had become false
+(ability filter described as missing, Ollama path "not validated", ten tools
+instead of twelve) and outdated figures, checked against the database and by
+collecting the tests. The campaign figures come from a full run of 42
+questions.
+
+`pandas` and `openpyxl`, imported nowhere, leave the dependencies; `pytest`
+moves to the development dependencies and is no longer installed in the image.
+The project version becomes 0.3.0, with a database where starters are fixed.

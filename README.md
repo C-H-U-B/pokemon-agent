@@ -13,11 +13,11 @@ Everything runs locally: SQLite, ChromaDB and an 8B Qwen model served by LM Stud
 | | |
 | --- | --- |
 | Sources | 24 PokéAPI CSV files, a hand-maintained reference spreadsheet, 1,216 Poképédia pages |
-| Relational database | 30 tables, 51 indexes, 8 views; 638,000 move-learning rows across 32 game groups |
+| Relational database | 30 tables, 51 indexes, 8 views; 638,000 move-learning rows across 26 game groups |
 | Reference data | 1,025 species, 1,351 Pokémon, 1,579 forms, 937 moves |
 | Document index | 36,280 embedded chunks |
-| Tests | 1181 tests, 1090 of which need no model |
-| End-to-end campaign | 31 of 31 questions passed with a local 8-billion-parameter model |
+| Tests | 1,288 tests, 1,188 of which need no model |
+| End-to-end campaign | 41 of 42 questions passed with a local 8-billion-parameter model; the one failure, fixed since, then passed 2 of 2 |
 
 ## Data flow
 
@@ -31,7 +31,7 @@ flowchart LR
     R --> S[Vector index<br/>ChromaDB]
     C --> E[SQL engine]
     S --> F[Hybrid search]
-    E --> M[MCP server<br/>10 tools]
+    E --> M[MCP server<br/>12 tools]
     F --> M
     E --> G[LangGraph graph]
     F --> G
@@ -67,7 +67,7 @@ Each chunk keeps the Pokémon, source file and section path it comes from, which
 - **Tests on real data.** Matching, default forms, evolutions and moves are checked against the built database.
 - **Tests on a controlled catalogue.** The SQL logic is tested on small SQLite databases created for each test, with adversarial cases: out-of-order identifiers, null values, ties, missing forms.
 - **Isolation.** Light tests fail if they open the project databases or load a model. The SQL engine imports no model client, which a test verifies.
-- **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the 682 tests that depend on neither local data nor a model.
+- **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the 993 tests that depend on neither local data nor a model.
 
 One data anomaly met along the way shows why these checks matter: the most recent game uses a single learning method, so a search for moves by level returned an empty list for more than 300 Pokémon. Game selection now takes the requested method into account.
 
@@ -78,17 +78,17 @@ One data anomaly met along the way shows why these checks matter: the most recen
 - **MCP server.** Twelve tools expose these functions to any compatible client.
 - **HTTP API.** Eleven routes expose the SQL engine without any model. They reuse the functions of the MCP tools: same arguments, same validation.
 
-Three ways of answering a question rely on the same data:
+Three ways of answering a question rely on the same data. The ADK agent and its web interface are the main path. The LangGraph graph and the MCP client are the project's first version, kept for comparison and no longer maintained: the graph covers 7 structured operations against the agent's 12 tools, but it is the only path that checks the faithfulness of a description.
 
 | Path | Principle | Guarantees |
 | --- | --- | --- |
-| LangGraph graph | Routes between SQL, document search or both | Constrained plan, answer faithfulness check, bounded retries, abstention, traces |
-| MCP client | Minimal hand-written agent loop | Explicit constraints of the question preserved |
-| ADK agent and web interface | The model picks the tools, a deterministic check verifies each call | Arguments corrected or call refused, measured context budget |
+| ADK agent and web interface (main) | The model picks the tools, a deterministic check verifies each call | Arguments corrected or call refused, filters the question does not justify removed, answers checked against the lists they draw on, measured context budget |
+| LangGraph graph (first version) | Routes between SQL, document search or both | Constrained plan, answer faithfulness check, bounded retries, abstention, traces |
+| MCP client (first version) | Minimal hand-written agent loop | Explicit constraints of the question preserved |
 
 ## Making a small model reliable
 
-An 8-billion-parameter model often gets arguments wrong: it forgets a filter, invents a bound, replaces a rare name with a more common one. Rather than trusting it, a deterministic check extracts the constraints from the question and compares them with the proposed call before it runs.
+An 8-billion-parameter model often gets arguments wrong: it forgets a filter, invents a bound, replaces a rare name with a more common one. Rather than trusting it, a deterministic check extracts the constraints from the question and compares them with the proposed call before it runs. The answer is checked the same way: when the model omits or denies a row of a list it received in full, the answer is replaced by the list built from the data.
 
 Results of the 31-question campaign, before and after the latest reliability work:
 
@@ -98,7 +98,7 @@ Results of the 31-question campaign, before and after the latest reliability wor
 | Calls correct as proposed by the model | 15 | 30 |
 | Answers dropped for exceeding the context budget | 5 | 0 |
 
-Since then, two tools and three filters were added, and the campaign rebalanced to 33 questions. With Qwen served by Ollama in Docker, the model proposes 27 correct calls outright; the check repairs the other 6 before execution, and all 33 questions pass.
+The campaign now has 42 questions, including ordinary words that must not become constraints and lists whose answer is checked. With Qwen served by LM Studio, the model proposes 31 correct calls outright; the check repairs 10 of the other 11 before execution, and 41 questions pass. The answer check replaced one answer, which denied that three of the returned Pokémon were legendary. The failure, an ability formed from the words "type Feu" of the question, was fixed and the question then passed in both runs.
 
 Each cause was isolated before being fixed, telling data errors, test errors and orchestration errors apart. The full account is in the [development history](DEVELOPMENT.md).
 
@@ -170,7 +170,8 @@ ruff check .
 ## Known limits
 
 - The application database and the document index are published; the intermediate PokéAPI database and the raw corpus still have to be rebuilt to regenerate them.
-- On the agent path, nothing checks that a description is faithful to the passages found: it can copy an off-topic record or extrapolate. Only the LangGraph path checks faithfulness.
+- On the agent path, structured lists are checked against the data, but nothing checks that a description is faithful to the passages found: it can copy an off-topic record or extrapolate. Only the LangGraph path checks that.
+- The answer checks are lexical: they see a missing or distorted name and common denials, not every wording, and lists of more than 30 rows are not checked.
 - The agent refuses a question that mixes a description and a structured fact; the two must be asked separately.
 - Build steps are launched by hand, in the order above, and rebuild everything.
 - Continuous integration does not cover the tests that need the built databases or a model.
@@ -182,7 +183,7 @@ Contributor guides are written in French.
 
 - [Architecture](ARCHITECTURE.md): flows, entry points and module boundaries.
 - [Scripts and data](scripts/README.md): preparation pipelines.
-- [Structured engine](src/pokemon_rag/structured/README.md), [document search](src/pokemon_rag/rag/README.md), [MCP server](src/pokemon_rag/mcp/README.md), [ADK agent](src/pokemon_rag/agent/README.md).
+- [Structured engine](src/pokemon_rag/structured/README.md), [document search](src/pokemon_rag/rag/README.md), [MCP server](src/pokemon_rag/mcp/README.md), [ADK agent](src/pokemon_rag/agent/README.md), [web interface](src/pokemon_rag/web/README.md).
 - [Tests](tests/README.md): which validation to run for a given change.
 - [Development history](DEVELOPMENT.md): decisions, problems met and fixes, in chronological order.
 

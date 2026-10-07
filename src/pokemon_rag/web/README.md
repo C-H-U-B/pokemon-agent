@@ -37,8 +37,8 @@ La base SQLite est montée depuis `data/`. L'index Poképédia et les modèles d
 recherche vivent dans des volumes Docker : l'index doit y être copié une fois,
 puis après chaque réindexation, avec la commande notée dans `compose.yaml`.
 Lu depuis un dossier Windows partagé, son chargement prenait 44 secondes au lieu
-de 12 sur la machine de développement. Le parcours avec Ollama n'a pas encore
-été validé.
+de 12 sur la machine de développement. Le parcours avec Ollama a été validé le
+6 octobre : campagne structurée complète et clone neuf monté en suivant le README.
 
 Le panneau « Agent et outils en action » conserve deux parts sur cinq de la
 disposition sur grand écran, à droite de la conversation qui occupe les trois
@@ -133,6 +133,11 @@ Un rappel visible explique l'absence de mémoire entre questions.
 Le tirage peut répéter la même question.
 
 ## Points non vérifiés
+
+Une question en cours n'est jamais annulée : ni « Nouvelle conversation » ni la
+fermeture de l'onglet n'arrêtent la tâche lancée par `chat`, et sa trace n'est
+alors pas écrite. Que cette tâche continue réellement d'appeler le modèle reste
+à observer.
 
 L'isolation de plusieurs navigateurs reste à vérifier : `gr.State(WebSession())`
 est construit une seule fois dans `build_app`, sans génération d'identifiants

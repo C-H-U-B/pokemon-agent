@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pokemon-agent"
-version = "0.2.0"
+version = "0.3.0"
 description = "Local hybrid RAG and structured query system for Pokémon data"
 requires-python = ">=3.10"
 
@@ -20,17 +20,14 @@ dependencies = [
     "tqdm",
     "requests",
     "langchain-text-splitters",
-    "pandas",
-    "openpyxl",
     "mcp",
-    "pytest",
     "gradio>=6.29,<7",
     "fastapi",
     "uvicorn",
 ]
 
 [project.optional-dependencies]
-dev = ["ruff", "httpx"]
+dev = ["ruff", "httpx", "pytest"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
