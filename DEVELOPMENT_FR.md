@@ -1458,3 +1458,25 @@ niait son appartenance au résultat : une réponse retirait trois légendaires e
 affirmant qu'ils n'en étaient pas. Un nom renvoyé doit maintenant figurer dans
 au moins un passage qui ne le nie pas. Rejoué sur les réponses enregistrées, ce
 contrôle rejette cette réponse et ne change le verdict d'aucune autre.
+
+
+## 77. [Bug fix] Starters, évolutions de starter et starters spéciaux
+
+Le tableur classait toute la famille évolutive d'un starter comme « Starter »,
+Méga-Évolutions comprises, ainsi que Pikachu, Évoli et toutes leurs évolutions.
+« Les starters de première génération » renvoyait quinze Pokémon, dont
+Herbizarre, Raichu ou Pyroli. Le modèle, qui retenait les trois Pokémon de
+départ, contredisait alors les données, et un contrôle de fidélité aurait
+imposé une réponse fausse.
+
+La classification est corrigée dans le tableur : « Starter » désigne le stade
+de base des Pokémon de départ des jeux principaux, « Évolution de starter »
+leurs évolutions et formes, « Starter spécial » Pikachu et Évoli, sans leurs
+évolutions. La légende du tableur décrit la nouvelle règle et la base est
+reconstruite.
+
+L'extracteur reconnaît les deux nouveaux sous-groupes, l'expression la plus
+longue primant sur « starter ». Une question qui nomme les starters avec un
+stade avancé ou les Méga est lue comme « Évolution de starter », sans quoi la
+recherche serait désormais vide. Deux tests vérifient que les sous-groupes de
+l'extraction et ceux du tableur correspondent dans les deux sens.

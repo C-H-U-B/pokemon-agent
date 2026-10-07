@@ -370,6 +370,22 @@ CASES = [
         ("Bulbizarre", "Salamèche", "Carapuce"),
         note="Un talent « none » proposé par le modèle est retiré au lieu de faire échouer la recherche.",
     ),
+    Case(
+        "starter-evolutions",
+        "Quels starters au stade final sont de type Feu en première génération ?",
+        "pokemon_search",
+        {"subgroup": "Évolution de starter", "types": ["fire"], "generation": 1, "evolution_stage": "final"},
+        ("Dracaufeu",),
+        note="Starter ne désigne que le stade de base : un starter au stade final est une évolution de starter.",
+    ),
+    Case(
+        "special-starters",
+        "Quels sont les starters spéciaux ?",
+        "pokemon_search",
+        {"subgroup": "Starter spécial"},
+        ("Pikachu", "Évoli"),
+        note="Pikachu et Évoli, sans leurs évolutions.",
+    ),
 ]
 
 
@@ -572,7 +588,9 @@ def _affirmed(name, answer):
     """Le nom figure dans au moins un passage qui ne nie pas son appartenance au résultat."""
     return any(_fold(name) in _fold(part) and not _DENIAL.search(part)
                # Un point ne coupe qu'après un mot de trois lettres : « M. Mime » reste entier.
-               for part in re.split(r"[!?;\n()]|(?<=\w\w\w)\.(?=\s|$)", answer))
+               # Pas de coupure aux parenthèses : « Les trois premiers (Créhelf, …) ne sont pas
+               # légendaires » isolait les noms de leur négation.
+               for part in re.split(r"[!?;\n]|(?<=\w\w\w)\.(?=\s|$)", answer))
 
 
 def _factual_checks(result, answer):
