@@ -37,6 +37,11 @@ data/pokepedia/
 # Base unifiée générée
 data/*.db
 
+# Sauvegardes locales avant une reconstruction ou une écriture du tableur :
+# « <fichier>.avant-<motif> » pour une base, « pokedex_particularites.<date|avant-motif>.xlsx » pour le classeur
+data/**/*.avant-*
+data/pokedex_particularites.*.xlsx
+
 # Logs / temporaires
 *.log
 *.tmp

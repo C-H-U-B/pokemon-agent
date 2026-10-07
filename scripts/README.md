@@ -11,7 +11,7 @@ Exécuter les scripts depuis la racine, avec le paquet installé dans `langgraph
 
 Les données et index générés sont locaux. Leur absence ne se corrige pas en lançant automatiquement une reconstruction : le constructeur SQLite et l'ingestion peuvent remplacer les ressources existantes. Une modification du routeur, des tests ou de la documentation n'exige pas de reconstruire les données.
 
-Les scripts de construction sont des outils de préparation, pas une étape de démarrage quotidien. Vérifier leurs destinations et préserver les ressources actives avant une reconstruction volontaire : `build_pokeapi_db.py` et `build_pokemon_db.py` suppriment la base avant de la reconstruire et ne la valident qu'à la fin, et `ingest.py` supprime la collection avant de la remplir. Une interruption laisse une ressource partielle ; copier la base ou l'index avant de lancer.
+Les scripts de construction sont des outils de préparation, pas une étape de démarrage quotidien. Vérifier leurs destinations et préserver les ressources actives avant une reconstruction volontaire : `build_pokeapi_db.py` et `build_pokemon_db.py` suppriment la base avant de la reconstruire et ne la valident qu'à la fin, et `ingest.py` supprime la collection avant de la remplir. Une interruption laisse une ressource partielle ; copier la base ou l'index avant de lancer. Nommer la copie `<fichier>.avant-<motif>` (`data/pokemon.db.avant-second-lot`) ou, pour le classeur, `pokedex_particularites.<date>.xlsx` : ces deux formes sont ignorées par Git, donc `git add -A` ne les embarque pas.
 
 ## Chaînes de préparation
 
