@@ -291,7 +291,7 @@ def pokemon_base_stats(
     pokemon: str,
     form: str | None = None,
 ) -> dict[str, Any]:
-    """Pokémon nommé → ses statistiques de base et leur total. « Le plus… » : pokemon_search.
+    """Pokémon nommé → ses six statistiques de base et leur total. « Le plus… » : pokemon_search. Statistiques remarquables, rangs, records : pokemon_particularities.
 
     Args:
         pokemon: Nom du Pokémon ou de l'entrée du Pokédex.
@@ -306,9 +306,9 @@ def pokemon_particularities(
     pokemon: str,
     form: str | None = None,
 ) -> dict[str, Any]:
-    """Pokémon nommé → ses talents et particularités : sous-groupe, stade d'évolution, records, obtention.
+    """Pokémon nommé → ses talents et particularités : sous-groupe, stade d'évolution, statistiques remarquables (rangs, records, baisse en évoluant), obtention.
 
-    Aussi : double type unique, mise en avant, particularité du movepool, différences selon le sexe.
+    Aussi : double type unique, ancien type, mise en avant, particularité du movepool, différences selon le sexe.
 
     Les rubriques « à l'introduction » décrivent la sortie du Pokémon, pas les jeux récents.
     Une rubrique absente signifie que le tableur ne note rien, pas que le fait est faux.

@@ -335,6 +335,11 @@ def without_unjustified_filters(question: str, arguments: dict,
             key != "talent" or known_talents is None or normalize(value) in known_talents())
         if not cited:
             result.pop(key)
+    number = result.get("pokedex_number")
+    if isinstance(number, int) and number < 1:
+        # 0 est la valeur de remplissage d'un entier, comme « none » pour une chaîne : observé sur
+        # « Combien de Pokémon existe-t-il ? », que le moteur refusait alors (numéro hors bornes).
+        result.pop("pokedex_number")
     if result.get("subgroup") is not None and "-sous-groupe" not in padded:
         # Vocabulaire fermé, entièrement connu de l'extraction : un mot de la question qui n'en fait
         # pas partie (« Galar ») ne justifie pas un sous-groupe. Un sous-groupe nommé est rétabli ensuite.
@@ -569,6 +574,8 @@ def has_explicit_game(question: str) -> bool:
     normalized = normalize(question)
     if named_version_groups(normalized):
         return True
+    # « Dans quelle version obtenait-on Abo ? » demande le jeu, elle n'en nomme pas : rien à préserver.
+    normalized = re.sub(r"(?:^|-)(?:dans-|sur-|pour-|de-|a-)?quel(?:le)?s?-(?:versions?|jeux?)(?=-|$)", "", normalized)
     # « dans la première génération » ne désigne pas un jeu ; « dans JeuInconnu » si.
     return bool(
         re.search(rf"(?:^|-)(?:dans|in)-(?!{_ARTICLES}(?:-|$))[a-z0-9]", normalized)

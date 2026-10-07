@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sqlite3
 import time
 from contextlib import closing
@@ -31,6 +32,8 @@ EVOLUTION_STAGES = {"base": "Base", "intermediate": "Intermédiaire", "final": "
 # Colonnes éditoriales du tableur et leur libellé de restitution. « à l'introduction » fait partie
 # du libellé : ces faits décrivent la sortie du Pokémon, pas forcément les jeux récents.
 PARTICULARITY_FIELDS = (
+    # Types actuels et ancien type : la fiche répond seule à « a-t-il toujours été de type Fée ? ».
+    ("type_1", "Type 1"), ("type_2", "Type 2"), ("ancien_type", "Ancien type"),
     ("talent_1", "Talent 1"), ("talent_2", "Talent 2"), ("talent_cache", "Talent caché"),
     ("talent_signature", "Talent signature"),
     ("double_type_unique_a_l_introduction", "Double type unique à l'introduction"),
@@ -42,6 +45,38 @@ PARTICULARITY_FIELDS = (
     ("autre_particularite", "Autre particularité"),
     ("differences_physiques_selon_le_sexe", "Différences selon le sexe"),
 )
+
+
+# Le tableur s'adresse à qui a le classeur sous les yeux : la notation est abrégée et « #1 » y désigne
+# la pire valeur sous « Bottom 10 », la meilleure sous « Top 10 ». Le modèle la recopiait telle quelle.
+_STAT_NOTATION = tuple((re.compile(pattern), plain) for pattern, plain in (
+    (r"Top 10 (global|parmi les Méga-Évolutions) des répartitions les plus extrêmes : écart (\d+)",
+     r"Parmi les 10 répartitions les plus déséquilibrées (\1) : \2 d'écart entre sa statistique la plus haute et la plus basse"),
+    (r"(Top|Bottom) 10 (global|parmi les Méga-Évolutions) — ([^;]*)", lambda match: _ranked(*match.groups())),
+    (r"Outliers élevés pour le stade évolutif", "Anormalement haut pour son stade d'évolution"),
+    (r"Outliers faibles pour le stade évolutif", "Anormalement bas pour son stade d'évolution"),
+    (r"Records G(\d+)", r"Plus haute valeur de la génération \1"),
+    (r"Minima G(\d+)", r"Plus basse valeur de la génération \1"),
+    (r"au même stade évolutif", "à stade d'évolution égal"),
+    (r"\(global\)", "(tous les Pokémon)"),
+    (r"#(\d+)", r"rang \1"),
+    (r" recensées dans ce classeur", ""),
+))
+
+
+def _ranked(side: str, scope: str, values: str) -> str:
+    """« PV #3 (20) » → « PV : 3e plus basse (20) ». Le sens est porté par chaque valeur : une légende
+    en tête (« rang 1 = la plus basse ») était lue comme un fait (« rang 1 pour les PV »)."""
+    word = "haute" if side == "Top" else "basse"
+    values = re.sub(r" #(\d+) ", lambda rank: f" : {'la' if rank[1] == '1' else rank[1] + 'e'} plus {word} ", values)
+    return f"{'Parmi tous les Pokémon' if scope == 'global' else 'Parmi les Méga-Évolutions'} — {values}"
+
+
+def _readable(text: str) -> str:
+    """Texte du tableur réécrit pour un lecteur sans le classeur ; aucune valeur n'est calculée ni modifiée."""
+    for pattern, plain in _STAT_NOTATION:
+        text = pattern.sub(plain, text)
+    return text
 
 
 def _stat_sort(value: str) -> tuple[str, str | None, str | None]:
@@ -1323,6 +1358,46 @@ def _known_values(conn: sqlite3.Connection, columns: tuple[str, ...], separator:
     return known
 
 
+# Illustrations officielles du dépôt public PokeAPI/sprites, liées et non redistribuées.
+ARTWORK_URL = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{}.png"
+
+
+def pokemon_image_urls() -> dict[str, str]:
+    """Nom normalisé d'une entrée du catalogue → URL de son illustration officielle.
+
+    Les noms sont ceux que renvoient les outils : nom complet de l'entrée (« Raichu d'Alola »)
+    et, pour la forme par défaut, nom de l'espèce (« Arceus » pour « Arceus Normal »). Une forme
+    avec son propre pokemon_id a l'image de cet identifiant ; une forme cosmétique, qui partage
+    le pokemon_id de son espèce, l'image `espèce-forme`, sauf la forme par défaut. Vérifié le
+    7 octobre 2026 : une illustration pour chaque entrée liée (1 270 sur 1 275 ; les 5 formes de
+    Vrombotor sans lien PokéAPI n'en ont pas). Lu une fois par état de la base.
+    """
+    modified = DB_PATH.stat().st_mtime_ns if DB_PATH.exists() else None
+    return dict(_image_urls(str(DB_PATH), modified))
+
+
+@lru_cache(maxsize=2)
+def _image_urls(path: str, modified: int | None) -> tuple[tuple[str, str], ...]:
+    """path et modified ne servent que de clé : une base reconstruite est relue."""
+    with closing(_connect()) as conn:
+        fr_id, _ = _language_ids(conn)
+        rows = conn.execute("""SELECT cp.name_fr, cp.pokemon_id, p.species_id, pf.form_identifier,
+                pf.is_default AS default_form, p.is_default AS default_pokemon, names.name AS species_name,
+                (SELECT COUNT(*) FROM custom_pokedex other WHERE other.pokemon_id = cp.pokemon_id) AS sharing
+            FROM custom_pokedex cp JOIN pokemon p ON p.id = cp.pokemon_id
+            JOIN pokemon_forms pf ON pf.id = cp.pokemon_form_id
+            LEFT JOIN pokemon_species_names names ON names.pokemon_species_id = p.species_id
+                AND names.local_language_id = ?""", (fr_id,)).fetchall()
+    urls: dict[str, str] = {}
+    for row in rows:
+        cosmetic = row["sharing"] > 1 and row["form_identifier"] and not row["default_form"]
+        url = ARTWORK_URL.format(f"{row['species_id']}-{row['form_identifier']}" if cosmetic else row["pokemon_id"])
+        urls.setdefault(_normalize(row["name_fr"]), url)
+        if row["default_form"] and row["default_pokemon"] and row["species_name"]:
+            urls.setdefault(_normalize(row["species_name"]), url)
+    return tuple(urls.items())
+
+
 def talent_names() -> frozenset[str]:
     """Talents du tableur, normalisés, lus une fois par état de la base (guard ADK)."""
     modified = DB_PATH.stat().st_mtime_ns if DB_PATH.exists() else None
@@ -1393,7 +1468,7 @@ def get_particularities(pokemon: str, form: str | None = None) -> dict[str, Any]
     """Ce que le tableur note de particulier pour un Pokémon nommé ; les rubriques vides sont omises."""
     result, row, start = _spreadsheet_result(
         "get_particularities", pokemon, form, ", ".join(column for column, _ in PARTICULARITY_FIELDS))
-    facts = {label: row[column] for column, label in PARTICULARITY_FIELDS if row[column] not in (None, "")}
+    facts = {label: _readable(row[column]) for column, label in PARTICULARITY_FIELDS if row[column] not in (None, "")}
     return {**result, "rows": [{"name_fr": result["pokemon"], **facts}],
             "execution_time": time.perf_counter() - start}
 

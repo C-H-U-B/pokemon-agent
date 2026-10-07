@@ -365,10 +365,16 @@ Quand la question nomme un Pokémon, un mot de catégorie (légendaire, fabuleux
 ou sous-groupe) n'est plus un filtre de liste mais une propriété interrogée
 (« Mewtwo est-il un légendaire ? »). Seul `pokemon_particularities` est alors
 accepté, parce qu'il renvoie le sous-groupe ; tout autre outil est refusé en le
-désignant. Auparavant aucun outil n'était accepté. Toute autre contrainte de
-liste (classement, génération, type) reste exigée et maintient le refus. Limite :
-un mot de catégorie simplement accolé au nom (« les types du fossile Kabuto »)
-est orienté vers la fiche, qui ne contient pas les types.
+désignant. Auparavant aucun outil n'était accepté. Il en va de même d'un type
+(« Pikachu est-il de type Électrik ? », « Rondoudou a-t-il toujours été de type
+Fée ? ») : la fiche, qui renvoie les types actuels et l'ancien type, l'accepte
+sans l'exiger ; tout autre outil est refusé en la désignant, `pokemon_types`
+compris, qui ignore l'historique (le modèle l'inventait à partir des types
+actuels). Toute autre contrainte de liste (classement,
+génération) reste exigée et maintient le refus. Limite : une question qui nomme
+un Pokémon et filtre réellement sur un type ou une catégorie (« Quels Pokémon de
+type Fée peuvent battre Dracaufeu ? ») n'a aucun outil pour y répondre ; la
+fiche du Pokémon nommé est alors acceptée.
 Les événements de function call portent la proposition du modèle : ADK en donne
 une copie aux callbacks, que le guard corrige. `after_tool_budget`, appelé même
 après un refus du guard, consigne donc les arguments réellement exécutés dans

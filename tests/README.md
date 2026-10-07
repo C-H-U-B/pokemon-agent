@@ -267,6 +267,14 @@ portent sur le déroulement (recherche appelée, passages reçus, refus d'une
 double demande), pas sur la fidélité de la réponse : celle-ci se juge
 par relecture du rapport `test_results/adk_documentary_e2e.md`, qui place la
 réponse en regard des passages renvoyés.
+`long/test_adk_particularities_e2e.py` est une campagne séparée de 26
+questions sur la fiche du tableur, une par sorte de fait des rubriques en
+texte libre (rangs et records de statistiques, obtention, mise en avant,
+movepool, ancien type, différences selon le sexe, rubrique absente). Chaque
+cas distingue trois pannes : fiche non demandée, rubrique non reçue, réponse
+qui ne restitue pas les termes du tableur. Le sens d'un rang ou la date d'une
+mise en avant se jugent par relecture de
+`test_results/adk_particularities_e2e.md`.
 
 La campagne `long/test_adk_structured_database_e2e.py` appelle réellement Qwen ;
 elle est réservée à l'utilisateur, avec LM Studio, un contexte de 16384 tokens

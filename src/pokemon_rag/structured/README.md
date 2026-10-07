@@ -164,8 +164,14 @@ disparaître les conditions omises ou niées dans les réponses. Le moteur, le
 serveur MCP et l'API HTTP gardent les identifiants d'origine.
 
 `get_base_stats` et `get_particularities` lisent la ligne du tableur
-(`custom_pokedex_fr`) de l'entrée résolue. Le total des statistiques est une
-somme SQL, pas la valeur stockée. `search_pokemon` filtre aussi par
+(`custom_pokedex_fr`) de l'entrée résolue. La fiche commence par les types actuels,
+suivis de la rubrique « Ancien type » (colonne `ancien_type`, par exemple « Normal (G1–G5) »),
+pour que l'historique se lise sans second appel. Le total des statistiques est une
+somme SQL, pas la valeur stockée. `get_particularities` réécrit en clair la
+notation abrégée du tableur (`_readable` : « Bottom 10 global — PV #3 » devient
+« Parmi tous les Pokémon — PV : 3e plus basse » : le sens est porté par chaque
+valeur, une légende en tête était lue comme un fait) et retire les renvois au classeur, sans calculer ni
+modifier une valeur : le modèle recopiait la notation telle quelle. `search_pokemon` filtre aussi par
 `subgroup` (une composante d'une valeur composée comme « Starter ; Fossile »),
 `evolution_stage` (base, intermediate, final, no-evolution, baby) et `ability`
 (talent 1, 2 ou caché, exposé `talent` par MCP et l'API ; une valeur inconnue est

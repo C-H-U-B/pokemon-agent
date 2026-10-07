@@ -164,12 +164,14 @@ def spreadsheet(monkeypatch):
               double_type_unique_a_l_introduction TEXT, stade_d_evolution TEXT, sous_groupe TEXT,
               analyse_des_statistiques TEXT, mise_en_avant_a_l_introduction TEXT,
               rencontre_ou_obtention_a_l_introduction TEXT, particularite_du_movepool TEXT,
-              autre_particularite TEXT, differences_physiques_selon_le_sexe TEXT);
+              autre_particularite TEXT, differences_physiques_selon_le_sexe TEXT,
+              type_1 TEXT, type_2 TEXT, ancien_type TEXT);
             INSERT INTO custom_pokedex_fr VALUES
               (20,999,65,90,40,45,80,75,'Essaim',NULL,'Sniper',NULL,NULL,'Final · stade 3',
-               'Insecte de début d’aventure',NULL,NULL,NULL,NULL,'Possède une Méga-Évolution introduite en G6.',''),
+               'Insecte de début d’aventure',NULL,NULL,NULL,NULL,'Possède une Méga-Évolution introduite en G6.','','Insecte','Poison',
+               'Insecte (G1)'),
               (21,999,65,150,40,15,80,145,'Adaptabilité',NULL,NULL,NULL,NULL,'Méga-Évolution',
-               'Insecte de début d’aventure ; Méga-Évolution','Top 10 global — Attaque',NULL,NULL,NULL,NULL,NULL);
+               'Insecte de début d’aventure ; Méga-Évolution','Top 10 global — Attaque',NULL,NULL,NULL,NULL,NULL,'Insecte','Poison',NULL);
         ''')
         return conn
     monkeypatch.setattr(engine, "_connect", connect)
@@ -192,12 +194,30 @@ def test_base_stats_without_form_use_the_default_entry_not_the_mega(spreadsheet)
 
 def test_particularities_keep_filled_headings_only_and_stay_form_specific(spreadsheet):
     base = engine.get_particularities("Dardargnan")["rows"][0]
-    assert base == {"name_fr": "Dardargnan", "Talent 1": "Essaim", "Talent caché": "Sniper",
+    assert base == {"name_fr": "Dardargnan", "Type 1": "Insecte", "Type 2": "Poison", "Ancien type": "Insecte (G1)",
+                    "Talent 1": "Essaim", "Talent caché": "Sniper",
                     "Stade d'évolution": "Final · stade 3", "Sous-groupe": "Insecte de début d’aventure",
                     "Autre particularité": "Possède une Méga-Évolution introduite en G6."}
     mega = engine.get_particularities("Méga-Dardargnan")["rows"][0]
-    assert mega["Talent 1"] == "Adaptabilité" and "Talent caché" not in mega
-    assert mega["Statistiques remarquables"] == "Top 10 global — Attaque"
+    assert mega["Talent 1"] == "Adaptabilité" and "Talent caché" not in mega and "Ancien type" not in mega
+    assert mega["Statistiques remarquables"] == "Parmi tous les Pokémon — Attaque"
+
+
+def test_spreadsheet_shorthand_is_spelled_out_without_changing_any_value():
+    # Régression : « PV #6 (30) » recopié sans « Bottom 10 » se lisait comme un 6e meilleur score.
+    text = ("Bottom 10 global — PV #3 (20), Vitesse #1 (5) ; Top 10 parmi les Méga-Évolutions — Défense #2 (230) ; "
+            "Minima G2 — PV 20 ; Records G2 au même stade évolutif — Défense 230 ; "
+            "Outliers faibles pour le stade évolutif — Total 395 ; Baisse en évoluant depuis Chrysacier : Défense 55→50 (-5) ; "
+            "Top 10 global des répartitions les plus extrêmes : écart 225")
+    assert engine._readable(text) == (
+        # Le sens est dans chaque valeur : une légende « rang 1 = la plus basse » était lue comme un fait.
+        "Parmi tous les Pokémon — PV : 3e plus basse (20), Vitesse : la plus basse (5) ; "
+        "Parmi les Méga-Évolutions — Défense : 2e plus haute (230) ; "
+        "Plus basse valeur de la génération 2 — PV 20 ; Plus haute valeur de la génération 2 à stade d'évolution égal — Défense 230 ; "
+        "Anormalement bas pour son stade d'évolution — Total 395 ; Baisse en évoluant depuis Chrysacier : Défense 55→50 (-5) ; "
+        "Parmi les 10 répartitions les plus déséquilibrées (tous les Pokémon) : 225 d'écart entre sa statistique la plus haute et la plus basse")
+    assert engine._readable("Possède une ou plusieurs formes alternatives recensées dans ce classeur.") == "Possède une ou plusieurs formes alternatives."
+    assert engine._readable("Rencontre fixe unique au fond de la Caverne Azurée.") == "Rencontre fixe unique au fond de la Caverne Azurée."
 
 
 @pytest.mark.parametrize("function", [engine.get_base_stats, engine.get_particularities])
