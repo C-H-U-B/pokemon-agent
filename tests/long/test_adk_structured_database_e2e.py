@@ -35,6 +35,8 @@ class Case:
     note: str = ""
     # Aucun fait à restituer : la réponse attendue est l'abstention déterministe de l'agent.
     abstention: bool = False
+    # Question de comptage : le total suffit, aucune ligne n'a besoin d'atteindre le modèle.
+    count_only: bool = False
 
 
 # Ces tests visent uniquement les données structurées / SQLite.
@@ -148,6 +150,7 @@ CASES = [
         {"types":["ghost"],"type_match":"all"},
         ("65",),
         note="Comptage : le total vient du SQL, sans recopier une longue liste.",
+        count_only=True,
     ),
     Case(
         "search-double-type-water-flying",
@@ -330,6 +333,11 @@ CASES = [
 
 def _normalise(value):
     return str(value).strip().casefold()
+
+
+def _fold(text):
+    """Casse et apostrophe typographique ignorées : « Expuls'Organes » vaut « Expuls’Organes »."""
+    return str(text).casefold().replace("’", "'")
 
 
 def _json_safe(value):
@@ -573,6 +581,22 @@ def _factual_checks(result, answer):
                 if value is not None:
                     present = bool(re.search(rf"(?<!\d){re.escape(str(value))}(?!\d)",answer))
                     checks.append((present,f"Classement restitue {value!r}",f"Classement omet {value!r}"))
+    if result.get("operation") != "search_pokemon":
+        # Liste courte d'un Pokémon nommé (capacités) : chaque nom renvoyé doit atteindre la réponse.
+        names = list(dict.fromkeys(row["name_fr"] for row in (result.get("results") or result.get("moves") or [])
+                                   if isinstance(row,dict) and row.get("name_fr")))
+        if len(names) <= 10:
+            for name in names:
+                checks.append((_fold(name) in _fold(answer),f"Liste restitue {name!r}",f"Liste omet {name!r}"))
+    if result.get("operation") == "get_move_learning_methods":
+        # Niveau 0 : méthode sans niveau (CT, reproduction).
+        for level in dict.fromkeys(level for level in values(result.get("methods",[]),{"level"}) if level):
+            checks.append((bool(re.search(rf"(?<!\d){level}(?!\d)",answer)),
+                           f"Niveau d'apprentissage {level} restitué",f"Niveau d'apprentissage {level} omis"))
+    if result.get("operation") == "get_evolutions" and not result.get("evolutions"):
+        # Présence d'une négation seulement : « oui, il évolue » sans aucune négation échoue.
+        checks.append((bool(re.search(r"\b(?:non|pas|aucune?)\b",answer,re.I)),
+                       "Absence d'évolution restituée","Évolution affirmée alors que le résultat est vide"))
     return checks
 
 
@@ -617,6 +641,11 @@ def _semantic_checks(case, calls, responses, answer, executions, raw_responses=(
 
     if tool_response is not None:
         checks.append((not tool_response.get("error"),"Résultat MCP sans erreur",f"Erreur MCP : {tool_response.get('error')}"))
+        if tool_response.get("operation") == "search_pokemon" and not case.count_only:
+            # Sans ligne (limit=0 sur une question de liste), aucun contrôle de contenu ne s'exécute.
+            total = tool_response.get("total_count") or 0
+            checks.append((bool(tool_response.get("results")) or not total,"Lignes du résultat transmises au modèle",
+                           f"Aucune ligne transmise pour {total} résultats : réponse invérifiable"))
         checks.extend(_factual_checks(tool_response,answer))
     raw = next((r["response"] for r in reversed(raw_responses)
                 if r["name"] == case.expected_tool and r.get("origin") == "mcp"),None)
@@ -637,17 +666,18 @@ def _semantic_checks(case, calls, responses, answer, executions, raw_responses=(
         "Réponse finale vide ou abstention de budget",
     ))
 
-    answer_folded = answer.casefold()
+    answer_folded = _fold(answer)
     for term in case.expected_answer_terms:
         checks.append((
-            term.casefold() in answer_folded,
+            _fold(term) in answer_folded,
             f"Réponse finale contient {term!r}",
             f"Réponse finale ne contient pas {term!r}",
         ))
 
     for term in case.forbidden_answer_terms:
         checks.append((
-            term.casefold() not in answer_folded,
+            # Mot entier : « Oui » interdit ne rejette pas « Grenouille ».
+            not re.search(rf"(?<!\w){re.escape(_fold(term))}(?!\w)",answer_folded),
             f"Réponse finale n'expose pas {term!r}",
             f"Terme interdit présent dans la réponse : {term!r}",
         ))

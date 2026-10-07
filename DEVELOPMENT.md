@@ -1308,3 +1308,20 @@ A separate campaign covers these questions. Its checks bear on the process;
 reviewing the answers against the passages shows that a description can still
 copy an off-topic record or infer a habitat the passages do not mention, as this
 path has no faithfulness check.
+
+## 74. [Bug fix] Campaign checks that could not fail
+
+Reviewing the passed cases of the structured campaign showed two invented
+answers counted as successes. On a list question, the model had asked for zero
+rows: the tool returned a total without any Pokémon, and since the content
+checks started from the rows received, none of them ran.
+
+The campaign now refuses a search that announces results without transmitting
+any, except for a counting question. The tools whose answer was verified by no
+check receive one, derived from the result: every move of a short list, the
+level of a learning method and the absence of evolution must appear in the
+answer. Expected terms ignore the apostrophe style and forbidden terms are
+compared as whole words.
+
+Before being adopted, these checks were replayed on the answers already
+recorded: they reject the two invented answers and accept the others.
