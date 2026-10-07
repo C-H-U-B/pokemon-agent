@@ -1570,3 +1570,23 @@ and the measures were announced further down. Once moved up into that
 paragraph, the sheet is requested and the answer is "460,0 kg". The campaign
 check also counted as omitted a value written "20,0" when it expected "20.0":
 it now accepts the comma.
+
+## 86. [Feature] Exclusive version in the sheet of a Pokémon
+
+Version exclusivity existed only as prose, under "Rencontre ou obtention à
+l'introduction": "Exclusif à Pokémon Rouge dans la paire Rouge/Bleu.", with
+several wordings across sheets. A sentence can be read, but not compared.
+
+The spreadsheet gains a closed column, "Exclusif à", which holds only the name
+of the game: 158 sheets, 20 games, 10 pairs. It is extracted from the existing
+heading and records only the introduction pair, not third versions, remakes or
+recent games. A form carries its own value (Vulpix: Blue; Alolan Vulpix: Sun), a
+transformation the value of its form, and Meltan, introduced in Pokémon GO,
+stays empty. The sheet of a named Pokémon returns the column as "Version
+exclusive à l'introduction".
+
+The extraction revealed an error in the source: Therian Tornadus and Therian
+Thundurus carried the text of their Incarnate form, exclusive in Black/White,
+whereas these forms date from Black 2/White 2. Their heading is emptied. A
+closed column makes searchable whatever it copies, errors included: rows where
+a form reuses the text of another are reread before being frozen.
