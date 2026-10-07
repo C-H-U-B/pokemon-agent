@@ -43,7 +43,8 @@ conda run -n langgraph-agent python scripts/observability/analyze_traces.py trac
 ```
 
 Le graphe enregistre les traces dans `traces/graph_traces.jsonl`. Le client MCP
-n'émet pas ces traces. Leur absence n'autorise pas l'agent à lancer un benchmark
+n'émet pas ces traces ; celles de l'interface Web (`traces/web_traces.jsonl`)
+ont un autre format, que l'analyseur refuse. Leur absence n'autorise pas l'agent à lancer un benchmark
 LLM : fournir la commande à l'utilisateur et attendre ses résultats, conformément
 au [guide des tests](../tests/README.md).
 

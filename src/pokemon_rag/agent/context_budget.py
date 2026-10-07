@@ -263,7 +263,12 @@ def bounded_tool_result(response: dict[str, Any], *, keep_english: bool = False,
                         question: str = "", args: dict | None = None) -> dict[str, Any]:
     """Enlève la copie MCP textuelle et réduit les listes avec troncature explicite."""
     if response.get("isError") or response.get("is_error"):
-        return {"error": "mcp_tool_error", "message": "L'outil a signalé une erreur ; aucun fait ne peut en être déduit."}
+        # Le texte du refus (« talent inconnu : 'speed' ») indique au modèle l'argument à corriger.
+        detail = " ".join(part.get("text", "") for part in response.get("content") or []
+                          if isinstance(part, dict) and part.get("type") == "text").strip()
+        return {"error": "mcp_tool_error",
+                "message": "L'outil a signalé une erreur ; aucun fait ne peut en être déduit."
+                           + (f" Détail : {detail[:500]}" if detail else "")}
     data = _structured_content(response)
     data = deepcopy(data if isinstance(data, dict) else response)
     data.pop("timings", None)  # mesures pour l'interface, transmises par l'état de session
@@ -312,7 +317,9 @@ def after_tool_budget(tool: Any, args: dict, tool_context: Any, tool_response: d
         measure = {key: raw[key] for key in ("execution_time", "timings") if raw.get(key) is not None}
         if "timings" in measure:
             measure["passages"] = len(raw.get("results") or [])
-        state["tool_timings"] = [*state.get("tool_timings", []), {"tool": getattr(tool, "name", None), **measure}]
+        # args : arguments réellement exécutés, après le guard (l'événement du modèle garde sa proposition).
+        state["tool_timings"] = [*state.get("tool_timings", []), {"tool": getattr(tool, "name", None),
+                                                                  "executed_arguments": deepcopy(args), **measure}]
     if logger.isEnabledFor(logging.INFO):
         logger.info("tool_result tool=%s mcp_bytes=%d projected_bytes=%d limit=%d truncated=%s error=%s",
                     getattr(tool, "name", None), _size(tool_response), _size(result), MAX_TOOL_RESULT_BYTES,

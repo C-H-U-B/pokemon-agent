@@ -346,10 +346,14 @@ def _format_activity(
         if measured:
             lines.extend(["", *measured])
 
-        if arguments:
+        executed = (timing.measures.get(index - 1) or {}).get("executed_arguments") if timing is not None else None
+        shown = arguments if executed is None else executed
+        if shown:
             lines.append("")
+            if executed is not None and executed != arguments:
+                lines.append("Arguments exécutés après correction par le guard :")
 
-            for key, value in arguments.items():
+            for key, value in shown.items():
                 lines.append(f"- `{key}` : `{value}`")
 
         lines.append("")
@@ -366,7 +370,8 @@ def _format_activity(
 
 def _web_trace(question: str, answer: str, outcome: str, error: Exception | None,
                tool_calls: list[tuple[str, dict]], timing: ActivityTiming, elapsed: float) -> dict:
-    """Trace d'une question : ce que le modèle a demandé, ce que les outils ont renvoyé, ce qui a été répondu."""
+    """Trace d'une question : appels exécutés (et proposition du modèle si le guard l'a corrigée),
+    retours des outils, réponse."""
     if outcome == "answered":
         outcome = {BUDGET_ABSTENTION: "budget_abstention", DOUBLE_REQUEST_REFUSAL: "double_request_refusal",
                    TOOL_FAILURE_ABSTENTION: "tool_failure_abstention"}.get(answer, outcome)
@@ -374,7 +379,11 @@ def _web_trace(question: str, answer: str, outcome: str, error: Exception | None
     for index, (name, arguments) in enumerate(tool_calls):
         _, call_start, call_end = timing.calls[index] if index < len(timing.calls) else (name, None, None)
         measure = {key: value for key, value in timing.measures.get(index, {}).items() if key != "tool"}
-        tools.append({"name": name, "arguments": arguments,
+        # Arguments exécutés après le guard ; la proposition du modèle n'est gardée que si elle diffère.
+        executed = measure.pop("executed_arguments", None)
+        if executed is not None and executed != arguments:
+            measure["proposed_arguments"] = arguments
+        tools.append({"name": name, "arguments": arguments if executed is None else executed,
                       "seconds": None if call_start is None or call_end is None else call_end - call_start,
                       **measure, "result": timing.results.get(index)})
     return {

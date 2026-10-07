@@ -54,11 +54,12 @@ Le schéma statique et la note explicative en bas du panneau ont été retirés.
 Les outils ont un libellé français avec leur identifiant technique visible.
 Le thème Soft et les styles sont appliqués par le point d'entrée au lancement.
 
-Le panneau d'activité affiche les noms et arguments des `function_call`
-et signale la réception des `function_response`. Ses phases sont déduites de
+Le panneau d'activité affiche le nom de chaque outil appelé et ses arguments
+exécutés, après correction par le guard (lus dans l'état de session), et signale
+la réception des `function_response`. Ses phases sont déduites de
 ces événements : analyse, exécution d'outil, résultat reçu et génération finale.
-Un résultat reçu ne prouve pas la réussite métier de l'outil. Les arguments
-affichés ne constituent pas une preuve des arguments corrigés envoyés au serveur.
+Un résultat reçu ne prouve pas la réussite métier de l'outil. Tant que l'outil
+n'a pas répondu, le panneau affiche la proposition du modèle.
 Le chrono est rafraîchi toutes les 0,1 seconde pendant l'attente ; il démarre
 avant la création de la session ADK de la requête.
 Les durées par étape cumulent l'analyse avant le premier appel, l'attente
@@ -105,8 +106,11 @@ journalisé (`warm_up_failed`) et ne bloque pas l'interface.
 Chaque question ajoute une ligne à `traces/web_traces.jsonl` : modèle et serveur
 utilisés, question, issue (`answered`, `budget_abstention`,
 `tool_failure_abstention`, `double_request_refusal`, `no_final_response`, `error`), réponse, temps par
-étape, tokens, et pour chaque appel d'outil ses arguments, sa durée, ses mesures
-et le résultat tel que le modèle l'a reçu. Le service `web` de `compose.yaml`
+étape, tokens, et pour chaque appel d'outil ses arguments exécutés après le
+guard (`arguments`), la proposition du modèle lorsqu'elle diffère
+(`proposed_arguments`), sa durée, ses mesures et le résultat tel que le modèle
+l'a reçu. `scripts/observability/analyze_traces.py` ne lit que les traces du
+graphe et refuse ce format. Le service `web` de `compose.yaml`
 monte ce dossier. Une écriture impossible est journalisée (`web_trace_failed`)
 sans affecter la réponse. Le débit affiché dans le panneau rapporte les tokens
 générés à tout le temps passé chez le modèle, lecture des requêtes comprise :
