@@ -175,7 +175,9 @@ serveur MCP et l'API HTTP gardent les identifiants d'origine.
 `get_base_stats` et `get_particularities` lisent la ligne du tableur
 (`custom_pokedex_fr`) de l'entrée résolue. La fiche commence par les types actuels,
 suivis de la rubrique « Ancien type » (colonne `ancien_type`, par exemple « Normal (G1–G5) »),
-pour que l'historique se lise sans second appel. Le total des statistiques est une
+pour que l'historique se lise sans second appel. La rubrique « Version exclusive à l'introduction »
+(colonne `exclusif_a`) porte une valeur fermée, le jeu de la paire d'introduction (« Rouge ») ; elle est
+vide hors paire et ne dit rien des remakes ni des jeux récents. Le total des statistiques est une
 somme SQL, pas la valeur stockée. `get_particularities` réécrit en clair la
 notation abrégée du tableur (`_readable` : « Bottom 10 global — PV #3 » devient
 « Parmi tous les Pokémon — PV : 3e plus basse » : le sens est porté par chaque

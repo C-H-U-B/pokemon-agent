@@ -1641,3 +1641,24 @@ description d'un outil, et les mesures étaient annoncées plus bas. Une fois
 remontées dans ce paragraphe, la fiche est demandée et la réponse est
 « 460,0 kg ». Le contrôle de campagne comptait aussi pour omise une valeur
 écrite « 20,0 » quand il attendait « 20.0 » : il accepte désormais la virgule.
+
+## 86. [Feature] Version exclusive dans la fiche d'un Pokémon
+
+L'exclusivité de version n'existait qu'en prose, dans la rubrique « Rencontre ou
+obtention à l'introduction » : « Exclusif à Pokémon Rouge dans la paire
+Rouge/Bleu. », avec plusieurs tournures selon les fiches. Une phrase se lit,
+mais ne se compare pas.
+
+Le tableur reçoit une colonne fermée, « Exclusif à », qui ne contient que le nom
+du jeu : 158 fiches, 20 jeux, 10 paires. Elle est extraite de la rubrique
+existante et ne note que la paire d'introduction, pas les versions
+complémentaires, les remakes ni les jeux récents. Une forme porte sa propre
+valeur (Goupix : Bleu ; Goupix d'Alola : Soleil), une transformation celle de sa
+forme, et Meltan, introduit dans Pokémon GO, reste vide. La fiche d'un Pokémon
+nommé restitue la colonne sous « Version exclusive à l'introduction ».
+
+L'extraction a montré une erreur de la source : Boréas et Fulguris Totémiques
+portaient le texte de leur forme Avatar, exclusive dans Noir/Blanc, alors que
+ces formes datent de Noir 2/Blanc 2. Leur rubrique est vidée. Une colonne
+fermée rend cherchable ce qu'elle copie, erreurs comprises : les lignes où une
+forme reprend le texte d'une autre sont relues avant d'être figées.

@@ -165,13 +165,13 @@ def spreadsheet(monkeypatch):
               analyse_des_statistiques TEXT, mise_en_avant_a_l_introduction TEXT,
               rencontre_ou_obtention_a_l_introduction TEXT, particularite_du_movepool TEXT,
               autre_particularite TEXT, differences_physiques_selon_le_sexe TEXT,
-              type_1 TEXT, type_2 TEXT, ancien_type TEXT, pokemon_id INTEGER);
+              type_1 TEXT, type_2 TEXT, ancien_type TEXT, pokemon_id INTEGER, exclusif_a TEXT);
             INSERT INTO custom_pokedex_fr VALUES
               (20,999,65,90,40,45,80,75,'Essaim',NULL,'Sniper',NULL,NULL,'Final · stade 3',
                'Insecte de début d’aventure',NULL,NULL,NULL,NULL,'Possède une Méga-Évolution introduite en G6.','','Insecte','Poison',
-               'Insecte (G1)',15),
+               'Insecte (G1)',15,'Rouge'),
               (21,999,65,150,40,15,80,145,'Adaptabilité',NULL,NULL,NULL,NULL,'Méga-Évolution',
-               'Insecte de début d’aventure ; Méga-Évolution','Top 10 global — Attaque',NULL,NULL,NULL,NULL,NULL,'Insecte','Poison',NULL,10090);
+               'Insecte de début d’aventure ; Méga-Évolution','Top 10 global — Attaque',NULL,NULL,NULL,NULL,NULL,'Insecte','Poison',NULL,10090,NULL);
             -- Unités et type PokéAPI : décimètres, hectogrammes, taux de capture en TEXT. Le poids nul
             -- de la Méga est fictif : il tient lieu de valeur de remplissage (Éthernatos Infinimax).
             CREATE TABLE pokemon(id INTEGER, species_id INTEGER, height INTEGER, weight INTEGER);
@@ -208,10 +208,12 @@ def test_particularities_keep_filled_headings_only_and_stay_form_specific(spread
     assert base == {"name_fr": "Dardargnan", "Type 1": "Insecte", "Type 2": "Poison", "Ancien type": "Insecte (G1)",
                     "Talent 1": "Essaim", "Talent caché": "Sniper",
                     "Stade d'évolution": "Final · stade 3", "Sous-groupe": "Insecte de début d’aventure",
+                    "Version exclusive à l'introduction": "Rouge",  # valeur fictive : la rubrique suit la colonne
                     "Autre particularité": "Possède une Méga-Évolution introduite en G6.",
                     "Taille": "1,0 m", "Poids": "29,5 kg", "Taux de capture": "45 sur 255"}
     mega = engine.get_particularities("Méga-Dardargnan")["rows"][0]
     assert mega["Talent 1"] == "Adaptabilité" and "Talent caché" not in mega and "Ancien type" not in mega
+    assert "Version exclusive à l'introduction" not in mega
     assert mega["Statistiques remarquables"] == "Parmi tous les Pokémon — Attaque"
     # Mesures de la forme, pas de l'espèce ; une valeur de remplissage n'est pas restituée comme un poids.
     assert mega["Taille"] == "1,4 m" and "Poids" not in mega and mega["Taux de capture"] == "45 sur 255"

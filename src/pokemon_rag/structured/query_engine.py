@@ -45,6 +45,8 @@ PARTICULARITY_FIELDS = (
     ("analyse_des_statistiques", "Statistiques remarquables"),
     ("mise_en_avant_a_l_introduction", "Mise en avant à l'introduction"),
     ("rencontre_ou_obtention_a_l_introduction", "Rencontre ou obtention à l'introduction"),
+    # Valeur fermée (un jeu de la paire d'introduction), vide hors paire : ni remakes, ni jeux récents.
+    ("exclusif_a", "Version exclusive à l'introduction"),
     ("particularite_du_movepool", "Particularité du movepool"),
     ("autre_particularite", "Autre particularité"),
     ("differences_physiques_selon_le_sexe", "Différences selon le sexe"),

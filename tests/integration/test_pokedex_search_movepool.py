@@ -668,3 +668,9 @@ def test_real_db_named_stats_and_particularities():
     assert facts["Sous-groupe"] == "Pseudo-légendaire" and facts["Talent caché"] == "Multiécaille"
     assert facts["Mise en avant à l'introduction"].startswith("Peter")
     assert "Talent 2" not in facts
+    # Valeur fermée de la paire d'introduction : la forme a la sienne, hors paire ou forme postérieure n'en ont pas.
+    exclusive = lambda name: engine.get_particularities(name)["rows"][0].get("Version exclusive à l'introduction")
+    assert (exclusive("Abo"), exclusive("Goupix d'Alola"), exclusive("Goupix")) == ("Rouge", "Soleil", "Bleu")
+    assert exclusive("Meltan") is None and exclusive("Dracolosse") is None
+    therian = engine.get_particularities("Boréas Totémique")["rows"][0]  # forme de Noir 2/Blanc 2
+    assert "Version exclusive à l'introduction" not in therian and "Rencontre ou obtention à l'introduction" not in therian
