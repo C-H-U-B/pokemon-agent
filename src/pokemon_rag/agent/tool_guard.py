@@ -41,6 +41,11 @@ MOVE_FILTER_TOOLS = {"pokemon_moves", "pokemon_search"}
 LEVEL_TOOLS = MOVE_FILTER_TOOLS | {"pokemon_level_up_moves"}
 # Catégories que la fiche de particularités renvoie pour un Pokémon nommé (sous-groupe du tableur).
 CATEGORY_FIELDS = {"legendary", "mythical", "subgroup"}
+TYPE_FIELDS = {"types", "type_match"}
+# Propriétés interrogées sur un Pokémon nommé, que seule sa fiche renvoie toutes : sous-groupe, types actuels
+# et ancien type. pokemon_types n'en fait pas partie : il ignore l'historique, et le modèle l'inventait
+# (« Rondoudou a-t-il toujours été de type Fée ? » → « Normal et Fée à sa sortie »).
+ASKED_FIELDS = CATEGORY_FIELDS | TYPE_FIELDS
 
 
 def _explicit_arguments(constraints: ExplicitConstraints) -> dict[str, Any]:
@@ -157,18 +162,19 @@ def before_tool_guard(
             return {"error":"ambiguous_version_constraint", "message":"Jeu explicite inconnu ou plusieurs jeux non représentables."}
         if constraints.level_explicit and constraints.level_bounds is None:
             return {"error":"ambiguous_level_constraints", "message":"Bornes de niveau explicites ambiguës ou non reconnues."}
-        named = extract_named_pokemon(question, pokemon_name_catalogue()) if CATEGORY_FIELDS.intersection(required) else None
+        named = extract_named_pokemon(question, pokemon_name_catalogue()) if ASKED_FIELDS.intersection(required) else None
         if named:
-            # « Mewtwo est-il un légendaire ? » : la catégorie est interrogée, pas un filtre de liste.
-            # Seule la fiche l'accepte, parce qu'elle la renvoie ; toute autre contrainte de liste reste exigée.
-            without_category = {key: value for key, value in required.items() if key not in CATEGORY_FIELDS}
-            if _unsupported("pokemon_particularities", without_category) is None:
+            # « Mewtwo est-il un légendaire ? », « Pikachu est-il de type Électrik ? » : la catégorie ou le
+            # type est interrogé, pas un filtre de liste. Seule la fiche l'accepte, parce qu'elle le renvoie ;
+            # toute autre contrainte de liste reste exigée.
+            without_asked = {key: value for key, value in required.items() if key not in ASKED_FIELDS}
+            if _unsupported("pokemon_particularities", without_asked) is None:
                 if tool_name == "pokemon_particularities":
-                    required = without_category
+                    required = without_asked
                 else:
                     return {"error": "unsupported_named_pokemon_constraint", "selected_tool": tool_name,
                             "required_tool": "pokemon_particularities", "required_arguments": named,
-                            "message": "La catégorie d'un Pokémon nommé se lit dans sa fiche de particularités."}
+                            "message": "La catégorie ou le type d'un Pokémon nommé se lit dans sa fiche de particularités."}
         unsupported = _unsupported(tool_name, required)
         if unsupported:
             return unsupported
