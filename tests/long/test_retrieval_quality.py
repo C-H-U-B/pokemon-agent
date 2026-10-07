@@ -8,16 +8,19 @@ import pokemon_rag.rag.retrieval as retrieval
 pytestmark = [pytest.mark.long, pytest.mark.real_data, pytest.mark.models]
 
 
+# La section attendue est rare parmi les passages du Pokémon (2 sur 89 pour Pikachu, 2 sur 51
+# pour Bulbizarre) : trois passages pris au hasard la contiendraient moins d'une fois sur huit.
+# Un mot courant comme « capacité », présent dans près d'un passage sur deux, ne mesurait rien.
 CASES = [
     {
         "question": "Comment Pikachu évolue-t-il ?",
         "pokemon": "Pikachu",
-        "expected_terms": {"évolution", "raichu"},
+        "expected_section": "Évolution",
     },
     {
-        "question": "Quelles capacités Bulbizarre peut-il apprendre ?",
+        "question": "Quelles capacités Bulbizarre apprend-il par montée en niveau ?",
         "pokemon": "Bulbizarre",
-        "expected_terms": {"capacité", "capacités"},
+        "expected_section": "Par montée en niveau",
     },
 ]
 
@@ -25,7 +28,7 @@ CASES = [
 @pytest.mark.parametrize(
     "case",
     CASES,
-    ids=["pikachu-evolution", "bulbizarre-moves"],
+    ids=["pikachu-evolution", "bulbizarre-level-up-moves"],
 )
 def test_retrieval_quality_cases(case: dict) -> None:
     retrieval.ensure_retrieval_initialized()
@@ -47,14 +50,5 @@ def test_retrieval_quality_cases(case: dict) -> None:
         for item in results
     )
 
-    context = results[0].get("context_results") or results
-    searchable = " ".join(
-        [
-            str(item.get("document") or "")
-            + " "
-            + retrieval.metadata_section_path(item.get("metadata"))
-            for item in context
-        ]
-    ).lower()
-
-    assert any(term in searchable for term in case["expected_terms"])
+    top_sections = [retrieval.metadata_section_path(item.get("metadata")) for item in results[:3]]
+    assert any(case["expected_section"] in section for section in top_sections), top_sections

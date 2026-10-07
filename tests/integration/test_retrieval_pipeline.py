@@ -83,6 +83,7 @@ def test_structural_candidates_are_strictly_scoped_on_real_corpus() -> None:
         pokemon=pokemon,
     )
 
+    assert results
     assert all(
         (item.get("metadata") or {}).get("pokemon") == pokemon
         for item in results

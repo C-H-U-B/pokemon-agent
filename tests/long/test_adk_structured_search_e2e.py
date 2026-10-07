@@ -407,7 +407,7 @@ def test_adk_structured_search_top_five_speed():
 
         response = _find_search_response(tool_responses)
 
-        assert response, "pokemon_search a renvoyé un résultat vide inattendu."
+        assert response.get("results"), f"pokemon_search n'a transmis aucune ligne : {response!r}"
         assert final_answer, "Qwen n'a produit aucune réponse finale."
 
     except Exception as exc:

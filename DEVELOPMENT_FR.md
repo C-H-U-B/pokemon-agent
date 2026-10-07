@@ -1376,3 +1376,20 @@ Une campagne séparée couvre ces questions. Ses contrôles portent sur le
 déroulement ; la relecture des réponses face aux passages montre qu'une
 description peut encore recopier une fiche hors sujet ou déduire un habitat que
 les passages ne mentionnent pas, ce parcours n'ayant pas de contrôle de fidélité.
+
+## 74. [Bug fix] Contrôles de campagne qui ne pouvaient pas échouer
+
+La relecture des cas réussis de la campagne structurée a montré deux réponses
+inventées comptées comme des réussites. Sur une question de liste, le modèle
+avait demandé zéro ligne : l'outil renvoyait un total sans aucun Pokémon, et
+comme les contrôles de contenu partaient des lignes reçues, aucun ne s'exécutait.
+
+La campagne refuse maintenant une recherche qui annonce des résultats sans en
+transmettre, sauf pour une question de comptage. Les outils dont la réponse
+n'était vérifiée par aucun contrôle en reçoivent un, déduit du résultat : chaque
+capacité d'une liste courte, le niveau d'une méthode d'apprentissage et l'absence
+d'évolution doivent se retrouver dans la réponse. Les termes attendus ignorent le
+style d'apostrophe et les termes interdits se comparent par mot entier.
+
+Avant d'être adoptés, ces contrôles ont été rejoués sur les réponses déjà
+enregistrées : ils rejettent les deux réponses inventées et acceptent les autres.

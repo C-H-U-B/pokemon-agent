@@ -230,6 +230,17 @@ Pour une évolution, chaque condition renvoyée par l'outil (nombre, nom
 français, moment de la journée) doit se retrouver dans la réponse : sans ce
 contrôle, une réponse niant une condition passait. Il ne détecte pas une
 condition citée puis niée dans la même phrase.
+Les autres contrôles de contenu sont eux aussi déduits du résultat de l'outil :
+chaque nom d'une liste de dix capacités au plus, le niveau d'une méthode
+d'apprentissage, et une négation lorsque l'outil ne renvoie aucune évolution.
+Une recherche qui annonce un total sans transmettre de ligne (`limit=0` sur
+une question de liste) échoue, sauf pour un cas déclaré `count_only` : sans
+ligne, aucun contrôle de contenu ne s'exécutait et une liste inventée passait.
+Les termes attendus ignorent le style d'apostrophe ; les termes interdits se
+comparent par mot entier. Ce sont des contrôles de présence : ils ne détectent
+pas un fait ajouté à côté des faits attendus.
+`long/test_retrieval_quality.py` attend la section pertinente parmi les trois
+premiers passages, et non un mot courant du corpus.
 `long/test_adk_documentary_e2e.py` est une campagne séparée de cinq questions
 de description : elle charge les modèles de recherche et vérifie que la
 réponse s'appuie sur des passages trouvés, ou s'abstient. Ses contrôles

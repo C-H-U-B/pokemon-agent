@@ -1,7 +1,8 @@
 """Campagne E2E des questions de description : vrai agent, vrai Qwen, vraie recherche Poképédia.
 
 Séparée de la campagne structurée : elle charge les modèles de recherche et vérifie autre chose,
-que la description vient de passages réellement trouvés et jamais de la mémoire du modèle.
+le déroulement : recherche appelée, passages reçus, réponse rédigée ou abstention. Elle ne vérifie
+pas que la réponse est fidèle aux passages : cela se juge en relisant le rapport.
 """
 import asyncio
 import json

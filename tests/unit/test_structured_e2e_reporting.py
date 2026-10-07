@@ -179,6 +179,51 @@ def test_level_proven_under_its_french_condition_key_is_accepted(reporting):
     assert not all(ok for ok, _, _ in reporting["_factual_checks"](result, "Évolue au niveau 30."))
 
 
+def search_checks(reporting, response, answer, **case_fields):
+    case = reporting["Case"]("list", "Quels sont les fabuleux ?", "pokemon_search", **case_fields)
+    executions = [{"name": "pokemon_search", "args": {}, "blocked": False}]
+    return reporting["_semantic_checks"](case, [], [{"name": "pokemon_search", "response": response}], answer, executions)
+
+
+def test_list_question_answered_without_any_transmitted_row_fails(reporting):
+    # Régression : limit=0 sur « Quels sont… » ne transmettait aucune ligne, et une liste inventée passait.
+    empty = {"operation": "search_pokemon", "results": [], "total_count": 4}
+    assert not all(ok for ok, _, _ in search_checks(reporting, empty, "Aucun fabuleux, sauf Cresselia."))
+    # Un comptage n'a besoin que du total, et une recherche réellement vide reste une réponse valable.
+    assert all(ok for ok, _, _ in search_checks(reporting, empty, "4 Pokémon.", count_only=True))
+    assert all(ok for ok, _, _ in search_checks(reporting, {**empty, "total_count": 0}, "Aucun Pokémon."))
+
+
+def test_short_list_of_a_named_pokemon_must_reach_the_answer(reporting):
+    result = {"operation": "get_pokemon_moves", "results": [{"name_fr": "Cascade"}, {"name_fr": "Fracass’Tête"}]}
+    assert all(ok for ok, _, _ in reporting["_factual_checks"](result, "Cascade et Fracass'Tête."))  # apostrophe droite
+    assert not all(ok for ok, _, _ in reporting["_factual_checks"](result, "Cascade."))
+    # Au-delà de dix noms, la réponse peut résumer : pas d'exigence d'exhaustivité.
+    long = {"operation": "get_machine_moves", "moves": [{"name_fr": f"Capacité {i}"} for i in range(11)]}
+    assert all(ok for ok, _, _ in reporting["_factual_checks"](long, "Onze capacités."))
+
+
+def test_learning_level_and_absence_of_evolution_must_reach_the_answer(reporting):
+    methods = {"operation": "get_move_learning_methods", "methods": [{"level": 55, "method": "level-up"}, {"level": 0, "method": "machine"}]}
+    assert all(ok for ok, _, _ in reporting["_factual_checks"](methods, "Au niveau 55, ou par CT."))
+    assert not all(ok for ok, _, _ in reporting["_factual_checks"](methods, "Par CT uniquement."))
+    none = {"operation": "get_evolutions", "count": 0, "evolutions": []}
+    assert all(ok for ok, _, _ in reporting["_factual_checks"](none, "Lovdisc n'évolue pas."))
+    assert not all(ok for ok, _, _ in reporting["_factual_checks"](none, "Oui, Lovdisc évolue en Mamanbo."))
+
+
+def test_expected_and_forbidden_terms_ignore_apostrophe_style_and_match_whole_words(reporting):
+    case = reporting["Case"]("terms", "Carapuce ?", "pokemon_particularities", {}, ("Expuls’Organes",), ("Oui", "120"))
+    executions = [{"name": case.expected_tool, "args": {}, "blocked": False}]
+    responses = [{"name": case.expected_tool, "response": {}}]
+    def passes(answer):
+        return all(ok for ok, _, _ in reporting["_semantic_checks"](case, [], responses, answer, executions))
+    assert passes("Expuls'Organes, comme Grenouille : 1200.")       # « oui » et « 120 » ne sont que des fragments
+    assert not passes("Oui : Expuls’Organes.")
+    assert not passes("Expuls’Organes : 120.")
+    assert not passes("Aucun talent connu.")
+
+
 @pytest.fixture(scope="module")
 def documentary():
     return runpy.run_path(str(Path(__file__).parents[1] / "long/test_adk_documentary_e2e.py"))
