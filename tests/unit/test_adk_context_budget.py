@@ -433,8 +433,8 @@ def test_tool_measures_go_to_the_session_state_and_never_to_the_model():
     assert "54.3" not in json.dumps(seen) and "0.048" not in json.dumps(seen)
     assert seen[0]["results"] == passages["results"]
     assert context.state["tool_timings"] == [
-        {"tool": "pokemon_rag_search", "timings": passages["timings"], "passages": 1},
-        {"tool": "pokemon_types", "execution_time": 0.048},
+        {"tool": "pokemon_rag_search", "executed_arguments": {}, "timings": passages["timings"], "passages": 1},
+        {"tool": "pokemon_types", "executed_arguments": {}, "execution_time": 0.048},
     ]
 
 
@@ -442,7 +442,8 @@ def test_failed_tool_still_records_an_entry_so_later_measures_stay_aligned():
     context = SimpleNamespace(user_content=None, state={})
     after_tool_budget(SimpleNamespace(name="pokemon_rag_search"), {}, context, dict(TIMEOUT))
     after_tool_budget(SimpleNamespace(name="pokemon_types"), {}, context, {"isError": True})
-    assert context.state["tool_timings"] == [{"tool": "pokemon_rag_search"}, {"tool": "pokemon_types"}]
+    assert context.state["tool_timings"] == [{"tool": "pokemon_rag_search", "executed_arguments": {}},
+                                             {"tool": "pokemon_types", "executed_arguments": {}}]
 
 
 def test_callback_context_without_state_is_tolerated():
@@ -638,3 +639,10 @@ def test_description_plus_structured_fact_is_refused_before_any_model_call(quest
 ])
 def test_single_requests_and_structured_pairs_are_not_refused(question):
     assert before_model_budget(SimpleNamespace(state={}), request(question)) is None
+
+
+def test_tool_refusal_text_reaches_the_model_so_it_can_fix_the_argument():
+    result = bounded_tool_result({"isError": True, "content": [
+        {"type": "text", "text": "Error executing tool pokemon_search: talent inconnu : 'speed'."}]})
+    assert result["error"] == "mcp_tool_error"
+    assert "talent inconnu : 'speed'" in result["message"]

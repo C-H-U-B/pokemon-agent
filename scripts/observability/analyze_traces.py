@@ -40,6 +40,14 @@ def load_traces(path: Path) -> list[dict[str, Any]]:
                     "un objet JSON était attendu."
                 )
 
+            if "timings" not in trace and "total_time" not in trace:
+                # Sans ce refus, une trace d'un autre parcours donnait des moyennes à 0 s, sans erreur.
+                raise ValueError(
+                    f"Trace hors format du graphe dans {path} à la ligne {line_number} "
+                    f"(clés : {', '.join(sorted(trace))}). Les traces de l'interface Web "
+                    "(traces/web_traces.jsonl) ne sont pas prises en charge par cet analyseur."
+                )
+
             traces.append(trace)
 
     return traces

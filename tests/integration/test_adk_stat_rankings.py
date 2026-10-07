@@ -284,3 +284,30 @@ def test_description_plus_structured_fact_never_reaches_the_model_in_the_real_ru
     model, responses, texts = asyncio.run(_run_simulated(
         "Décris Trépassable et donne ses types", "pokemon_rag_search", {"question": "Décris Trépassable"}))
     assert texts == [DOUBLE_REQUEST_REFUSAL] and model.calls == 0 and responses == []
+
+
+@pytest.mark.real_data
+def test_web_trace_records_the_call_executed_after_the_guard_and_the_proposal_it_replaced():
+    # Arguments proposés par Qwen deux fois sur deux ; la trace enregistrait la proposition.
+    from pokemon_rag.web.app import ActivityTiming, _extract_function_calls, _extract_function_responses, _web_trace
+    question = "Quels sont les types des starters de première génération ?"
+    proposed = {"subgroup": "starter", "evolution_stage": "base", "talent": "none"}
+    model, responses, _ = asyncio.run(_run_simulated(question, "pokemon_search", proposed))
+    assert not responses[-1].get("error")
+    timing, calls = ActivityTiming(), []
+    for event in model.events:
+        new_calls = _extract_function_calls(event)
+        calls.extend(new_calls)
+        timing.observe(new_calls, _extract_function_responses(event), 0.0, event)
+    tool = _web_trace(question, "", "answered", None, calls, timing, 1.0)["tools"][0]
+    assert tool["arguments"] == {"subgroup": "Starter", "evolution_stage": "base", "generation": 1}
+    assert tool["proposed_arguments"] == proposed
+
+
+@pytest.mark.real_data
+def test_engine_refusal_reaches_the_model_through_the_real_mcp_server():
+    # Avant : « Error executing tool pokemon_search », sans dire quel argument corriger.
+    model, responses, _ = asyncio.run(_run_simulated(
+        "Quels Pokémon ont le talent Lévitaion ?", "pokemon_search", {"talent": "Lévitaion"}))
+    assert responses[0]["error"] == "mcp_tool_error"
+    assert "talent inconnu : 'Lévitaion'" in responses[0]["message"]
