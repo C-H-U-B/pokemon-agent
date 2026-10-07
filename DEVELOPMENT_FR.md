@@ -1433,3 +1433,28 @@ attribuer des durées nulles. La campagne structurée gagne un cas par défaut
 corrigé. Sa première exécution sous LM Studio a révélé les valeurs inventées et
 les pages vides, corrigées ci-dessus ; rejouées sans modèle, les cinq propositions
 fautives donnent désormais les bons résultats.
+
+
+## 76. [Bug fix] Un filtre doit être justifié par la question
+
+L'entrée précédente gardait un stade ou un talent valides proposés par le
+modèle, au motif que « les starters de première génération » au stade de base
+était une interprétation défendable. La campagne a trouvé le contre-exemple :
+pour « Quel est le fossile le plus rapide ? », le modèle ajoutait le stade final,
+qui excluait Ptéra, et la réponse était fausse tout en restant fidèle aux
+données reçues.
+
+Le guard ne juge pas le sens d'une question, seulement ses mots. La règle déjà
+appliquée à la méthode d'apprentissage et aux légendaires est donc généralisée :
+un stade, un talent, un sous-groupe ou un jeu proposé par le modèle n'est gardé
+que si la question le justifie (mot de la dimension, sous-groupe reconnu, jeu
+nommé, ou valeur citée pour un talent). Elle s'applique au guard et au client
+MCP, et remplace la vérification des valeurs contre la base. Le vocabulaire des
+sous-groupes est complété pour couvrir tous ceux du tableur, ce qu'un test
+vérifie désormais.
+
+La campagne comptait aussi comme restitué un Pokémon cité dans une phrase qui
+niait son appartenance au résultat : une réponse retirait trois légendaires en
+affirmant qu'ils n'en étaient pas. Un nom renvoyé doit maintenant figurer dans
+au moins un passage qui ne le nie pas. Rejoué sur les réponses enregistrées, ce
+contrôle rejette cette réponse et ne change le verdict d'aucune autre.

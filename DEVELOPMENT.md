@@ -1363,3 +1363,28 @@ analyzer refuses web traces instead of giving them zero durations. The
 structured campaign gains one case per corrected defect. Its first run under LM
 Studio revealed the invented values and the empty pages, fixed above; replayed
 without a model, the five faulty proposals now give the right results.
+
+
+## 76. [Bug fix] A filter must be justified by the question
+
+The previous entry kept a valid stage or ability proposed by the model, on the
+grounds that "first-generation starters" at the base stage was a defensible
+interpretation. The campaign found the counterexample: for "Quel est le fossile
+le plus rapide ?" ("Which fossil is the fastest?"), the model added the final
+stage, which excluded Aerodactyl, and the answer was wrong while remaining
+faithful to the data received.
+
+The guard does not judge the meaning of a question, only its words. The rule
+already applied to the learning method and to legendaries is therefore
+generalised: a stage, ability, subgroup or game proposed by the model is kept
+only if the question justifies it (a word of that dimension, a recognised
+subgroup, a named game, or the cited value for an ability). It applies to the
+guard and to the MCP client, and replaces the check of values against the
+database. The subgroup vocabulary is completed to cover every subgroup of the
+spreadsheet, which a test now checks.
+
+The campaign also counted as restituted a Pokémon cited in a sentence denying
+that it belonged to the result: an answer removed three legendaries by claiming
+they were not legendary. A returned name must now appear in at least one passage
+that does not deny it. Replayed on the recorded answers, this check rejects that
+answer and changes the verdict of no other.
