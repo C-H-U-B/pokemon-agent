@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Callable, Collection
 from dataclasses import dataclass
 
 
@@ -308,13 +309,17 @@ _FILTER_CUES = {
 }
 
 
-def without_unjustified_filters(question: str, arguments: dict) -> dict:
+def without_unjustified_filters(question: str, arguments: dict,
+                                known_talents: Callable[[], Collection[str]] | None = None) -> dict:
     """Retire les valeurs de remplissage et les filtres que la question ne justifie pas.
 
     Un filtre est justifié par un mot de sa dimension (« talent », « stade », un jeu, un sous-groupe
-    connu) ; un talent, vocabulaire ouvert, aussi par sa valeur citée dans la question. Une valeur justifiée mais invalide reste transmise : le refus
-    du moteur signale alors la faute de frappe au lieu d'élargir la liste en silence. Les filtres
-    reconnus par l'extraction (sous-groupe, jeu, classification…) sont rétablis ensuite par l'appelant.
+    connu) ; un talent, vocabulaire ouvert, aussi par sa valeur citée dans la question, à condition
+    qu'elle soit un vrai talent quand l'appelant fournit `known_talents` (noms normalisés, appelé
+    seulement si nécessaire) : « de type Feu » formait sinon un talent `type_feu`. Une valeur
+    justifiée par le mot « talent » mais invalide reste transmise : le refus du moteur signale alors
+    la faute de frappe au lieu d'élargir la liste en silence. Les filtres reconnus par l'extraction
+    (sous-groupe, jeu, classification…) sont rétablis ensuite par l'appelant.
     """
     text = normalize(question)
     # « statistiques de base » ne parle pas du stade d'évolution.
@@ -323,8 +328,12 @@ def without_unjustified_filters(question: str, arguments: dict) -> dict:
               if not (isinstance(value, str) and normalize(value) in PLACEHOLDER_VALUES)}
     for key, cue in _FILTER_CUES.items():
         value = result.get(key)
-        if value is not None and not re.search(rf"-(?:{cue})-", padded) and not (
-                isinstance(value, str) and f"-{normalize(value)}-" in padded):
+        if value is None or re.search(rf"-(?:{cue})-", padded):
+            continue
+        # Le catalogue n'est lu qu'en dernier recours : valeur citée sans mot de sa dimension.
+        cited = isinstance(value, str) and f"-{normalize(value)}-" in padded and (
+            key != "talent" or known_talents is None or normalize(value) in known_talents())
+        if not cited:
             result.pop(key)
     if result.get("subgroup") is not None and "-sous-groupe" not in padded:
         # Vocabulaire fermé, entièrement connu de l'extraction : un mot de la question qui n'en fait

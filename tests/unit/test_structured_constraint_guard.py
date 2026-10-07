@@ -420,10 +420,9 @@ def test_values_unjustified_by_the_question_are_removed(question, proposed, expe
     assert {key: proposed[key] for key in ("generation", "subgroup", "talent", "version_group") if key in proposed} == expected
 
 
-@pytest.mark.parametrize("question", ["Quels Pokémon ont le talent Lévitaion ?", "Quels Pokémon ont Lévitaion ?"])
-def test_an_unknown_talent_named_by_the_question_is_kept_for_the_engine_refusal(question):
+def test_an_unknown_talent_named_by_the_question_is_kept_for_the_engine_refusal():
     args = {"talent": "Lévitaion"}
-    assert guard(question, "pokemon_search", args) is None
+    assert guard("Quels Pokémon ont le talent Lévitaion ?", "pokemon_search", args) is None
     assert args["talent"] == "Lévitaion"
 
 
@@ -449,3 +448,17 @@ def test_a_starter_at_an_advanced_stage_is_a_starter_evolution(question, subgrou
     # « Starter » ne désigne que le stade de base depuis la correction du tableur (7 octobre).
     from pokemon_rag.constraints.query_constraints import extract_subgroup
     assert extract_subgroup(question) == subgroup
+
+
+
+@pytest.mark.parametrize("question,talent,kept", [
+    # Réel, LM Studio, 7 octobre : « de type Feu » formait un talent `type_feu`, refusé trois fois.
+    ("Quels starters au stade final sont de type Feu ?", "type_feu", False),
+    ("Quels Pokémon ont Lévitation ?", "Lévitation", True),       # vrai talent cité sans le mot
+    ("Quels Pokémon ont Lévitaion ?", "Lévitaion", False),        # faute de frappe sans le mot « talent »
+])
+def test_a_cited_value_justifies_a_talent_only_if_it_is_a_real_talent(monkeypatch, question, talent, kept):
+    monkeypatch.setattr("pokemon_rag.agent.tool_guard.talent_names", lambda: frozenset({"levitation", "momie"}))
+    args = {"talent": talent}
+    assert guard(question, "pokemon_search", args) is None
+    assert ("talent" in args) is kept
