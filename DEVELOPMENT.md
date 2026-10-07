@@ -1388,3 +1388,25 @@ that it belonged to the result: an answer removed three legendaries by claiming
 they were not legendary. A returned name must now appear in at least one passage
 that does not deny it. Replayed on the recorded answers, this check rejects that
 answer and changes the verdict of no other.
+
+
+## 77. [Bug fix] Starters, starter evolutions and special starters
+
+The spreadsheet classified a starter's whole evolutionary family as "Starter",
+Mega Evolutions included, as well as Pikachu, Eevee and all their evolutions.
+"First-generation starters" returned fifteen Pokémon, including Ivysaur,
+Raichu or Flareon. The model, which kept the three starting Pokémon, then
+contradicted the data, and a faithfulness check would have enforced a wrong
+answer.
+
+The classification is corrected in the spreadsheet: "Starter" designates the
+base stage of the starting Pokémon of the main games, "Starter evolution" their
+evolutions and forms, "Special starter" Pikachu and Eevee, without their
+evolutions. The spreadsheet legend describes the new rule and the database is
+rebuilt.
+
+The extractor recognises the two new subgroups, the longest expression taking
+precedence over "starter". A question naming starters with an advanced stage
+or Megas is read as "Starter evolution", otherwise the search would now be
+empty. Two tests check that the extraction's subgroups and the spreadsheet's
+match in both directions.

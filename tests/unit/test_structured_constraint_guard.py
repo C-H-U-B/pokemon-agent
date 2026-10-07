@@ -375,7 +375,7 @@ def test_placeholder_values_and_unrequested_filters_are_removed():
 
 @pytest.mark.parametrize("question,stage", [
     ("Quel Pokémon sans évolution a le plus d'Attaque ?", "no-evolution"),
-    ("Quels starters au stade final sont de type Feu ?", "final"),
+    ("Quels Pokémon Feu au stade final sont des fossiles ?", "final"),
     ("Quel est le fossile le plus rapide ?", None),
     ("Quel Pokémon a le meilleur total de statistiques de base ?", None),
 ])
@@ -389,6 +389,9 @@ def test_a_stage_needs_a_stage_word(question, stage):
     ("Quelles sont les formes régionales de première génération ?", "Forme régionale"),
     ("Quels sont les oiseaux de début d'aventure ?", "Oiseau de début d’aventure"),
     ("Quels Pokémon sont dans le sous-groupe Ultra-Chimère ?", "Ultra-Chimère"),
+    ("Quelles sont les évolutions de starter de type Feu ?", "Évolution de starter"),
+    ("Quels sont les starters spéciaux ?", "Starter spécial"),
+    ("Quels sont les starters de première génération ?", "Starter"),
 ])
 def test_every_spreadsheet_subgroup_can_be_named(question, subgroup):
     args = {"subgroup": subgroup}
@@ -432,3 +435,17 @@ def test_limit_zero_is_kept_only_for_a_counting_question(question, limit):
     args = {"generation": 4, "legendary": True, "limit": 0}
     assert guard(question, "pokemon_search", args) is None
     assert args.get("limit") == limit
+
+
+
+@pytest.mark.parametrize("question,subgroup", [
+    ("Quels starters au stade final sont de type Feu ?", "Évolution de starter"),
+    ("Quelles sont les Méga des starters ?", "Évolution de starter"),
+    ("Quels starters complètement évolués sont de type Eau ?", "Évolution de starter"),
+    ("Quels starters évoluent au niveau 16 ?", "Starter"),
+    ("Quel est le starter le plus rapide ?", "Starter"),
+])
+def test_a_starter_at_an_advanced_stage_is_a_starter_evolution(question, subgroup):
+    # « Starter » ne désigne que le stade de base depuis la correction du tableur (7 octobre).
+    from pokemon_rag.constraints.query_constraints import extract_subgroup
+    assert extract_subgroup(question) == subgroup

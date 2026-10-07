@@ -136,6 +136,12 @@ titres de plusieurs mots comptent toujours. `tests/integration/test_constraint_v
 vérifie qu'aucun nom français de la base ne produit de jeu ni de forme, et que
 chaque sous-groupe du tableur est reconnu par son nom (Fabuleux et Méga-Évolution
 passent par `mythical` et `form_category`).
+« Starter » ne désigne que le stade de base des Pokémon de départ des jeux
+principaux ; « Évolution de starter » leurs évolutions et formes, « Starter
+spécial » Pikachu et Évoli. Une question qui nomme les starters avec un stade
+avancé ou les Méga (« starters au stade final ») est lue comme « Évolution de
+starter » : sinon la recherche serait vide. L'expression la plus longue prime
+(« évolution de starter » n'est pas aussi « starter »).
 
 `without_unjustified_filters(question, arguments)` retire les valeurs de
 remplissage et les filtres que la question ne justifie pas : stade sans mot de

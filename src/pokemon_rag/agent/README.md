@@ -332,7 +332,7 @@ Une question nommant un Pokémon et une statistique, proposée à
 `pokemon_search`, est refusée en désignant `pokemon_base_stats` et ses
 arguments : sans outil désigné, le modèle n'avait aucune issue et répondait de
 mémoire. Les deux nouveaux outils reçoivent le Pokémon et la forme de la
-question comme les outils de types et d'identité. Un sous-groupe nommé littéralement dans la question (starter, fossile,
+question comme les outils de types et d'identité. Un sous-groupe nommé littéralement dans la question (starter, évolution de starter, starter spécial, fossile,
 pseudo-légendaire, bébé, Ultra-Chimère, Paradoxe…) est une contrainte reconnue :
 le guard le restaure dans `subgroup`, refuse un outil sans ce filtre, et retire
 un filtre légendaire ou fabuleux que la question ne mentionne pas. Ces noms

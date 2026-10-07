@@ -39,6 +39,8 @@ BASE_STAT_NAMES = {
 # « légendaire », « fabuleux » et « Méga » seuls restent des classifications ou une catégorie de formes.
 SUBGROUP_ALIASES = {
     r"starters?": "Starter", r"pokemons?-de-depart": "Starter",
+    r"evolutions?-de-(?:starters?|pokemons?-de-depart)": "Évolution de starter",
+    r"starters?-speciaux|starters?-speciale?s?": "Starter spécial",
     r"pseudo-legendaires?": "Pseudo-légendaire",
     r"fossiles?": "Fossile",
     r"bebes?": "Pokémon bébé",
@@ -342,9 +344,20 @@ def without_unjustified_filters(question: str, arguments: dict) -> dict:
 def extract_subgroup(question: str) -> str | None:
     """Sous-groupe nommé littéralement dans la question ; plusieurs sous-groupes ne sont pas représentables."""
     text = normalize(question)
-    found = {value for pattern, value in SUBGROUP_ALIASES.items() if re.search(rf"(?:^|-){pattern}(?=-|$)", text)}
+    hits = [(match.start(1), match.end(1), value) for pattern, value in SUBGROUP_ALIASES.items()
+            for match in re.finditer(rf"(?:^|-)({pattern})(?=-|$)", text)]
+    # L'expression la plus longue prime : « évolution de starter » n'est pas aussi « starter ».
+    found = {value for start, end, value in hits if not any(
+        other_start <= start and end <= other_end and other_end - other_start > end - start
+        for other_start, other_end, _ in hits)}
     if len(found) > 1:
         raise ValueError("Plusieurs sous-groupes explicites : précisez-en un seul.")
+    # « Starter » ne désigne que le stade de base : un starter au stade final ou en Méga est une
+    # évolution de starter. Sans cela, « le starter Feu au stade final » donnait une liste vide.
+    if found == {"Starter"} and re.search(
+            r"(?:^|-)(?:finale?s?|intermediaires?|megas?|derniers?-stades?|(?:completement|totalement|entierement)-evolue(?:e|s|es)?)(?=-|$)",
+            text):
+        return "Évolution de starter"
     return found.pop() if found else None
 
 
