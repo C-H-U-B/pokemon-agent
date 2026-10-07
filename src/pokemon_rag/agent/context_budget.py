@@ -13,6 +13,7 @@ from typing import Any
 
 from google.adk.models.llm_response import LlmResponse
 from google.genai import types
+from pokemon_rag.agent.list_fidelity import complete_list, render, unfaithful_names
 from pokemon_rag.agent.tool_guard import _extract_user_text
 from pokemon_rag.constraints.query_constraints import (
     DOCUMENTARY_PATTERN, has_structured_request, is_purely_documentary, normalize, VERSION_GROUP_NAMES_FR,
@@ -318,6 +319,8 @@ def after_tool_budget(tool: Any, args: dict, tool_context: Any, tool_response: d
         if "timings" in measure:
             measure["passages"] = len(raw.get("results") or [])
         # args : arguments réellement exécutés, après le guard (l'événement du modèle garde sa proposition).
+        # Dernière liste transmise au modèle dans cette question : la réponse finale lui sera confrontée.
+        state["temp:fidelity_list"] = complete_list(getattr(tool, "name", ""), result)
         state["tool_timings"] = [*state.get("tool_timings", []), {"tool": getattr(tool, "name", None),
                                                                   "executed_arguments": deepcopy(args), **measure}]
     if logger.isEnabledFor(logging.INFO):
@@ -465,17 +468,29 @@ def _any_passage(contents: list) -> bool:
 
 
 def after_model_abstention(callback_context: Any, llm_response: Any) -> LlmResponse | None:
-    """Remplace un texte rédigé sans aucun résultat d'outil valide ; une nouvelle tentative d'outil passe.
+    """Remplace un texte rédigé sans résultat d'outil valide, ou infidèle à une liste transmise.
+
+    Une nouvelle tentative d'outil passe.
 
     La consigne interdit déjà de répondre de mémoire après une erreur, mais le modèle peut
     l'ignorer : le contrôle est donc fait ici, sur les retours d'outils réellement reçus.
     Une question purement descriptive exige en plus au moins un passage documentaire, même si
     aucun outil n'a été appelé ou si un autre outil a répondu.
     """
-    if not callback_context.state.get("temp:every_tool_call_failed") or getattr(llm_response, "partial", False):
+    if getattr(llm_response, "partial", False):
         return None
     parts = (llm_response.content.parts if llm_response.content else None) or []
     if any(part.function_call for part in parts):
         return None
-    logger.warning("tool_failure_abstention")
-    return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=TOOL_FAILURE_ABSTENTION)]))
+    if callback_context.state.get("temp:every_tool_call_failed"):
+        logger.warning("tool_failure_abstention")
+        return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=TOOL_FAILURE_ABSTENTION)]))
+    # Liste entièrement transmise : une ligne omise ou niée fait remplacer la réponse par les données.
+    listing = callback_context.state.get("temp:fidelity_list")
+    answer = "".join(part.text for part in parts if part.text)
+    if listing and answer and answer not in (BUDGET_ABSTENTION, DOUBLE_REQUEST_REFUSAL):
+        missing = unfaithful_names(listing, answer)
+        if missing:
+            logger.warning("list_fidelity_replacement missing=%d rows=%d", len(missing), len(listing["names"]))
+            return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=render(listing))]))
+    return None

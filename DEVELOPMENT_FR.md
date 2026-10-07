@@ -1480,3 +1480,23 @@ longue primant sur « starter ». Une question qui nomme les starters avec un
 stade avancé ou les Méga est lue comme « Évolution de starter », sans quoi la
 recherche serait désormais vide. Deux tests vérifient que les sous-groupes de
 l'extraction et ceux du tableur correspondent dans les deux sens.
+
+
+## 78. [Feature] Réponse remplacée quand elle contredit une liste transmise
+
+Qwen retirait des lignes d'une liste qu'il avait reçue en entier : le trio des
+lacs, renvoyé parmi les légendaires de quatrième génération, était déclaré « non
+légendaire ». Rappeler dans le résultat que chaque ligne est légendaire n'a pas
+suffi : le trio restait nié trois fois sur quatre, et ce rappel a été retiré.
+
+L'agent vérifie désormais sa réponse finale quand elle porte sur une liste de
+Pokémon ou de capacités entièrement transmise, jusqu'à trente lignes : chaque nom
+doit y figurer hors d'une phrase qui nie son appartenance au résultat. Sinon, la
+réponse est remplacée par la liste construite depuis les données, valeurs et
+total compris, sans nouvel appel au modèle. La trace de l'interface Web signale
+ce remplacement.
+
+La même détection sert à la campagne, qui l'importe au lieu d'en garder une
+copie. Rejouée sur toutes les réponses enregistrées, elle n'en aurait remplacé
+que des fausses : les légendaires niés, un nom déformé et des starters
+contredisant l'ancienne classification.

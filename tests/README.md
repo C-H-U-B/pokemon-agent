@@ -61,6 +61,7 @@ décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 | Traces et coûts | `unit/test_metrics.py`, `unit/test_tracing.py` |
 | Client MCP | `integration/test_mcp_client.py`, puis `long/test_mcp_client_e2e.py` exécuté par l'utilisateur |
 | Contraintes MCP | `unit/test_mcp_constraint_preservation.py` : extraction et réconciliation sans LLM |
+| Fidélité des listes | `unit/test_list_fidelity.py`, puis `integration/test_adk_stat_rankings.py` (réponse simulée qui omet des lignes, remplacée) |
 | Guard ADK | `unit/test_adk_tool_guard.py` : callback et vrais extracteurs, contexte et outils ADK simulés, sans LLM ni serveur MCP |
 | Extracteur de contraintes (jeux, formes) | `unit/test_structured_constraint_guard.py`, puis `integration/test_constraint_vocabulary.py` : tous les noms français de la base, aucun ne doit produire de jeu ni de forme |
 | Sessions Web | `unit/test_web_request_sessions.py` : runner ADK simulé ; questions indépendantes, historique affiché conservé, suppression des sessions après succès ou erreur ; temps d'outil et tokens du panneau, démarrage anticipé du serveur d'outils |
@@ -252,7 +253,9 @@ Les termes attendus ignorent le style d'apostrophe ; les termes interdits se
 comparent par mot entier. Un nom renvoyé ne compte comme restitué que s'il figure
 dans au moins un passage qui ne nie pas son appartenance au résultat (« ne sont
 pas des légendaires », « à tort ») : une réponse citait trois légendaires pour
-dire qu'ils n'en étaient pas. Ce sont des contrôles de présence : ils ne détectent
+dire qu'ils n'en étaient pas. La campagne importe cette détection de
+`agent/list_fidelity.py`, qui l'applique aussi dans l'agent. Le modèle simulé
+des tests d'intégration ADK cite les noms reçus, comme une réponse fidèle. Ce sont des contrôles de présence : ils ne détectent
 pas un fait ajouté à côté des faits attendus.
 `long/test_retrieval_quality.py` attend la section pertinente parmi les trois
 premiers passages, et non un mot courant du corpus.
