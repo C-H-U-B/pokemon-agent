@@ -1325,3 +1325,41 @@ compared as whole words.
 
 Before being adopted, these checks were replayed on the answers already
 recorded: they reject the two invented answers and accept the others.
+
+## 75. [Bug fix] Ordinary words taken for constraints, traces faithful to executed calls
+
+An architecture review showed that the constraint extractor, shared by the
+agent, the MCP client and the graph, turned ordinary words into constraints.
+A game name contained in a name imposed that game or made the tool refused:
+"Lance-Soleil" restricted the answer to Sun and Moon, "Rugit-Lune" made the
+types tool refused. "dans la première génération" ("in the first generation")
+passed for an unknown game, and a region cited as a place became a form:
+"Quels Pokémon viennent de Galar ?" ("Which Pokémon come from Galar?") found no
+Pokémon.
+
+A one-word game name now counts only after a word announcing a game ("dans",
+"en", "Pokémon", "version") or another game; full titles always count. A region
+preceded by a place word ("viennent de", "région de", "à") is no longer a
+form. A test goes through every French name of the database and checks that
+none produces a game or a form.
+
+The guard prevented a constraint from being forgotten, not an invented filter
+from being added. Qwen proposed for instance a "none" ability, which made the
+search fail. A placeholder value is now removed, as is a legendary or mythical
+filter absent from the question, and a subgroup, ability or game value absent
+from the database when the question does not name that dimension ("Galar"
+proposed as a subgroup, "speed" as an ability). The model also asked for zero
+rows on list questions, and the empty page passed for complete: the list was
+then written from memory. An empty page is now accepted only for a count.
+Finally, the engine's refusal now reaches the model: the MCP server only passed
+on "Error executing tool", without saying which argument to fix. A valid ability or stage remains the model's
+choice: "first-generation starters" at the base stage is a legitimate
+interpretation.
+
+Finally, the web interface trace recorded the arguments proposed by the model,
+not those executed after the guard. It now shows the executed arguments, with
+the proposal when it differs; so does the activity panel. The graph trace
+analyzer refuses web traces instead of giving them zero durations. The
+structured campaign gains one case per corrected defect. Its first run under LM
+Studio revealed the invented values and the empty pages, fixed above; replayed
+without a model, the five faulty proposals now give the right results.

@@ -66,8 +66,20 @@ aucune méthode d'apprentissage est retiré : il réduirait le résultat sans qu
 l'utilisateur l'ait demandé. Dès qu'un mot de méthode apparaît, la proposition
 du modèle est conservée telle quelle ; une formulation implicite hors de ce
 vocabulaire peut donc faire retirer un filtre légitime. Les mentions positives de
-légendaire et de fabuleux restaurent leurs filtres indépendants ; les cas
-négatifs ou alternatifs reconnus restent refusés.
+légendaire et de fabuleux restaurent leurs filtres indépendants ; sans ces mots
+dans la question, un filtre légendaire ou fabuleux proposé est retiré. Les cas
+négatifs ou alternatifs reconnus restent refusés. Une valeur de remplissage
+(`"none"`, `"null"`, chaîne vide…) est retirée de tout argument : Qwen proposait
+`talent="none"`, et le moteur refusait toute la recherche. Une valeur de
+`subgroup`, `talent` ou `version_group` absente de la base est aussi retirée
+quand la question ne nomme pas cette dimension (« sous-groupe », « talent », un
+jeu) et, pour un talent, ne contient pas la valeur : sous LM Studio, Qwen proposait
+`subgroup="Galar"`, `talent="speed"` ou `version_group="ruby"`. Une valeur nommée
+par la question reste transmise, et le refus du moteur, dont le texte atteint
+désormais le modèle, signale la faute de frappe. Sur `pokemon_search` et
+`pokemon_moves`, `limit=0` n'est gardé que pour une question de comptage
+(« combien », « nombre ») : sur une question de liste, la page vide passait pour
+complète et la liste était rédigée de mémoire.
 Les questions d'apparence, comportement, habitat, origine ou histoire sont
 orientées par les instructions vers `pokemon_rag_search`, avec la question
 complète et le Pokémon ciblé. Des types ou une identité Pokédex ne sont pas des
@@ -130,7 +142,11 @@ bornes d'un intervalle sont rétablies ensemble, y compris une borne absente,
 pour enlever une limite contradictoire inventée. Les types de Pokémon et de
 capacités ont des contextes distincts ; une Attaque Spéciale de classement ne
 devient pas `damage_class=special`. Les filtres non explicitement reconnus restent
-du ressort du modèle, sous réserve des invariants existants des listes/classements.
+du ressort du modèle, sous réserve des invariants existants des listes/classements :
+une forme, un talent ou un stade valides que la question ne mentionne pas sont
+conservés (« les starters de première génération » au stade de base est une
+interprétation légitime ; « Shaymin Céleste » désigne une forme sans le mot
+« forme »).
 Un outil incompatible reçoit une erreur avec `selected_tool` et
 `required_arguments` ; le numéro national ajoute `required_tool=pokemon_search`.
 Aucun outil n'est changé automatiquement. La proposition n'est modifiée qu'après
@@ -320,7 +336,8 @@ le guard le restaure dans `subgroup`, refuse un outil sans ce filtre, et retire
 un filtre légendaire ou fabuleux que la question ne mentionne pas. Ces noms
 suffisent aussi à reconnaître un classement sans le mot « Pokémon » (« le
 fossile le plus rapide »). `evolution_stage` et `talent` ne sont pas extraits
-de la question : le guard ne les restaure pas et ne les retire pas.
+de la question : le guard ne les restaure pas et ne retire qu'une valeur de
+remplissage.
 
 Quand la question nomme un Pokémon, un mot de catégorie (légendaire, fabuleux
 ou sous-groupe) n'est plus un filtre de liste mais une propriété interrogée
@@ -330,6 +347,9 @@ désignant. Auparavant aucun outil n'était accepté. Toute autre contrainte de
 liste (classement, génération, type) reste exigée et maintient le refus. Limite :
 un mot de catégorie simplement accolé au nom (« les types du fossile Kabuto »)
 est orienté vers la fiche, qui ne contient pas les types.
-Les événements de function call ne prouvent pas à eux seuls les arguments
-corrigés envoyés au serveur. La campagne structurée instrumente les callbacks
-pour séparer proposition, arguments exécutés, MCP brut et adaptation ADK.
+Les événements de function call portent la proposition du modèle : ADK en donne
+une copie aux callbacks, que le guard corrige. `after_tool_budget`, appelé même
+après un refus du guard, consigne donc les arguments réellement exécutés dans
+l'état de session (`tool_timings`, champ `executed_arguments`) ; l'interface Web
+les affiche et les écrit dans sa trace. La campagne structurée instrumente les
+callbacks pour séparer proposition, arguments exécutés, MCP brut et adaptation ADK.
