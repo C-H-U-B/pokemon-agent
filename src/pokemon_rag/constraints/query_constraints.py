@@ -36,6 +36,14 @@ BASE_STAT_NAMES = {
     "speed": "Vitesse", "base-stat-total": "Total des statistiques",
 }
 
+# Mesures PokéAPI classables comme une statistique, sans en être une : l'unité fait partie du libellé.
+MEASURE_NAMES = {"height": "Taille (m)", "weight": "Poids (kg)"}
+# Adjectif d'un superlatif -> mesure et ordre. « gros » désigne le poids (décision du 7 octobre 2026).
+_MEASURE_CUES = {
+    r"grand(?:e|s|es)?": ("height", "desc"), r"petit(?:e|s|es)?": ("height", "asc"),
+    r"(?:lourd(?:e|s|es)?|gros(?:se|ses)?)": ("weight", "desc"), r"leger(?:e|s|es)?": ("weight", "asc"),
+}
+
 # Mots d'une question désignant un sous-groupe du tableur -> valeur exacte attendue par le moteur.
 # « légendaire », « fabuleux » et « Méga » seuls restent des classifications ou une catégorie de formes.
 SUBGROUP_ALIASES = {
@@ -469,6 +477,12 @@ def extract_stat_ranking_args(question: str) -> dict | None:
         matches.add(("speed", "desc"))
     if re.search(r"(?:^|-)plus-lent(?:e|s|es)?(?:-|$)", text):
         matches.add(("speed", "asc"))
+    # Taille et poids : l'adjectif doit qualifier le Pokémon, donc clore la question ou précéder un
+    # nom de Pokémon ou un complément. « la plus grande Attaque », « le plus grand nombre de PV » et
+    # « la plus grande statistique » ne sont pas des tailles.
+    for adjective, measure in _MEASURE_CUES.items():
+        if re.search(rf"(?:^|-)plus-{adjective}(?=$|-(?:{_POKEMON_NOUNS}|de|d|des|du|parmi|dans|en|qui|et|ou)(?:-|$))", text):
+            matches.add(measure)
     if not matches:
         return None
     if len(matches) != 1:

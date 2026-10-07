@@ -124,6 +124,16 @@ def test_ranking_value_is_checked_under_its_projected_statistic_name(reporting):
     assert not all(ok for ok,_,_ in reporting["_factual_checks"](result,"Espèce"))
 
 
+@pytest.mark.parametrize("answer, faithful", [
+    # Régression (run du 7 octobre, 23:39) : « 20,0 mètres » comptait pour une valeur omise, 20.0 étant attendu.
+    ("Espèce mesure 20,0 mètres.", True), ("Espèce mesure 20 m.", True), ("Espèce mesure 20.0 m.", True),
+    ("Espèce mesure 120,0 m.", False), ("Espèce mesure 20,5 m.", False), ("Espèce est la plus grande.", False),
+])
+def test_decimal_measure_is_accepted_with_a_french_comma_and_no_other_value(reporting, answer, faithful):
+    result = {"operation":"search_pokemon","stat_name_fr":"Taille (m)","results":[{"name_fr":"Espèce","Taille (m)":20.0}]}
+    assert all(ok for ok,_,_ in reporting["_factual_checks"](result,answer)) is faithful
+
+
 def test_level_from_a_filtered_movepool_row_is_a_proven_level(reporting):
     result = {"operation":"get_pokemon_moves","results":[
         {"name_fr":"Capacité","learning":[{"method":"montée de niveau","level":39},{"method":"CT/CS"}]}]}

@@ -1543,3 +1543,30 @@ Second run: 13 out of 26, a gap within noise; Abo and the ranks pass, Rondoudou
 passes on one try in the interface. Still open: denials drawn from an absence
 ("Dracaufeu has no Mega Evolution" from an empty evolution list) and questions
 the model sends to another tool.
+
+## 85. [Feature] Height, weight and capture rate
+
+"Quel est le plus grand Pokémon ?" was refused by the guard, then accepted
+when the model asked for a single row sorted on the base stat total: the answer
+was "Arceus". Height, weight and capture rate were in the PokéAPI database, but
+no tool returned them.
+
+The sheet of a named Pokémon now ends with these three measures, read from the
+database and not from the spreadsheet. The database stores decimetres and
+hectograms: the conversion is done in SQL and the unit is written in the value
+("0,4 m", "6,0 kg", "190 sur 255"). A zero weight, the placeholder value of
+Eternamax Eternatus, is left out.
+
+The search also ranks by height and by weight, with the mechanism of the base
+stats: superlative, ties and top N. The guard imposes the criterion for "le plus
+grand", "le plus petit", "le plus lourd", "le plus gros" and "le plus léger",
+only when the adjective qualifies the Pokémon: "la plus grande Attaque" remains
+a ranking by Attack. The capture rate is not ranked: 76 Pokémon share the
+minimum and 87 the maximum, more than the lists whose answer is checked.
+
+With Qwen, the weight of Snorlax was first read from the base stats ("Ronflex
+pèse 160"): the model receives only the first paragraph of a tool description,
+and the measures were announced further down. Once moved up into that
+paragraph, the sheet is requested and the answer is "460,0 kg". The campaign
+check also counted as omitted a value written "20,0" when it expected "20.0":
+it now accepts the comma.

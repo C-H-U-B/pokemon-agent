@@ -53,6 +53,8 @@ class WrongRankingModel(BaseLlm):
     ("Quel est le Pokémon Méga avec le moins de Défense ?", "defense","asc",1,"Méga-Dardargnan"),
     ("Quels sont les Pokémon Méga les plus lents ?", "speed","asc",2,"Méga-Ténéfix"),
     ("Quels sont les 10 Pokémon les plus rapides ?", "speed","desc",10,"Regieleki"),
+    # Régression (trace Web du 7 octobre) : aucun critère de taille, le modèle triait sur le total → « Arceus ».
+    ("quel est le plus grand pokemon", "height","desc",1,"Éthernatos"),
 ])
 def test_runner_corrects_invented_filter_and_missing_ranking_without_budget_abstention(
         question, statistic, order, count, expected):
@@ -76,7 +78,7 @@ def test_runner_corrects_invented_filter_and_missing_ranking_without_budget_abst
             assert result["results"][0]["name_fr"] == expected
             assert result["returned_count"] == count
             if count == 1:
-                assert result["best_value"] == 40
+                assert result["best_value"] == (20.0 if statistic == "height" else 40)
             if count == 2:
                 assert result["best_value"] == 20 and result["tie"] and result["tie_count"] == 2
                 assert {row["name_fr"] for row in result["results"]} == {"Méga-Ténéfix","Méga-Camérupt"}

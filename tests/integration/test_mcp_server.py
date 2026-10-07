@@ -69,7 +69,7 @@ async def _check_server() -> None:
             assert wrong.is_error  # valeur inconnue : erreur, pas liste vide
             assert set(schema["sort_by"]["enum"]) == {
                 "national_number", "hp", "attack", "defense", "special-attack",
-                "special-defense", "speed", "base-stat-total"}
+                "special-defense", "speed", "base-stat-total", "height", "weight"}
             assert set(schema["sort_order"]["enum"]) == {"asc", "desc"}
             assert "ex aequo" in schema["best_only"]["description"]
             mega = await session.call_tool("pokemon_search", arguments={

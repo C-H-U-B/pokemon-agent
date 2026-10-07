@@ -221,7 +221,10 @@ Les classements utilisent `pokemon_search` avec les filtres demandés,
 `best_only=true` et doit signaler les ex aequo ; un top N conserve
 `best_only=false`. Toutes les Méga utilisent `form_category="mega"`.
 Les six statistiques et leur total sont classés en SQL, sans modificateurs
-de combat ni calcul du modèle. Les enums et descriptions des nouveaux
+de combat ni calcul du modèle. La taille et le poids se classent de la même façon : le guard
+impose `height` pour « le plus grand », « le plus petit » et `weight` pour « le plus lourd »,
+« le plus gros », « le plus léger », seulement quand l'adjectif qualifie le Pokémon (« la plus
+grande Attaque » reste l'Attaque) ; deux critères dans un même superlatif sont refusés comme ambigus. Les enums et descriptions des nouveaux
 arguments restent dans le schéma après l'abrègement des descriptions d'outils.
 Une fois une première page structurée complète obtenue, la formulation
 reçoit les faits et l'historique sans le catalogue d'outils. Pour un superlatif,

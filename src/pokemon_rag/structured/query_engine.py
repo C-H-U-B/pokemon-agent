@@ -10,6 +10,7 @@ from typing import Any
 from pokemon_rag.config import DB_PATH
 from pokemon_rag.constraints.query_constraints import (
     BASE_STAT_NAMES,
+    MEASURE_NAMES,
     REGION_FORMS,
     normalize as _normalize,
 )
@@ -21,6 +22,9 @@ BASE_STAT_FIELDS = {identifier: (column, BASE_STAT_NAMES[identifier]) for identi
     "special-attack":"attaque_speciale", "special-defense":"defense_speciale", "speed":"vitesse",
 }.items()}
 BASE_STAT_TOTAL = "base-stat-total"
+# Décimètres et hectogrammes dans PokéAPI, convertis en SQL ; un zéro est une valeur de remplissage,
+# exclue du classement comme une statistique NULL.
+MEASURE_FIELDS = {identifier: (f"NULLIF(p.{identifier}, 0) / 10.0", MEASURE_NAMES[identifier]) for identifier in MEASURE_NAMES}
 
 # Déclencheurs d'évolution les plus courants ; les autres gardent leur seul identifiant PokéAPI.
 EVOLUTION_TRIGGERS_FR = {"level-up": "montée de niveau", "use-item": "utilisation d'un objet", "trade": "échange"}
@@ -82,7 +86,7 @@ def _readable(text: str) -> str:
 def _stat_sort(value: str) -> tuple[str, str | None, str | None]:
     """Résout la whitelist de tri et les libellés français, sans SQL utilisateur."""
     if not isinstance(value, str):
-        raise ValueError("sort_by doit désigner une statistique de base ou national_number.")
+        raise ValueError("sort_by doit désigner une statistique de base, une mesure ou national_number.")
     normalized = _normalize(value)
     if normalized == "national-number":
         return "national_number", None, None
@@ -92,7 +96,10 @@ def _stat_sort(value: str) -> tuple[str, str | None, str | None]:
     if normalized in {BASE_STAT_TOTAL, "total-des-statistiques", "total-de-base"}:
         return BASE_STAT_TOTAL, "(" + " + ".join(
             f"stats.{column}" for column, _ in BASE_STAT_FIELDS.values()) + ")", "Total des statistiques"
-    raise ValueError("sort_by invalide : national_number, " + ", ".join(BASE_STAT_FIELDS) + ", " + BASE_STAT_TOTAL)
+    for identifier, (expression, label) in MEASURE_FIELDS.items():
+        if normalized in {identifier, _normalize(label.split(" (")[0])}:
+            return identifier, expression, label
+    raise ValueError("sort_by invalide : national_number, " + ", ".join((*BASE_STAT_FIELDS, BASE_STAT_TOTAL, *MEASURE_FIELDS)))
 
 
 VALID_OPERATIONS = {
@@ -322,7 +329,7 @@ def search_pokemon(
     if type(best_only) is not bool:
         raise ValueError("best_only doit être un booléen.")
     if best_only and stat_expression is None:
-        raise ValueError("best_only exige un tri par statistique de base.")
+        raise ValueError("best_only exige un tri par statistique de base ou par mesure.")
     if form_category is not None and form_category != "mega":
         raise ValueError("form_category invalide : mega ou null.")
     for name, value in (("legendary", legendary), ("mythical", mythical)):
@@ -1464,12 +1471,30 @@ def get_base_stats(pokemon: str, form: str | None = None) -> dict[str, Any]:
             "execution_time": time.perf_counter() - start}
 
 
+def _measures(pokemon_id: int | None) -> dict[str, str]:
+    """Taille, poids et taux de capture PokéAPI de la forme, l'unité portée par chaque valeur.
+
+    PokéAPI stocke des décimètres et des hectogrammes (Pikachu : 4 et 60), convertis en SQL.
+    Un poids nul est une valeur de remplissage (Éthernatos Infinimax) : la mesure est omise,
+    comme pour une entrée sans lien PokéAPI. Le taux de capture est celui de l'espèce.
+    """
+    with closing(_connect()) as conn:
+        row = conn.execute("""SELECT NULLIF(p.height, 0) / 10.0 AS height, NULLIF(p.weight, 0) / 10.0 AS weight,
+                CAST(s.capture_rate AS INTEGER) AS capture_rate
+            FROM pokemon p JOIN pokemon_species s ON s.id = p.species_id WHERE p.id = ?""", (pokemon_id,)).fetchone()
+    if row is None:
+        return {}
+    values = (("Taille", row["height"], "{:.1f} m"), ("Poids", row["weight"], "{:.1f} kg"),
+              ("Taux de capture", row["capture_rate"], "{} sur 255"))
+    return {label: text.format(value).replace(".", ",") for label, value, text in values if value is not None}
+
+
 def get_particularities(pokemon: str, form: str | None = None) -> dict[str, Any]:
-    """Ce que le tableur note de particulier pour un Pokémon nommé ; les rubriques vides sont omises."""
+    """Fiche d'un Pokémon nommé : rubriques du tableur, puis taille, poids et taux de capture ; les rubriques vides sont omises."""
     result, row, start = _spreadsheet_result(
-        "get_particularities", pokemon, form, ", ".join(column for column, _ in PARTICULARITY_FIELDS))
+        "get_particularities", pokemon, form, "pokemon_id, " + ", ".join(column for column, _ in PARTICULARITY_FIELDS))
     facts = {label: _readable(row[column]) for column, label in PARTICULARITY_FIELDS if row[column] not in (None, "")}
-    return {**result, "rows": [{"name_fr": result["pokemon"], **facts}],
+    return {**result, "rows": [{"name_fr": result["pokemon"], **facts, **_measures(row["pokemon_id"])}],
             "execution_time": time.perf_counter() - start}
 
 
