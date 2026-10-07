@@ -17,13 +17,14 @@ L'agent unique dispose désormais de `McpToolset`, qui démarre le serveur Poké
 en stdio avec le même interpréteur Python. Le filtre expose les douze outils :
 `pokemon_evolutions`, `pokemon_level_up_moves`, `pokemon_move_learning_methods`,
 `pokemon_machine_moves`, `pokemon_types`, `pokemon_pokedex_identity`,
-`pokemon_signature_moves`, `pokemon_rag_search`, `pokemon_search` et
-`pokemon_moves`. Ils réutilisent SQLite ou le
+`pokemon_signature_moves`, `pokemon_base_stats`, `pokemon_particularities`,
+`pokemon_rag_search`, `pokemon_search` et `pokemon_moves`. Ils réutilisent SQLite ou le
 RAG existant. Les instructions demandent de choisir l'outil adapté et permettent
 au modèle de réessayer avec un outil compatible après un refus du guard.
 Ce sont des instructions au modèle, sans politique déterministe de reprise.
-Ce parcours n'applique ni le grounding du graphe ni la réconciliation des
-contraintes du client MCP existant. Ces deux parcours restent disponibles.
+Ce parcours n'applique pas le grounding du graphe ; il partage avec le client
+MCP la règle de justification des filtres (`without_unjustified_filters`). Le
+graphe et le client restent disponibles comme première version, non maintenue.
 
 Le callback `before_tool_callback` applique le guard de `tool_guard.py` aux
 contraintes reconnues de niveaux, de puissance, de jeux, de formes, de catégorie
@@ -47,14 +48,15 @@ Un numéro national explicite reconnu exige `pokemon_search` : le guard rétabli
 `pokedex_number` si le modèle le modifie et refuse un autre outil en indiquant
 l'appel requis. `pokemon_pokedex_identity` reste destiné au numéro d'un Pokémon
 déjà nommé. Les numéros régionaux ou multiples reconnus sont refusés, sans SQLite
-dans le guard. La protection porte sur l'appel d'outil, pas sur le texte final.
+dans le guard. Le guard protège l'appel d'outil ; le texte final n'est contrôlé
+que pour les listes entièrement transmises (voir le budget de contexte).
 Les nouveaux outils acceptent jeux, formes et niveaux ; le guard conserve leurs
 filtres et impose `level-up` avec des bornes de niveau. Les instructions donnent
 la convention de direction : Pokémon nommé vers un outil prenant `pokemon`,
 propriétés ou numéro sans nom vers `pokemon_search`. Elles exigent le
 signalement d'une liste partielle ou d'un catalogue incomplet. Le choix entre
 `pokemon_moves` et les outils spécialisés est porté par leurs descriptions.
-Les talents sont reportés. Voir les
+Voir les
 [contrats structurés](../structured/README.md#recherche-pokémon-et-movepool-filtrable-via-mcp).
 Pour un classement reconnu, le guard restaure statistique, ordre, mode de
 superlatif ou top N et catégorie Méga. Il retire les types inventés et conserve
@@ -74,7 +76,8 @@ négatifs ou alternatifs reconnus restent refusés. Une valeur de remplissage
 filtre doit être justifié par la question, même avec une valeur valide
 (`without_unjustified_filters`, partagé avec le client MCP) : `evolution_stage`
 par un mot de stade (« stade », « base », « final », « évolution »…), `talent` par
-le mot « talent » ou la valeur citée, `subgroup` par un sous-groupe reconnu ou le
+le mot « talent » ou par sa valeur citée si c'est un vrai talent de la base
+(« de type Feu » formait sinon un talent `type_feu`, refusé trois fois de suite), `subgroup` par un sous-groupe reconnu ou le
 mot « sous-groupe », `version_group` par un jeu nommé. Sous LM Studio, Qwen
 proposait `subgroup="Galar"`, `talent="speed"`, `version_group="ruby"`, ou
 `evolution_stage="final"` pour « le fossile le plus rapide », ce qui excluait
@@ -99,9 +102,10 @@ Les générations, classifications et exemples de capacités non demandés sont
 exclus. Une recherche Pokémon n'atteste aucun nom de capacité : ces noms
 nécessitent un résultat de movepool approprié si la question les demande.
 La limite de couverture reste signalée brièvement, sans énumérer les formes
-manquantes sauf demande. Ces consignes restent une protection par prompt,
-sans validation déterministe de la réponse finale ; leur respect par Qwen
-doit être vérifié manuellement.
+manquantes sauf demande. Ces consignes restent une protection par prompt ;
+seule l'omission ou la négation d'une ligne d'une liste entièrement transmise est
+contrôlée de façon déterministe. Le reste de leur respect par Qwen doit être
+vérifié manuellement.
 Les outils de capacités renvoient aussi `name_en` ; les groupes de versions
 restent des identifiants techniques, sans table de traductions dans la base actuelle.
 L'adaptation des résultats ADK masque récursivement les champs `*_en` ou `en` lorsqu'un
@@ -129,7 +133,7 @@ d'arguments d'un outil, sans qu'un argument en soit seul responsable. Demander
 de recopier le nom « tel qu'écrit » ne suffisait pas ; préciser que l'argument
 est le nom français recopié de la question l'a supprimée dans ces sondes.
 Cette précision est dans l'instruction : la répéter dans la description de
-l'argument des huit outils dépasserait le budget de requête. Les sondes portent
+l'argument de chaque outil qui prend un Pokémon dépasserait le budget de requête. Les sondes portent
 sur quelques noms et peu d'essais ; le guard continue de réparer ces propositions.
 
 Après une erreur, une entrée manquante ou un résultat vide, l'agent est instruit
@@ -298,7 +302,7 @@ Dans l'environnement Conda `langgraph-agent`, installer le projet avec
 `pip install -e .`. Les versions déclarées sont `google-adk==2.10.0` et
 `litellm==1.103.2`. LM Studio doit déjà servir `qwen/qwen3-vl-8b` sur le port 1234.
 Configurer sa fenêtre de contexte à **16384 tokens** : le contexte de 8192
-utilisé auparavant s'est révélé insuffisant avec les huit schémas MCP.
+utilisé auparavant s'est révélé insuffisant, alors avec huit schémas MCP.
 Ce réglage est effectué dans LM Studio, pas dans le code de l'agent.
 Les outils structurés nécessitent `pokemon.db` ; la recherche nécessite aussi
 le corpus, Chroma et les modèles locaux déjà préparés. Ne pas reconstruire ces

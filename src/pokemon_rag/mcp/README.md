@@ -9,17 +9,18 @@ records, double type unique, mise en avant, obtention, dimorphisme), rubriques
 vides omises. Les rubriques « à l'introduction » datent de la sortie du
 Pokémon. `pokemon_search` accepte en plus `subgroup`, `evolution_stage` et
 `talent`, comparés exactement aux valeurs du tableur après normalisation ; une
-valeur inconnue est une erreur qui liste les valeurs admises, pas une liste vide.
+valeur inconnue est une erreur, pas une liste vide, qui liste les valeurs admises
+quand elles sont peu nombreuses (sous-groupes).
 
-Deux outils complètent les huit outils existants : `pokemon_search` appelle
-`search_pokemon` et `pokemon_moves` appelle `get_pokemon_moves`. Leurs signatures
+Le serveur expose douze outils. `pokemon_search` appelle `search_pokemon` et
+`pokemon_moves` appelle `get_pokemon_moves`. Leurs signatures
 et contrats sont décrits dans le [guide structuré](../structured/README.md#recherche-pokémon-et-movepool-filtrable-via-mcp).
 Ils combinent les filtres en SQL, renvoient des pages avec total exact et
 troncature explicite, et utilisent une forme par défaut sans forme demandée.
 La recherche inverse par capacité utilise le dernier movepool de chaque Pokémon,
 sans union historique. Avec une méthode d'apprentissage ou des niveaux et sans
 jeu précisé, les deux outils retiennent le dernier jeu où le Pokémon a cette méthode. Une forme par défaut absente du catalogue personnalisé lié
-est signalée dans `catalogue_complete` ; les talents sont reportés.
+est signalée dans `catalogue_complete`.
 Les outils historiques conservent leurs signatures et leurs résultats.
 `pokemon_search` classe aussi les six statistiques de base et leur somme SQL :
 `sort_by`, `sort_order`, `limit` se combinent avec tous les filtres. Le schéma
@@ -47,7 +48,9 @@ un libellé français, sauf demande explicite ; le contrat des retours MCP reste
 Les guards et la réconciliation conservent ces arguments sans comparer de valeurs.
 Ils restaurent aussi les motifs de classement explicitement reconnus et les
 types littéraux de la question, afin qu'un type inventé ou un tri oublié ne
-change pas la recherche. Les autres filtres restent conservés. Les limites de
+change pas la recherche. Ils retirent les valeurs de remplissage et les filtres
+que la question ne justifie pas (stade, talent, sous-groupe, jeu, légendaire,
+fabuleux) ; les autres filtres restent conservés. Les limites de
 reconnaissance sont dans le [guide des contraintes](../constraints/README.md).
 Les callbacks ADK
 bornent les données destinées au modèle sans changer les réponses MCP aux
@@ -98,7 +101,9 @@ catalogue expose les douze outils du serveur, y compris `pokemon_rag_search`.
 Son callback préserve les
 contraintes reconnues de niveaux, puissance, jeux, formes, catégories/types de
 capacités, types de Pokémon, génération, classifications et classements ou refuse un outil
-incompatible ; il ne passe pas par `reconcile_tool_call` du client ci-dessous.
+incompatible ; il ne passe pas par `reconcile_tool_call` du client ci-dessous,
+mais partage avec lui `without_unjustified_filters`. L'agent confronte aussi sa
+réponse finale aux listes entièrement transmises (`agent/list_fidelity.py`).
 Le refus conserve les arguments d'origine et indique les contraintes à reprendre.
 Qwen choisit la suite ; le guard ne remplace pas automatiquement l'outil.
 Ces protections appartiennent aux clients : un appel direct au serveur ne les
@@ -127,7 +132,8 @@ conformité complète au schéma. `reconcile_tool_call` utilise les
 bornes reconnus. Une mention de niveau peut réorienter vers `pokemon_level_up_moves`.
 Pour `pokemon_moves` et `pokemon_search`, la réconciliation conserve l'outil et
 les filtres de capacités, restaure les bornes et exige `level-up`. Comme le
-guard ADK, elle retire un `learning_method` que la question ne nomme pas.
+guard ADK, elle retire un `learning_method` que la question ne nomme pas, ainsi
+que les filtres que la question ne justifie pas.
 `pokemon_search` ne nécessite pas de Pokémon individuel dans la question.
 Pour un numéro national explicite reconnu, le client rétablit `pokedex_number`
 et redirige un choix de `pokemon_pokedex_identity` vers `pokemon_search`, en
@@ -174,9 +180,8 @@ la réussite des E2E avec Qwen ; voir les modalités de validation dans
 
 Deux cas demandent une attention particulière : le contrôle exige actuellement
 un Pokémon même pour une recherche documentaire globale ; une question générale
-sur la reproduction est donc refusée avant l'appel MCP. De plus, « dans la nature »
-peut déclencher la détection d'un jeu non reconnu et bloquer une question de
-comportement. Ces restrictions du client ne sont pas celles de l'outil RAG du serveur.
+sur la reproduction est donc refusée avant l'appel MCP. Cette restriction du
+client n'est pas celle de l'outil RAG du serveur.
 
 Garder stdout du serveur réservé au protocole ; envoyer les diagnostics sur stderr. La disponibilité du serveur dépend de la compatibilité de la version installée du SDK MCP avec ses imports. La recherche réelle nécessite également l'index et les modèles locaux.
 

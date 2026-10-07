@@ -51,7 +51,8 @@ au [guide des tests](../tests/README.md).
 ## Pistes à mesurer, non implémentées
 
 Un cache des catalogues de noms pourrait éviter certaines lectures SQL répétées
-du routeur et du parseur. Une recherche BM25 limitée en amont pourrait réduire le
+du routeur et du parseur du graphe ; le guard ADK utilise déjà un catalogue mis en
+cache par état de la base (`pokemon_name_catalogue`). Une recherche BM25 limitée en amont pourrait réduire le
 travail sur le corpus, mais changerait potentiellement ses statistiques et son classement.
 Mesurer ces pistes avant de les retenir ; aucune amélioration chiffrée n'est établie ici.
 

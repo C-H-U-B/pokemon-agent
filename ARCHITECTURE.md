@@ -1,11 +1,14 @@
 # Architecture et points de modification
 
-Le code applicatif est dans `src/pokemon_rag`. Le graphe et le parcours MCP
-partagent SQLite et la recherche documentaire, mais n'offrent pas les mêmes garanties.
-Un agent ADK indépendant utilise Qwen local et expose les douze outils du serveur
-via MCP, sans les contrôles du graphe ou du client MCP.
-Le callback déterministe de cet agent, le guard, préserve les niveaux, jeux et
-formes reconnus avant l'appel d'outil ; ses limites sont décrites dans le
+Le code applicatif est dans `src/pokemon_rag`. Trois parcours partagent SQLite et
+la recherche documentaire, sans offrir les mêmes garanties. L'agent ADK et son
+interface Web sont le parcours principal ; le graphe LangGraph et le client MCP
+sont la première version du projet, gardée pour comparaison et non maintenue.
+L'agent utilise Qwen local et les douze outils du serveur via MCP, sans le
+grounding du graphe. Son guard déterministe préserve les contraintes reconnues
+(niveaux, jeux, formes, sous-groupes…) et retire les filtres que la question ne
+justifie pas, avant l'appel d'outil ; sa réponse est confrontée aux listes
+entièrement transmises. Ses limites sont décrites dans le
 [guide ADK](src/pokemon_rag/agent/README.md).
 Parmi les douze outils, `pokemon_search` compose ses filtres avec un classement
 SQL par statistique de base ou total, un mode de superlatif avec ex aequo et une
@@ -102,9 +105,11 @@ ni par `query_structured_data` ni par `run_graph`. Voir les
 | --- | --- | --- |
 | Conversation Web, activité et exemples | `web/app.py`, `web/example_questions.txt` | Présentation et état de conversation ; réutiliser root_agent et MCP, sans dupliquer la logique métier |
 | Configurer l'agent ADK et son modèle local | `agent/agent.py` | Couche indépendante, douze outils MCP structurés et documentaires ; voir le [guide ADK](src/pokemon_rag/agent/README.md) pour le contexte local et les limites |
+| Adapter les retours d'outils au modèle, budget de contexte, abstentions | `agent/context_budget.py` | Ne jamais modifier la réponse MCP ; projeter les faits utiles, mesurer la requête, s'abstenir plutôt que répondre de mémoire |
+| Confronter la réponse finale à une liste transmise | `agent/list_fidelity.py` | Détection partagée avec la campagne ; remplacer par les données, jamais compléter de mémoire |
 | Préserver les contraintes avant un outil ADK | `agent/tool_guard.py` | Réutiliser les extracteurs communs ; restaurer les arguments compatibles ou bloquer l'appel ; aucun SQL ni calcul, catalogue/identité via le moteur existant |
 | Choisir une route et identifier le Pokémon | `graph/router.py` | Ne pas y exécuter une requête métier ou générer la réponse finale |
-| Extraire les formes, jeux et niveaux explicites | `constraints/query_constraints.py` | Extraction pure partagée entre moteur structuré, client MCP et guard ADK ; ni SQLite ni choix d'outil. Voir le [guide des contraintes](src/pokemon_rag/constraints/README.md) |
+| Extraire les contraintes explicites et retirer les filtres non justifiés | `constraints/query_constraints.py` | Extraction pure partagée entre moteur structuré, client MCP et guard ADK ; ni SQLite ni choix d'outil. Voir le [guide des contraintes](src/pokemon_rag/constraints/README.md) |
 | Ajouter une opération structurée | `structured/query_engine.py` | Plan validé et SQL prédéfini, sans code LLM ; adapter aussi le parseur, le routeur, le formatage et éventuellement un outil MCP |
 | Comprendre une question structurée, un jeu ou un niveau | `structured/query_parser.py` | Produit un plan, jamais du SQL ; seul module de `structured` qui appelle le LLM |
 | Construire les contextes, profils, réponses et prompts de génération | `graph/nodes.py` | Le profil SQLite y est actuellement construit ; ne pas y ajouter le nettoyage wiki ou la construction d'index |
@@ -141,8 +146,9 @@ au [guide de performance](docs/PERFORMANCE.md).
 - Le serveur MCP expose les fonctions sous-jacentes sans validation du plan complet.
   Le client réconcilie les contraintes reconnues avant exécution ; les limites
   d'extraction sont décrites dans le [guide des contraintes](src/pokemon_rag/constraints/README.md).
-- Les dépendances sont déclarées dans `pyproject.toml` ; seules certaines versions
-  sont fixées, sans verrouillage complet des dépendances transitives.
+- Les dépendances sont déclarées dans `pyproject.toml` ; `constraints.txt` fixe les
+  versions des dépendances directes pour la CI, sans verrouillage des dépendances
+  transitives.
   La compatibilité du SDK MCP doit être vérifiée dans l'environnement installé.
 
 Ce sont des constats sur le code, pas des changements applicatifs effectués par

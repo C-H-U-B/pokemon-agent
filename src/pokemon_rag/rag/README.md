@@ -54,7 +54,7 @@ du verdict. Un `PASS` déclarant un contexte insuffisant ou des affirmations non
 
 Les décisions exploitables et les reprises sont documentées dans le
 [graphe](../graph/README.md). Un verdict accepté ne remplace pas une vérification
-factuelle indépendante. Le client MCP actuel n'appelle pas cette fonction.
+factuelle indépendante. Ni le client MCP ni l'agent ADK n'appellent cette fonction.
 
 ## Vérifier une modification
 

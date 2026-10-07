@@ -1514,3 +1514,37 @@ transmis dès que la question les nomme et que la recherche ne filtre pas
 dessus. Filtrés, leur valeur est commune à toutes les lignes et reste omise,
 sauf demande explicite, ce qui garde la vue courte. Aucun cas existant de la
 campagne ne voit sa vue changer ; un cas ajouté vérifie les types des starters.
+
+
+## 80. [Bug fix] Talent formé par les mots d'une autre contrainte
+
+Lors de la campagne complète, « Quels starters au stade final sont de type Feu
+en première génération ? » a reçu un talent `type_feu` proposé par le modèle.
+Normalisé, il correspondait aux mots « type Feu » de la question, ce qui suffisait
+à le justifier ; le moteur l'a refusé, et le modèle a reproposé le même appel
+trois fois malgré le message d'erreur, avant l'abstention.
+
+Une valeur citée ne justifie plus un talent que si c'est un talent de la base ;
+le mot « talent » reste suffisant, pour qu'une faute de frappe soit signalée par
+le moteur. Le guard lit la liste des talents une seule fois par état de la base,
+et seulement lorsque la question cite une valeur sans le mot « talent ».
+
+
+## 81. [Architecture] Rôle des parcours, documentation et dépendances
+
+Les trois parcours étaient présentés à égalité. L'agent ADK et son interface Web
+sont désormais décrits comme le parcours principal ; le graphe LangGraph et le
+client MCP comme la première version du projet, gardée pour comparaison et non
+maintenue, avec l'écart de capacités : sept opérations structurées pour le
+graphe, douze outils pour l'agent, mais le seul contrôle de fidélité des
+descriptions dans le graphe.
+
+Une relecture de toute la documentation a corrigé des affirmations devenues
+fausses (filtre de talent annoncé comme absent, parcours Ollama « non validé »,
+dix outils au lieu de douze) et des chiffres périmés, vérifiés dans la base et
+par collecte des tests. Les chiffres de campagne viennent d'une exécution
+complète de 42 questions.
+
+`pandas` et `openpyxl`, importés nulle part, quittent les dépendances ; `pytest`
+passe dans les dépendances de développement et n'est plus installé dans l'image.
+La version du projet passe à 0.3.0, avec une base où les starters sont corrigés.

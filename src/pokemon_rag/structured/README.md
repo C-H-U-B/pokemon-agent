@@ -51,7 +51,8 @@ sans SQLite dans les contraintes ; elle n'utilise pas le parseur LLM.
 
 Ces fonctions déterministes sont appelées directement par MCP/ADK. Elles ne
 modifient pas le catalogue d'opérations du parseur ou le routage du graphe.
-Les talents sont reportés : aucune table, donnée ou source n'a été ajoutée.
+Les filtres de sous-groupe, de stade et de talent lisent les colonnes du tableur
+(`custom_pokedex_fr`).
 
 ```python
 search_pokemon(
@@ -61,6 +62,7 @@ search_pokemon(
     learning_method=None, min_level=None, max_level=None, limit=30, offset=0,
     sort_by="national_number", sort_order="asc",
     best_only=False, form_category=None,
+    subgroup=None, evolution_stage=None, ability=None,
 )
 get_pokemon_moves(
     pokemon, form=None, version_group=None, move_type=None, damage_class=None,
@@ -94,7 +96,7 @@ contraintes, `ORDER BY` pour la statistique, `LIMIT/OFFSET` pour la page.
 acceptent aussi ces libellés français ; MCP expose les identifiants canoniques
 dans une enum. Aucune expression SQL utilisateur n'est acceptée. `sort_order`
 accepte uniquement `asc` ou `desc`. Il s'agit de statistiques de base, sans
-IV, EV, nature, niveau ou effet de combat ; les talents restent reportés.
+IV, EV, nature, niveau ou effet de combat.
 
 Les statistiques sont jointes par `source_row`, donc celles de l'entrée et de
 sa forme. Une valeur NULL est exclue du classement concerné ; le total exige
@@ -166,7 +168,8 @@ serveur MCP et l'API HTTP gardent les identifiants d'origine.
 somme SQL, pas la valeur stockée. `search_pokemon` filtre aussi par
 `subgroup` (une composante d'une valeur composée comme « Starter ; Fossile »),
 `evolution_stage` (base, intermediate, final, no-evolution, baby) et `ability`
-(talent 1, 2 ou caché). Ces opérations ne sont pas proposées par le routeur du
+(talent 1, 2 ou caché, exposé `talent` par MCP et l'API ; une valeur inconnue est
+signalée « talent inconnu »). Ces opérations ne sont pas proposées par le routeur du
 graphe : seuls MCP, l'agent ADK et l'API HTTP y accèdent.
 
 Les types, l'identité et les capacités signature se résolvent par entrée du

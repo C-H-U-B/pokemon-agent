@@ -5,7 +5,8 @@
 et le [guard ADK](../agent/README.md)
 pour extraire les contraintes explicitement reconnaissables : formes, jeux,
 niveaux, numéro national, génération, types, catégorie et puissance de
-capacités, classifications et classements.
+capacités, classifications, sous-groupes et classements, et retirer les
+filtres que la question ne justifie pas.
 Il utilise uniquement la bibliothèque standard : aucun accès SQLite, appel LLM
 ou appel MCP. `__init__.py` ne réexporte actuellement aucune fonction.
 
@@ -62,6 +63,7 @@ un texte destiné à l'utilisateur.
 | `extract_move_constraints(question)` | Type et catégorie physique/spéciale/statut attachés à attaque/capacité ; ne transforme pas Attaque Spéciale en catégorie de capacité |
 | `names_learning_method(question)` | Vrai dès qu'un mot de méthode apparaît (CT/CS, niveau, œuf, reproduction, donneur, méthode, comment…) ; vocabulaire large, sans identifier la méthode |
 | `without_unnamed_learning_method(question, arguments)` | Retire `learning_method` si la question ne nomme aucune méthode ; ne restaure ni ne remplace jamais une méthode |
+| `extract_subgroup(question)` | Sous-groupe du tableur nommé dans la question (starter, évolution de starter, fossile, pseudo-légendaire…), l'expression la plus longue d'abord ; starter avec un stade avancé ou une Méga → évolution de starter ; `ValueError` pour plusieurs sous-groupes |
 | `extract_classifications(question)` | Filtres positifs indépendants légendaire et fabuleux/mythique ; négations/alternatives reconnues refusées |
 | `extract_explicit_constraints(question, known_version_groups=None)` | Objet `ExplicitConstraints` regroupant les résultats ; erreurs explicites pour les contraintes reconnues mais impossibles ou ambiguës |
 
@@ -93,8 +95,8 @@ Elle ne calcule ni valeur, ni maximum, ni total. La reconnaissance reste limité
 aux motifs documentés ; les autres contraintes sont traitées comme auparavant.
 `reconcile_search_args` ajoute les invariants des listes : pas de `best_only=true`
 sans optimum reconnu, et classifications positives indépendantes (`légendaire`
-→ `legendary=true`, `fabuleux` → `mythical=true`). Un filtre de l'autre catégorie
-inventé par le modèle est retiré. Les négations reconnues et alternatives entre
+→ `legendary=true`, `fabuleux` → `mythical=true`). Un filtre légendaire ou
+fabuleux que la question ne nomme pas est retiré. Les négations reconnues et alternatives entre
 classifications sont refusées plutôt que traduites en une intersection incorrecte.
 `VERSION_GROUP_NAMES_FR` fournit des libellés de présentation des jeux connus,
 sans modifier leurs identifiants internes.
@@ -145,7 +147,8 @@ starter » : sinon la recherche serait vide. L'expression la plus longue prime
 
 `without_unjustified_filters(question, arguments)` retire les valeurs de
 remplissage et les filtres que la question ne justifie pas : stade sans mot de
-stade, talent sans le mot « talent » ni sa valeur, sous-groupe non reconnu sans le
+stade, talent sans le mot « talent » ni sa valeur citée (un vrai talent quand
+l'appelant fournit `known_talents`, ce que fait le guard), sous-groupe non reconnu sans le
 mot « sous-groupe », jeu non nommé. Le guard ADK et le client MCP l'appliquent
 avant de rétablir les contraintes extraites.
 
@@ -168,7 +171,9 @@ Ajouter ici les règles d'extraction communes, puis vérifier leurs consommateur
 Garder dans le moteur structuré les accès aux données et la validation des plans,
 et dans le client la compatibilité des contraintes avec les outils découverts.
 Les régressions concernées sont
-[`test_mcp_constraint_preservation.py`](../../../tests/unit/test_mcp_constraint_preservation.py)
+[`test_mcp_constraint_preservation.py`](../../../tests/unit/test_mcp_constraint_preservation.py),
+[`test_structured_constraint_guard.py`](../../../tests/unit/test_structured_constraint_guard.py),
+[`test_constraint_vocabulary.py`](../../../tests/integration/test_constraint_vocabulary.py)
 et [`test_structured_constraint_preservation.py`](../../../tests/integration/test_structured_constraint_preservation.py).
 Les E2E avec Qwen sont dans `tests/long/test_mcp_client_e2e.py` ; leur exécution
 relève de l'utilisateur. Voir le [guide des tests](../../../tests/README.md).
