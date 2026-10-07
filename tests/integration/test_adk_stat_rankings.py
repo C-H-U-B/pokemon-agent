@@ -15,6 +15,9 @@ from pokemon_rag.agent.agent import root_agent, pokemon_mcp
 from pokemon_rag.agent.context_budget import _size, TOOL_FAILURE_ABSTENTION
 
 
+SIMULATED_ANSWER = "Réponse simulée après résultat SQL."
+
+
 class WrongRankingModel(BaseLlm):
     model: str = "simulated-ranking"
     calls: int = 0
@@ -24,6 +27,8 @@ class WrongRankingModel(BaseLlm):
     proposed_args: dict = Field(default_factory=lambda: {"types":["Steel"],"form_category":"mega"})
     events: list = Field(default_factory=list)
     requests: list[str] = Field(default_factory=list)
+    # Réponse fidèle par défaut : elle cite les noms reçus, sinon le contrôle de fidélité la remplace.
+    cites_rows: bool = True
 
     async def generate_content_async(self, llm_request, stream=False):
         self.calls += 1
@@ -36,7 +41,10 @@ class WrongRankingModel(BaseLlm):
             part = types.Part(function_call=types.FunctionCall(
                 name=self.proposed_name, args=self.proposed_args))
         else:
-            part = types.Part(text="Réponse simulée après résultat SQL.")
+            names = [row["name_fr"] for content in llm_request.contents for part in content.parts or []
+                     if part.function_response for row in (part.function_response.response or {}).get("results") or []
+                     if isinstance(row, dict) and row.get("name_fr")] if self.cites_rows else []
+            part = types.Part(text=SIMULATED_ANSWER + (" " + ", ".join(names) if names else ""))
         yield LlmResponse(content=types.Content(role="model",parts=[part]))
 
 
@@ -73,7 +81,7 @@ def test_runner_corrects_invented_filter_and_missing_ranking_without_budget_abst
                 assert result["best_value"] == 20 and result["tie"] and result["tie_count"] == 2
                 assert {row["name_fr"] for row in result["results"]} == {"Méga-Ténéfix","Méga-Camérupt"}
                 assert all(row["Vitesse"] == 20 for row in result["results"])
-            assert "Réponse simulée après résultat SQL." in texts, (texts,model.request_sizes)
+            assert any(t.startswith(SIMULATED_ANSWER) for t in texts), (texts,model.request_sizes)
             assert model.calls == 2
             assert model.tool_counts[0] > 0 and model.tool_counts[1] == 0
         finally:
@@ -165,9 +173,9 @@ def test_long_question_reaches_the_model_within_the_real_request_budget():
     asyncio.run(run())
 
 
-async def _run_simulated(question, tool, args):
+async def _run_simulated(question, tool, args, cites_rows=True):
     """Vrai runner, guard, MCP et projection ; le modèle simulé propose puis formule."""
-    model = WrongRankingModel(proposed_name=tool, proposed_args=args)
+    model = WrongRankingModel(proposed_name=tool, proposed_args=args, cites_rows=cites_rows)
     toolset = McpToolset(connection_params=pokemon_mcp.connection_params, tool_filter=pokemon_mcp.tool_filter)
     runner = InMemoryRunner(agent=root_agent.model_copy(update={"model":model,"tools":[toolset]}))
     try:
@@ -197,7 +205,7 @@ def test_small_filtered_movepool_reaches_formulation_with_every_fact(question, a
     assert result["total_count"] == result["returned_count"] == len(result["results"]) == count
     assert all({"name_fr","type_fr","power","damage_class_fr","learning"} <= set(row) for row in result["results"])
     assert not any({"move_id","identifier","damage_class_id","name_en"} & set(row) for row in result["results"])
-    assert texts == ["Réponse simulée après résultat SQL."], (texts, model.request_sizes)
+    assert len(texts) == 1 and texts[0].startswith(SIMULATED_ANSWER), (texts, model.request_sizes)
     assert model.calls == 2 and model.tool_counts[-1] == 0
 
 
@@ -209,7 +217,7 @@ def test_unfiltered_movepool_lists_every_name_without_silent_truncation():
     assert result["total_count"] == result["returned_count"] == len(result["results"]) > 30
     assert not result.get("context_truncated") and not result["truncated"] and not result["has_more"]
     assert all(row.get("name_fr") for row in result["results"])
-    assert texts == ["Réponse simulée après résultat SQL."] and model.tool_counts[-1] == 0
+    assert len(texts) == 1 and texts[0].startswith(SIMULATED_ANSWER) and model.tool_counts[-1] == 0
 
 
 def test_guard_refusal_leaves_room_to_retry_with_the_catalogue():
@@ -239,7 +247,7 @@ def test_answer_after_a_failed_mcp_call_is_replaced_in_the_real_runner():
 ])
 def test_sql_time_reaches_the_interface_through_the_session_state_and_not_the_model(question, tool, args):
     model, responses, texts = asyncio.run(_run_simulated(question, tool, args))
-    assert not responses[-1].get("error") and texts == ["Réponse simulée après résultat SQL."]
+    assert not responses[-1].get("error") and len(texts) == 1 and texts[0].startswith(SIMULATED_ANSWER)
     recorded = [event.actions.state_delta["tool_timings"] for event in model.events
                 if event.actions and "tool_timings" in (event.actions.state_delta or {})]
     # L'événement du retour d'outil porte la mesure que lit le panneau Web.
@@ -265,7 +273,7 @@ def test_named_stats_and_particularities_reach_formulation_in_the_real_runner(qu
     assert expected.items() <= row.items(), responses[-1]
     assert "execution_time" not in responses[-1]
     # Réponse complète : le catalogue n'est plus transmis pour la rédaction.
-    assert texts == ["Réponse simulée après résultat SQL."] and model.calls == 2 and model.tool_counts[-1] == 0
+    assert len(texts) == 1 and texts[0].startswith(SIMULATED_ANSWER) and model.calls == 2 and model.tool_counts[-1] == 0
 
 
 @pytest.mark.real_data
@@ -311,3 +319,14 @@ def test_engine_refusal_reaches_the_model_through_the_real_mcp_server():
         "Quels Pokémon ont le talent Lévitaion ?", "pokemon_search", {"talent": "Lévitaion"}))
     assert responses[0]["error"] == "mcp_tool_error"
     assert "talent inconnu : 'Lévitaion'" in responses[0]["message"]
+
+
+@pytest.mark.real_data
+def test_an_answer_omitting_returned_rows_is_replaced_by_the_list_from_the_data():
+    # Qwen retirait le trio des lacs des légendaires de 4e génération, même avec la propriété rappelée.
+    from pokemon_rag.agent.list_fidelity import REPLACEMENT_PREFIX
+    model, responses, texts = asyncio.run(_run_simulated(
+        "Quels sont les Pokémon légendaires introduits en quatrième génération ?", "pokemon_search",
+        {"generation": 4, "legendary": True}, cites_rows=False))
+    assert len(texts) == 1 and texts[0].startswith(REPLACEMENT_PREFIX)
+    assert all(name in texts[0] for name in ("Créhelf", "Créfollet", "Créfadet", "Dialga", "Cresselia"))

@@ -1410,3 +1410,22 @@ precedence over "starter". A question naming starters with an advanced stage
 or Megas is read as "Starter evolution", otherwise the search would now be
 empty. Two tests check that the extraction's subgroups and the spreadsheet's
 match in both directions.
+
+
+## 78. [Feature] Answer replaced when it contradicts a transmitted list
+
+Qwen removed rows from a list it had received in full: the lake trio, returned
+among the fourth-generation legendaries, was declared "not legendary". Stating
+in the result that every row is legendary was not enough: the trio was still
+denied three times out of four, and that statement was removed.
+
+The agent now checks its final answer when it is about a fully transmitted list
+of Pokémon or moves, up to thirty rows: every name must appear outside a
+sentence denying that it belongs to the result. Otherwise the answer is replaced
+by the list built from the data, values and total included, without another
+model call. The web interface trace reports the replacement.
+
+The campaign uses the same detection, importing it instead of keeping a copy.
+Replayed on every recorded answer, it would only have replaced wrong ones: the
+denied legendaries, a distorted name and starters contradicting the former
+classification.

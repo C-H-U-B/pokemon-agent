@@ -11,6 +11,7 @@ from google.adk.runners import InMemoryRunner
 from google.genai import types
 from pokemon_rag.agent.agent import pokemon_mcp, root_agent
 from pokemon_rag.agent.context_budget import BUDGET_ABSTENTION, DOUBLE_REQUEST_REFUSAL, TOOL_FAILURE_ABSTENTION
+from pokemon_rag.agent.list_fidelity import REPLACEMENT_PREFIX
 from pokemon_rag.config import LLM_BASE_URL, LLM_MODEL
 from pokemon_rag.observability.tracing import TRACE_DIR, save_trace
 
@@ -375,6 +376,8 @@ def _web_trace(question: str, answer: str, outcome: str, error: Exception | None
     if outcome == "answered":
         outcome = {BUDGET_ABSTENTION: "budget_abstention", DOUBLE_REQUEST_REFUSAL: "double_request_refusal",
                    TOOL_FAILURE_ABSTENTION: "tool_failure_abstention"}.get(answer, outcome)
+        if answer.startswith(REPLACEMENT_PREFIX):
+            outcome = "list_fidelity_replacement"
     tools = []
     for index, (name, arguments) in enumerate(tool_calls):
         _, call_start, call_end = timing.calls[index] if index < len(timing.calls) else (name, None, None)

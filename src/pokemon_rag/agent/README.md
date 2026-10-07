@@ -245,6 +245,16 @@ remplacée par la même abstention. La recherche documentaire reste soumise aux
 contrôles de contraintes habituels. Une question composée garde ses outils.
 Une recherche documentaire vide compte comme l'absence de fait : seule, elle
 déclenche la même abstention. Une liste structurée vide reste un fait.
+Une réponse qui omet ou nie une ligne d'une liste entièrement transmise
+(`pokemon_search` ou `pokemon_moves`, 30 lignes au plus, sans troncature ADK) est
+remplacée par la liste construite depuis les données, sans nouvel appel au modèle
+(`list_fidelity.py`, journalisé `list_fidelity_replacement`). Qwen retirait le trio
+des lacs des légendaires de quatrième génération, même quand le résultat
+rappelait « légendaire : oui » (3 fois sur 4) : la preuve ne suffit pas, seule une
+vérification de la réponse corrige. Le contrôle est lexical : il voit un nom
+absent ou déformé et les négations d'appartenance courantes (« ne sont pas »,
+« à tort »), pas toutes les tournures. Les outils sur un Pokémon nommé ne sont
+pas contrôlés.
 `after_tool_budget` retire `timings` et `execution_time` de la vue du modèle
 et les consigne dans l'état de session pour l'interface Web.
 Après une recherche documentaire qui a trouvé des passages, le catalogue est

@@ -11,6 +11,7 @@ import pytest
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 
+from pokemon_rag.agent.list_fidelity import affirmed as _affirmed, fold as _fold
 from pokemon_rag.agent.agent import root_agent
 from pokemon_rag.agent.context_budget import TOOL_FAILURE_ABSTENTION
 from pokemon_rag.config import LLM_BASE_URL, LLM_MODEL
@@ -393,11 +394,6 @@ def _normalise(value):
     return str(value).strip().casefold()
 
 
-def _fold(text):
-    """Casse et apostrophe typographique ignorées : « Expuls'Organes » vaut « Expuls’Organes »."""
-    return str(text).casefold().replace("’", "'")
-
-
 def _json_safe(value):
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
@@ -576,21 +572,6 @@ def _evolution_condition_checks(result, answer):
                 continue
             checks.append((present, f"Condition restituée : {key}={value}", f"Condition omise : {key}={value}"))
     return checks
-
-
-# Phrase qui nie l'appartenance d'un élément au résultat : « ne sont pas des légendaires », « à tort ».
-# Une négation sur une autre propriété (« Kartana, qui n'évolue pas ») ne compte pas.
-_DENIAL = re.compile(r"\b(?:ne|n['’])\s*(?:\w+\s+)?(?:sont|est|font|fait|figurent|figure|appartiennent|appartient|"
-                     r"comptent|compte)\s+pas\b|\bà\s+tort\b|\bexclus?\b", re.I)
-
-
-def _affirmed(name, answer):
-    """Le nom figure dans au moins un passage qui ne nie pas son appartenance au résultat."""
-    return any(_fold(name) in _fold(part) and not _DENIAL.search(part)
-               # Un point ne coupe qu'après un mot de trois lettres : « M. Mime » reste entier.
-               # Pas de coupure aux parenthèses : « Les trois premiers (Créhelf, …) ne sont pas
-               # légendaires » isolait les noms de leur négation.
-               for part in re.split(r"[!?;\n]|(?<=\w\w\w)\.(?=\s|$)", answer))
 
 
 def _factual_checks(result, answer):
