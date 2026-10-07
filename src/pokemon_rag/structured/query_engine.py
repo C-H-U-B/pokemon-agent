@@ -1323,24 +1323,6 @@ def _known_values(conn: sqlite3.Connection, columns: tuple[str, ...], separator:
     return known
 
 
-def search_filter_values() -> dict[str, frozenset[str]]:
-    """Valeurs normalisées acceptées par les filtres subgroup, talent et version_group.
-
-    Lu une fois par état de la base : le guard s'en sert pour écarter une valeur inventée.
-    """
-    modified = DB_PATH.stat().st_mtime_ns if DB_PATH.exists() else None
-    return _filter_values(str(DB_PATH), modified)
-
-
-@lru_cache(maxsize=2)
-def _filter_values(path: str, modified: int | None) -> dict[str, frozenset[str]]:
-    """path et modified ne servent que de clé : une base reconstruite est relue."""
-    with closing(_connect()) as conn:
-        return {"subgroup": frozenset(map(_normalize, _known_values(conn, ("sous_groupe",), " ; "))),
-                "talent": frozenset(map(_normalize, _known_values(conn, ("talent_1", "talent_2", "talent_cache")))),
-                "version_group": frozenset(row[0] for row in conn.execute("SELECT identifier FROM version_groups"))}
-
-
 def _catalogue_value(conn: sqlite3.Connection, name: str, value: str | None,
                      columns: tuple[str, ...], separator: str | None = None) -> str | None:
     """Valeur du tableur désignée par un filtre, comparée exactement après normalisation.

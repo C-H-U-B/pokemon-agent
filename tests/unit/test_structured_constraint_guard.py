@@ -365,11 +365,35 @@ def test_a_region_as_a_place_adds_no_form_to_the_search():
     assert "form" not in args
 
 
-def test_placeholder_values_and_unrequested_classifications_are_removed():
+def test_placeholder_values_and_unrequested_filters_are_removed():
     # Arguments proposés par Qwen deux fois sur deux (trace 5e9464875496421f93c4a82c767b92d6).
+    # Le stade est valide mais non demandé : « le fossile le plus rapide » au stade final excluait Ptéra.
     args = {"subgroup": "starter", "evolution_stage": "base", "talent": "none", "legendary": True}
     assert guard("Quels sont les types des starters de première génération ?", "pokemon_search", args) is None
-    assert args == {"subgroup": "Starter", "evolution_stage": "base", "generation": 1}
+    assert args == {"subgroup": "Starter", "generation": 1}
+
+
+@pytest.mark.parametrize("question,stage", [
+    ("Quel Pokémon sans évolution a le plus d'Attaque ?", "no-evolution"),
+    ("Quels starters au stade final sont de type Feu ?", "final"),
+    ("Quel est le fossile le plus rapide ?", None),
+    ("Quel Pokémon a le meilleur total de statistiques de base ?", None),
+])
+def test_a_stage_needs_a_stage_word(question, stage):
+    args = {"evolution_stage": stage or "final"}
+    assert guard(question, "pokemon_search", args) is None
+    assert args.get("evolution_stage") == stage
+
+
+@pytest.mark.parametrize("question,subgroup", [
+    ("Quelles sont les formes régionales de première génération ?", "Forme régionale"),
+    ("Quels sont les oiseaux de début d'aventure ?", "Oiseau de début d’aventure"),
+    ("Quels Pokémon sont dans le sous-groupe Ultra-Chimère ?", "Ultra-Chimère"),
+])
+def test_every_spreadsheet_subgroup_can_be_named(question, subgroup):
+    args = {"subgroup": subgroup}
+    assert guard(question, "pokemon_search", args) is None
+    assert args["subgroup"] == subgroup
 
 
 @pytest.mark.parametrize("question,expected", [
@@ -388,7 +412,7 @@ def test_a_named_talent_is_kept_and_a_classification_needs_its_word(question, ex
      {"generation": 8}),
     ("Quels sont les 4 Pokémon les plus lents ?", {"subgroup": "base", "version_group": "ruby"}, {}),
 ])
-def test_values_absent_from_the_database_and_unjustified_by_the_question_are_removed(question, proposed, expected):
+def test_values_unjustified_by_the_question_are_removed(question, proposed, expected):
     assert guard(question, "pokemon_search", proposed) is None
     assert {key: proposed[key] for key in ("generation", "subgroup", "talent", "version_group") if key in proposed} == expected
 

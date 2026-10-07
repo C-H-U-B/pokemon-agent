@@ -49,7 +49,12 @@ SUBGROUP_ALIASES = {
     r"especes?-convergentes?": "Espèce convergente",
     r"legendaires?-secondaires?": "Légendaire secondaire",
     r"legendaires?-emblematiques?": "Légendaire emblématique d’une version",
+    r"formes?-regionales?": "Forme régionale", r"evolutions?-regionales?": "Évolution régionale",
+    r"insectes?-de-debut-d-aventure": "Insecte de début d’aventure",
+    r"oiseaux?-de-debut-d-aventure": "Oiseau de début d’aventure",
+    r"petits?-mammiferes?-de-debut-d-aventure": "Petit mammifère de début d’aventure",
 }
+# Les sous-groupes Fabuleux et Méga-Évolution sont couverts par les filtres mythical et form_category.
 # Noms qui désignent des Pokémon dans une question de classement ou un « top N ».
 _POKEMON_NOUNS = "|".join(["pokemons?", "megas?", "legendaires?", "fabuleux", "mythiques?", *SUBGROUP_ALIASES])
 
@@ -290,6 +295,48 @@ def without_unnamed_learning_method(question: str, arguments: dict) -> dict:
     if arguments.get("learning_method") is None or names_learning_method(question):
         return arguments
     return {key: value for key, value in arguments.items() if key != "learning_method"}
+
+
+PLACEHOLDER_VALUES = {"", "none", "null", "nil", "undefined", "n-a", "na", "aucun", "aucune"}
+# Mots qui justifient un filtre. Un filtre que la question ne justifie pas est inventé par le modèle,
+# même avec une valeur valide : « le fossile le plus rapide » avec evolution_stage="final" excluait Ptéra.
+_FILTER_CUES = {
+    "evolution_stage": r"stades?|base|finale?s?|derniers?|premiers?|intermediaires?|evolu[a-z]*|bebes?",
+    "talent": r"talents?",
+}
+
+
+def without_unjustified_filters(question: str, arguments: dict) -> dict:
+    """Retire les valeurs de remplissage et les filtres que la question ne justifie pas.
+
+    Un filtre est justifié par un mot de sa dimension (« talent », « stade », un jeu, un sous-groupe
+    connu) ; un talent, vocabulaire ouvert, aussi par sa valeur citée dans la question. Une valeur justifiée mais invalide reste transmise : le refus
+    du moteur signale alors la faute de frappe au lieu d'élargir la liste en silence. Les filtres
+    reconnus par l'extraction (sous-groupe, jeu, classification…) sont rétablis ensuite par l'appelant.
+    """
+    text = normalize(question)
+    # « statistiques de base » ne parle pas du stade d'évolution.
+    padded = "-" + re.sub(r"(?:statistiques?|stats?|total)-(?:des?-)?(?:statistiques-)?base", "", text) + "-"
+    result = {key: value for key, value in arguments.items()
+              if not (isinstance(value, str) and normalize(value) in PLACEHOLDER_VALUES)}
+    for key, cue in _FILTER_CUES.items():
+        value = result.get(key)
+        if value is not None and not re.search(rf"-(?:{cue})-", padded) and not (
+                isinstance(value, str) and f"-{normalize(value)}-" in padded):
+            result.pop(key)
+    if result.get("subgroup") is not None and "-sous-groupe" not in padded:
+        # Vocabulaire fermé, entièrement connu de l'extraction : un mot de la question qui n'en fait
+        # pas partie (« Galar ») ne justifie pas un sous-groupe. Un sous-groupe nommé est rétabli ensuite.
+        try:
+            named = extract_subgroup(question)
+        except ValueError:
+            named = "plusieurs"  # le refus vient de l'extraction elle-même
+        if named is None:
+            result.pop("subgroup")
+    if result.get("version_group") is not None and not has_explicit_game(question):
+        # Sans jeu nommé, le moteur choisit le dernier jeu disponible.
+        result.pop("version_group")
+    return result
 
 
 def extract_subgroup(question: str) -> str | None:
