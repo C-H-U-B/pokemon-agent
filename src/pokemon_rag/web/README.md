@@ -88,6 +88,27 @@ indique l'attente, y compris pendant les outils, sans exposer de raisonnement.
 Une exécution sans texte final affiche « Aucune réponse finale », distinct de
 « Réponse disponible » et des erreurs techniques.
 
+## Illustrations
+
+En haut d'une réponse, jusqu'à cinq illustrations officielles, sur une ligne
+(HTML, 80 px imposés par `APP_CSS` car Gradio agrandit les images des messages ;
+crédit en petits caractères dessous ; la trace garde la réponse sans elles) :
+celles des Pokémon cités dans la réponse **et** présents dans les données reçues
+(retours d'outils, arguments exécutés), dans l'ordre de citation ; le nom le plus
+long l'emporte (« Raichu d'Alola » ne montre pas aussi Raichu). Un nom ajouté de
+mémoire par le modèle, ou un mot courant qui est aussi un nom de Pokémon, n'est
+donc pas illustré. Une abstention ou un refus n'a pas d'image, et le modèle ne
+reçoit jamais ces images.
+
+`pokemon_image_urls()` (moteur structuré) associe chaque entrée du tableur à son
+illustration : l'image de son `pokemon_id`, ou `espèce-forme` pour une forme
+cosmétique autre que celle par défaut. Les images sont **liées** depuis le dépôt
+public PokeAPI/sprites et chargées par le navigateur : rien n'est téléchargé par
+le serveur ni redistribué. Une image indisponible n'empêche pas la réponse ; une
+base absente donne une réponse sans galerie. Couverture vérifiée le 7 octobre
+2026 : 1 270 entrées liées sur 1 275 (les cinq formes de Vrombotor n'ont pas de
+lien PokéAPI).
+
 ## Démarrage du serveur d'outils
 
 À l'ouverture de la page, l'interface liste les outils MCP, ce qui démarre le
@@ -124,13 +145,19 @@ L'historique reste affiché dans Gradio mais n'est pas envoyé à l'agent : chaq
 question doit être autonome. « Nouvelle conversation » efface l'historique
 affiché et crée un nouvel état Web. Rien n'est persisté après redémarrage.
 
-Les exemples sont chargés à l'import depuis `example_questions.txt`, voisin
-de `app.py`, en UTF-8 : une question par ligne non vide. Un fichier manquant
-ou sans question empêche le chargement de l'interface. Un exemple aléatoire
-préremplit la saisie via « Question d'exemple », sans lancer de requête.
-La saisie est vide au démarrage et après « Nouvelle conversation ».
-Un rappel visible explique l'absence de mémoire entre questions.
-Le tirage peut répéter la même question.
+Trois boutons proposent des questions selon le public : « Je découvre Pokémon »
+(`questions_decouvrir.txt`, langage courant, réponses vérifiables sans rien
+connaître), « Je connais Pokémon » (`questions_connaisseurs.txt`, vocabulaire du
+jeu) et « Expert » (`questions_experts.txt`, filtres combinés, cas rares et pièges
+corrigés). Chaque bouton préremplit la saisie avec la question suivante de sa
+liste, sans lancer de requête, et revient au début après la dernière. La position
+dans chaque liste est propre à chaque navigateur (`WebSession.next_suggestion`) et
+repart du début avec « Nouvelle conversation ». Les fichiers sont chargés à
+l'import, en UTF-8, une question par ligne non vide ; un fichier manquant ou vide
+empêche le chargement de l'interface. Au lancement, la saisie contient la
+première question « découvrir » (« Combien de Pokémon existe-t-il ? ») ; elle est
+vide après un envoi ou « Nouvelle conversation ». Un rappel visible explique
+l'absence de mémoire entre questions.
 
 ## Points non vérifiés
 

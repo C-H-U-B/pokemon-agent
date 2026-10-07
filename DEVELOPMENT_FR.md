@@ -1548,3 +1548,68 @@ complète de 42 questions.
 `pandas` et `openpyxl`, importés nulle part, quittent les dépendances ; `pytest`
 passe dans les dépendances de développement et n'est plus installé dans l'image.
 La version du projet passe à 0.3.0, avec une base où les starters sont corrigés.
+
+
+## 82. [Feature] Illustrations des Pokémon dans les réponses
+
+Pour un visiteur qui ne connaît pas Pokémon, une réponse qui cite « Regieleki »
+ou « Capidextre » ne dit rien. L'interface Web affiche désormais, en haut de
+la réponse, jusqu'à cinq illustrations officielles des Pokémon qu'elle cite.
+
+Un Pokémon n'est illustré que s'il est cité dans la réponse et présent dans les
+données reçues par l'agent : un nom ajouté de mémoire ou un mot courant qui est
+aussi un nom de Pokémon reste sans image. Chaque forme a son illustration
+propre, Raichu d'Alola comme Arceus Insecte ; une mesure sur le dépôt d'images
+de PokéAPI a trouvé une illustration pour 1 270 des 1 275 entrées du tableur.
+
+Les images sont liées, non téléchargées ni redistribuées : le navigateur les
+charge, le serveur ne fait aucune requête et le modèle ne les reçoit pas. Une
+galerie Gradio, essayée d'abord, s'affichait écrasée dans la bulle de réponse et
+sans image : les illustrations sont insérées en HTML, avec une largeur fixe.
+
+
+## 83. [Feature] Questions suggérées selon le public
+
+Le bouton de question aléatoire tirait parmi 142 questions, dont beaucoup
+supposaient de connaître Pokémon. Il est remplacé par trois boutons : « Je
+découvre Pokémon », avec des questions en langage courant dont la réponse se
+vérifie sans rien connaître (« Combien de Pokémon existe-t-il ? », « Quel est le
+Pokémon le plus rapide ? »), « Je connais Pokémon » et « Expert », avec des
+filtres combinés, des cas rares et les pièges corrigés.
+
+Chaque bouton passe à la question suivante de sa liste plutôt qu'à une question
+au hasard, et chaque navigateur avance dans les listes indépendamment. À
+l'ouverture, la saisie contient déjà la première question pour les néophytes.
+Chaque question a été vérifiée dans la base avant d'être proposée.
+
+
+## 84. [Bug fix] Fiche de particularités : lue, lisible et non refusée
+
+Les rubriques en texte libre du tableur (statistiques remarquables, obtention,
+mise en avant, movepool, ancien type) n'étaient vérifiées par aucun test. Une
+campagne dédiée de 26 questions, une par sorte de fait, distingue trois pannes :
+la fiche n'est pas demandée, la rubrique n'arrive pas, ou la réponse la
+restitue mal. Premier passage avec Qwen : 12 sur 26.
+
+Trois défauts ont été corrigés. La notation du tableur était recopiée telle
+quelle ou lue à l'envers (« PV #6 (30) » sous « Bottom 10 » devenait un bon
+score) : le moteur la réécrit en clair, le sens porté par chaque valeur (« PV :
+6e plus basse (30) »). Une première réécriture avec une légende en tête (« rang
+1 = la plus basse ») était lue comme un fait par le modèle. Le guard refusait
+ensuite tous les outils dès qu'une question citait un type ou le mot
+« version » à propos d'un Pokémon nommé (« Rondoudou a-t-il toujours été de
+type Fée ? », « Dans quelle version obtenait-on Abo ? ») : le type est
+maintenant lu dans la fiche, qui porte les types actuels et l'ancien type, et
+« quelle version » ne compte plus comme un jeu nommé. Enfin un numéro de
+Pokédex à 0, valeur de remplissage du modèle, faisait échouer la question
+d'ouverture de l'interface (« Combien de Pokémon existe-t-il ? ») deux fois sur
+trois : il est retiré comme les autres valeurs de remplissage.
+
+Accepter l'outil des types pour un type interrogé, essayé d'abord, remplaçait
+une abstention par une réponse fausse : l'outil ignore l'historique et le
+modèle l'inventait. Seule la fiche est donc acceptée.
+
+Second passage : 13 sur 26, écart dans le bruit ; Abo et les rangs passent,
+Rondoudou passe sur un essai dans l'interface. Restent ouverts les négations
+tirées d'une absence (« Dracaufeu n'a pas de Méga-Évolution » d'après une liste
+d'évolutions vide) et les questions que le modèle envoie à un autre outil.
