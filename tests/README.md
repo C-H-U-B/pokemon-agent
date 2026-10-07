@@ -56,6 +56,7 @@ décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 | --- | --- |
 | Routage ou parsing | `unit/test_router.py`, `unit/test_query_parser.py`, `unit/test_query_validation.py` |
 | Opération Pokédex | `unit/test_pokedex_queries.py`, puis tests d'intégration de données concernés |
+| Rubrique calculée de la fiche (types, talents d'immunité, historique, objets, jeux) | `unit/test_particularity_derived_facts.py`, puis `integration/test_particularity_derived_facts_real_db.py` |
 | Reprises ou erreurs terminales | `integration/test_graph_retry_policy.py`, `integration/test_graph_errors.py` |
 | Retrieval ou grounding | `unit/test_retrieval_logic.py` (dont nom de scope normalisé, initialisation unique, mesures de l'outil de recherche), `unit/test_grounding_logic.py` |
 | Traces et coûts | `unit/test_metrics.py`, `unit/test_tracing.py` |
@@ -162,6 +163,11 @@ les douze outils et appelle réellement `pokemon_types` pour Pikachu et Nigirigo
 puis vérifie qu'une espèce inexistante produit une erreur MCP, sans Qwen ni recherche RAG.
 Il utilise `asyncio.run` et ne nécessite pas `pytest-asyncio`.
 
+`unit/test_particularity_derived_facts.py` couvre les rubriques calculées de la fiche sur une
+base en mémoire (produit des types, talents d'immunité, anciens talents et statistiques, objets,
+Gigamax, jeux sans ce Pokémon, table absente) ; `integration/test_particularity_derived_facts_real_db.py`
+vérifie des faits connus et des invariants sur toutes les lignes de la vraie base, et échoue sur une
+base construite avant le second lot de CSV.
 `integration/test_pokedex_search_movepool.py` vérifie le moteur avec SQLite réel
 et un catalogue temporaire contrôlé : filtres croisés, catégorie indépendante
 de la puissance NULL, formes, sélection des versions avant filtrage, absence
@@ -267,10 +273,12 @@ portent sur le déroulement (recherche appelée, passages reçus, refus d'une
 double demande), pas sur la fidélité de la réponse : celle-ci se juge
 par relecture du rapport `test_results/adk_documentary_e2e.md`, qui place la
 réponse en regard des passages renvoyés.
-`long/test_adk_particularities_e2e.py` est une campagne séparée de 30
-questions sur la fiche du tableur, une par sorte de fait des rubriques en
+`long/test_adk_particularities_e2e.py` est une campagne séparée de 36
+questions sur la fiche d'un Pokémon nommé, une par sorte de fait des rubriques en
 texte libre (rangs et records de statistiques, obtention, mise en avant,
-movepool, ancien type, différences selon le sexe, rubrique absente). Chaque
+movepool, ancien type, différences selon le sexe, rubrique absente) et une par
+rubrique calculée depuis PokéAPI (faiblesses, immunité, ancien talent, objet tenu,
+jeux sans ce Pokémon, Gigamax). Chaque
 cas distingue trois pannes : fiche non demandée, rubrique non reçue, réponse
 qui ne restitue pas les termes du tableur. Le sens d'un rang ou la date d'une
 mise en avant se jugent par relecture de

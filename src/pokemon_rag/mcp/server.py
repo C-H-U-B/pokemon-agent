@@ -307,12 +307,16 @@ def pokemon_particularities(
     pokemon: str,
     form: str | None = None,
 ) -> dict[str, Any]:
-    """Pokémon nommé → ses talents et particularités : sous-groupe, stade d'évolution, statistiques remarquables (rangs, records, baisse en évoluant), obtention. Aussi sa taille, son poids et son taux de capture (3 à 255 ; élevé = capture facile).
+    """Pokémon nommé → talents actuels et anciens, faiblesses et résistances, sous-groupe, stade d'évolution, statistiques remarquables (rangs, records, baisse en évoluant) ou modifiées, obtention, objets tenus, Gigamax, jeux où il est absent, taille, poids, taux de capture (élevé = facile).
 
-    Aussi : double type unique, ancien type, mise en avant, particularité du movepool, différences selon le sexe.
+    Aussi : double type unique, ancien type, version exclusive, mise en avant, particularité du movepool,
+    différences selon le sexe.
 
     Les rubriques « à l'introduction » décrivent la sortie du Pokémon, pas les jeux récents.
-    Une rubrique absente signifie que le tableur ne note rien, pas que le fait est faux.
+    Une rubrique absente signifie que rien n'est noté, pas que le fait est faux.
+    Faiblesses et résistances : table des types actuelle ; un talent qui annule un type (Lévitation) est
+    pris en compte et nommé, avec la mention « avec le talent » quand un seul des talents l'annule.
+    Jeux sans ce Pokémon : déduits des capacités apprises par jeu ; objets tenus connus jusqu'à la G7.
 
     Args:
         pokemon: Nom du Pokémon ou de l'entrée du Pokédex.

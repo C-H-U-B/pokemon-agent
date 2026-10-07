@@ -1590,3 +1590,41 @@ Thundurus carried the text of their Incarnate form, exclusive in Black/White,
 whereas these forms date from Black 2/White 2. Their heading is emptied. A
 closed column makes searchable whatever it copies, errors included: rows where
 a form reuses the text of another are reread before being frozen.
+
+## 87. [Feature] Weaknesses, history and availability per game in the sheet
+
+"Quelles sont les faiblesses de Dracaufeu ?" had no source: the type chart was
+not in the database, and the model answered from memory. Abilities and stats
+from before a change, items held by wild Pokémon and the games a Pokémon is
+missing from were in the same situation.
+
+Five more PokéAPI files enter the database, and the sheet of a named Pokémon
+gains headings computed in SQL, without a new tool. Weaknesses, resistances and
+immunities are the product of the factors of both types: Charizard takes
+quadruple damage from Rock and has no weakness to Ground, which the Flying type
+cancels. A past ability or a past stat is dated by the last generation in which
+it held ("Lévitation (jusqu'à la G6)"). Held items group rarity and generations
+per item. The Gigantamax form is read from the exact entry, not from the
+species.
+
+The database has no table of availability per game. A game is counted "without
+this Pokémon" when the form learns no move in it, after its first game. The
+hypothesis was checked on known cases before being coded: Ekans missing from
+Sword and Shield but present in Scarlet and Violet, Rattata missing from both,
+Therian Tornadus with no move in Black and White.
+
+An ability that cancels a type is part of the computation. If it is the only
+ability of the Pokémon, the type leaves the weaknesses: Gastly is immune to
+Ground through Levitate. If only one of its abilities cancels it, the multiplier
+stays and the ability is named ("Sol (×2 ; immunisé avec le talent Lévitation)"
+for Weezing), because the immunity then depends on the individual.
+
+The limits are stated in the data or in the tool description: no item and no
+ability that reduces without cancelling; held items known up to the seventh generation; absences
+inferred. A database built before these files keeps its sheet: the headings
+that depend on them are left out.
+
+A test found a defect before any real run: an unknown second type gave the
+weaknesses of the first type alone, wrong for that Pokémon. The heading is now
+left out. On the real database, every type combination of the spreadsheet is
+compared with an independent reading of the chart.

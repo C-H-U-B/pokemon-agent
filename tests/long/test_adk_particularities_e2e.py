@@ -27,8 +27,12 @@ STATS, OBTAINING, HIGHLIGHT = "Statistiques remarquables", "Rencontre ou obtenti
 MOVEPOOL, OTHER, GENDER = "Particularité du movepool", "Autre particularité", "Différences selon le sexe"
 # Fiche réduite aux rubriques que tout Pokémon possède : le tableur ne note rien de particulier (49 fiches).
 NOTHING = "une particularité"
+WEAK, IMMUNE, PAST_ABILITY = "Faiblesses de type", "Immunités de type", "Ancien talent"
+HELD_ITEMS, GIGANTAMAX, MISSING_GAMES = "Objets tenus à l'état sauvage", "Gigamax", "Jeux sans ce Pokémon depuis son introduction"
+# Les rubriques calculées depuis PokéAPI en font partie : presque toute fiche en porte, ce ne sont pas des particularités notées.
 COMMON = {"name_fr", "Type 1", "Type 2", "Talent 1", "Talent 2", "Talent caché", "Stade d'évolution",
-          "Taille", "Poids", "Taux de capture"}
+          "Taille", "Poids", "Taux de capture", WEAK, "Résistances de type", IMMUNE, PAST_ABILITY,
+          "Anciennes statistiques", HELD_ITEMS, GIGANTAMAX, MISSING_GAMES}
 # Ce qu'une réponse ne peut ni affirmer ni nier quand la fiche n'en dit rien.
 UNRECORDED = (r"Méga-Évolutions?", r"légendaires?", r"fabuleux", r"records?", r"signatures?", r"Paradoxe", r"formes? alternatives?")
 
@@ -106,6 +110,19 @@ CASES = [
     Case("measure-capture-rate", "Mewtwo est-il facile à capturer ?", "Taux de capture",
          ("3", r"difficile|pas facile|faible|bas"), (),
          "Sens du taux : 3 sur 255 est le plus bas. La conclusion (difficile) est à relire, le contrôle ne lit que des mots."),
+    # --- Rubriques calculées depuis PokéAPI : une question par rubrique, le cas le plus discriminant ---
+    Case("type-weakness-combined", "Quelles sont les faiblesses de Dracaufeu ?", WEAK, ("Roche", "Eau", "Électrik"), (),
+         "Double type : Roche compte quatre fois, et le Sol, efficace sur le Feu, n'est pas une faiblesse (immunité du Vol). "
+         "À relire : le Sol ne doit pas être donné pour une faiblesse."),
+    Case("type-immunity", "Ectoplasma craint-il les attaques de type Normal ?", IMMUNE,
+         (r"immunis\w*|immunités?|aucun effet|insensible|n'affectent? pas",), (r"faible au type Normal", r"super efficaces?"),
+         "Une immunité se lit dans sa propre rubrique ; le type Normal n'est ni une faiblesse ni une résistance."),
+    Case("past-ability", "Ectoplasma a-t-il toujours eu le même talent ?", PAST_ABILITY, ("Lévitation", "Corps Maudit"), (),
+         "L'ancien talent est daté par sa dernière génération (G6) ; à relire : il ne doit pas être donné pour actuel."),
+    Case("held-item", "Quel objet un Pikachu sauvage peut-il tenir ?", HELD_ITEMS, ("Balle Lumière",), ("Light Ball",)),
+    Case("missing-games", "Dans quels jeux Abo est-il absent ?", MISSING_GAMES, (r"Épée",), (),
+         "Absences déduites des capacités apprises par jeu. À relire : Écarlate et Violet ne doit pas être cité comme une absence."),
+    Case("gigantamax", "Dracaufeu a-t-il une forme Gigamax ?", GIGANTAMAX, ("Gigamax", r"Épée"), (r"pas de forme Gigamax", r"n'a pas")),
 ]
 
 

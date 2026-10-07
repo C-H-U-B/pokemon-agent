@@ -25,6 +25,12 @@ Les scripts de construction sont des outils de préparation, pas une étape de d
 | Index documentaire | `pokepedia/ingest.py` | Markdown → collection `pokemon_documents` dans `chroma_db/` |
 | Export pour une release | `pokepedia/export_index.py` | Collection `pokemon_documents` → `dist/chroma_db/` et `dist/chroma_db.tar.gz` ; ne modifie pas `chroma_db/` |
 
+Les deux scripts PokéAPI partagent la même liste de CSV. Le second lot (`type_efficacy`,
+`ability_names`, `pokemon_abilities_past`, `pokemon_stats_past`, `pokemon_items`) alimente les
+rubriques calculées de la fiche d'un Pokémon nommé : une base construite sans lui reste lisible,
+ces rubriques sont seulement omises. Ajouter un CSV demande de l'inscrire dans les deux listes,
+de typer ses colonnes numériques (`INTEGER_NAMES`) et d'indexer sa clé de recherche.
+
 Des fichiers locaux anciens peuvent encore être dans `data/raw/` : leur présence
 ne change pas les chemins attendus par les scripts actuels. Ne pas déplacer ni
 recréer ces données automatiquement pour réconcilier les emplacements.

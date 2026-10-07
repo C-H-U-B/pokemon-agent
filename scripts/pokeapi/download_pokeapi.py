@@ -38,6 +38,12 @@ CSV_FILES = [
     "type_names.csv",
     "regions.csv",
     "region_names.csv",
+    # Second lot : faits calculés ou historiques joints à la fiche d'un Pokémon nommé.
+    "type_efficacy.csv",
+    "ability_names.csv",
+    "pokemon_abilities_past.csv",
+    "pokemon_stats_past.csv",
+    "pokemon_items.csv",
 ]
 
 TIMEOUT_SECONDS = 60

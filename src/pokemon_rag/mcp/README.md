@@ -5,8 +5,11 @@
 `pokemon_base_stats` et `pokemon_particularities` prennent un Pokémon nommé :
 le premier renvoie ses six statistiques de base et leur somme SQL, le second
 ce que le tableur note pour lui (talents, sous-groupe, stade d'évolution,
-records, double type unique, mise en avant, obtention, dimorphisme), rubriques
-vides omises. Les rubriques « à l'introduction » datent de la sortie du
+records, double type unique, mise en avant, obtention, dimorphisme), puis ce que le
+moteur calcule depuis PokéAPI (faiblesses et résistances de type, anciens talents et
+statistiques, objets tenus, Gigamax, jeux sans ce Pokémon, taille, poids, taux de capture),
+rubriques vides omises. Le modèle ne reçoit que le premier paragraphe de la description d'un
+outil, 300 caractères au plus : une rubrique doit y être annoncée pour être demandée. Les rubriques « à l'introduction » datent de la sortie du
 Pokémon. `pokemon_search` accepte en plus `subgroup`, `evolution_stage` et
 `talent`, comparés exactement aux valeurs du tableur après normalisation ; une
 valeur inconnue est une erreur, pas une liste vide, qui liste les valeurs admises
