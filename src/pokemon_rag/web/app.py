@@ -1,6 +1,6 @@
 import asyncio
+import html
 import logging
-import random
 import time
 import uuid
 from datetime import datetime, timezone
@@ -13,6 +13,8 @@ from pokemon_rag.agent.agent import pokemon_mcp, root_agent
 from pokemon_rag.agent.context_budget import BUDGET_ABSTENTION, DOUBLE_REQUEST_REFUSAL, TOOL_FAILURE_ABSTENTION
 from pokemon_rag.agent.list_fidelity import REPLACEMENT_PREFIX
 from pokemon_rag.config import LLM_BASE_URL, LLM_MODEL
+from pokemon_rag.constraints.query_constraints import normalize
+from pokemon_rag.structured.query_engine import pokemon_image_urls
 from pokemon_rag.observability.tracing import TRACE_DIR, save_trace
 
 logger = logging.getLogger(__name__)
@@ -30,6 +32,11 @@ APP_CSS = """
 #agent-panel { border: 1px solid var(--border-color-primary); border-radius: 18px;
     padding: 18px; background: var(--background-fill-secondary); overflow-y: auto; }
 #agent-panel h3 { margin-top: 20px; }
+/* Illustrations en haut d'une réponse : une ligne de petites images, malgré le style des images de Gradio. */
+#chat-history .pokemon-images { display: flex !important; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+#chat-history .pokemon-images > * { flex: 0 0 auto !important; width: auto !important; margin: 0 !important; }
+#chat-history .pokemon-images img, #chat-history img[title] { width: 80px !important; height: 80px !important;
+    max-width: 80px !important; object-fit: contain; display: inline-block !important; margin: 0 !important; }
 #agent-panel code { overflow-wrap: anywhere; white-space: pre-wrap; }
 #conversation-panel { display: grid; grid-template-rows: minmax(0, 1fr) auto auto auto;
     gap: 4px; overflow-y: auto; }
@@ -74,7 +81,9 @@ TOOL_LABELS = {
     "pokemon_particularities": "Talents et particularités",
     "pokemon_rag_search": "Recherche documentaire Poképédia",
 }
-EXAMPLE_QUESTIONS_PATH = Path(__file__).with_name("example_questions.txt")
+# Questions suggérées par public, une par ligne : les boutons passent à la suivante de leur liste.
+SUGGESTION_FILES = {"decouvrir": "questions_decouvrir.txt", "connaisseurs": "questions_connaisseurs.txt",
+                    "experts": "questions_experts.txt"}
 # Une ligne JSON par question posée dans l'interface.
 WEB_TRACE_FILE = TRACE_DIR / "web_traces.jsonl"
 
@@ -84,6 +93,8 @@ class WebSession:
     """État propre à une conversation Gradio."""
 
     user_id: str = field(default_factory=lambda: f"web_{uuid.uuid4().hex}")
+    # Prochaine question de chaque liste. La première « découvrir » est déjà dans la saisie au lancement.
+    next_suggestion: dict[str, int] = field(default_factory=lambda: {"decouvrir": 1, "connaisseurs": 0, "experts": 0})
 
 
 runner = InMemoryRunner(agent=root_agent)
@@ -143,28 +154,102 @@ class ActivityTiming:
         return self.durations.get(phase, 0.0) + (elapsed - self.phase_start if self.phase == phase else 0.0)
 
 
-def _load_example_questions() -> list[str]:
-    """Charge les questions d'exemple depuis le fichier associé à l'interface."""
+def _load_questions(filename: str) -> list[str]:
+    """Charge une liste de questions suggérées depuis le fichier voisin de l'interface."""
 
+    path = Path(__file__).with_name(filename)
     questions = [
         line.strip()
-        for line in EXAMPLE_QUESTIONS_PATH.read_text(encoding="utf-8").splitlines()
+        for line in path.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
 
     if not questions:
-        raise ValueError(f"Aucune question d'exemple dans {EXAMPLE_QUESTIONS_PATH}")
+        raise ValueError(f"Aucune question dans {path}")
 
     return questions
 
 
-EXAMPLE_QUESTIONS = _load_example_questions()
+SUGGESTIONS = {audience: _load_questions(filename) for audience, filename in SUGGESTION_FILES.items()}
+FIRST_QUESTION = SUGGESTIONS["decouvrir"][0]
 
 
-def _random_example_question() -> str:
-    """Retourne une question d'exemple aléatoire."""
+def _next_suggestion(audience: str, state: WebSession) -> tuple[str, WebSession]:
+    """Question suivante de la liste du public, en revenant au début après la dernière."""
 
-    return random.choice(EXAMPLE_QUESTIONS)
+    questions = SUGGESTIONS[audience]
+    index = state.next_suggestion.get(audience, 0) % len(questions)
+    state.next_suggestion[audience] = index + 1
+    return questions[index], state
+
+
+MAX_IMAGES = 5
+
+
+def _data_names(value) -> list[str]:
+    """Noms présents dans les données reçues : champs `name_fr` et argument `pokemon`, à toute profondeur."""
+    if isinstance(value, dict):
+        own = [value[key] for key in ("name_fr", "pokemon") if isinstance(value.get(key), str)]
+        return own + [name for item in value.values() for name in _data_names(item)]
+    if isinstance(value, list):
+        return [name for item in value for name in _data_names(item)]
+    return []
+
+
+def _answer_images(answer: str, data: list, urls: dict[str, str]) -> list[tuple[str, str]]:
+    """(URL, nom) des Pokémon cités dans la réponse ET présents dans les données reçues, 3 au plus.
+
+    La présence dans les données écarte un nom inventé par le modèle et les noms qui sont aussi
+    des mots courants. Dans l'ordre de citation ; le nom le plus long l'emporte (« Raichu d'Alola »
+    ne montre pas aussi Raichu). Aucune image n'est envoyée au modèle.
+    """
+    text = f"-{normalize(answer)}-"
+    candidates = {normalize(name): name for name in _data_names(data) if normalize(name) in urls}
+    found = []
+    for key, name in candidates.items():
+        position = text.find(f"-{key}-")
+        if position >= 0:
+            found.append((position, position + len(key) + 1, key, name))
+    found = [hit for hit in found if not any(
+        other[0] <= hit[0] and hit[1] <= other[1] and other[1] - other[0] > hit[1] - hit[0] for other in found)]
+    images, seen = [], set()
+    for _, _, key, name in sorted(found):
+        if urls[key] not in seen:
+            seen.add(urls[key])
+            images.append((urls[key], name))
+    return images[:MAX_IMAGES]
+
+
+IMAGE_CREDIT = "Illustrations © Nintendo, Game Freak, The Pokémon Company — via PokéAPI"
+IMAGE_WIDTH = 80
+
+
+def _image_html(answer: str, timing: "ActivityTiming") -> str:
+    """Illustrations à placer en haut de la réponse affichée, en HTML ; chaîne vide s'il n'y en a pas.
+
+    À partir des retours d'outils et des arguments exécutés. Images liées (dépôt public
+    PokeAPI/sprites) : le navigateur les charge, rien n'est téléchargé ni envoyé au modèle, et
+    la trace garde la réponse sans elles. Une base absente ou illisible donne une réponse sans
+    image. Du HTML dans le texte plutôt qu'un composant galerie : dans une bulle de conversation,
+    la galerie était écrasée et l'image ne s'affichait pas.
+    """
+    if answer in (BUDGET_ABSTENTION, DOUBLE_REQUEST_REFUSAL, TOOL_FAILURE_ABSTENTION):
+        return ""
+    data = list(timing.results.values()) + [measure.get("executed_arguments") or {}
+                                             for measure in timing.measures.values()]
+    if not _data_names(data):
+        return ""  # aucun nom reçu : inutile de lire le catalogue
+    try:
+        images = _answer_images(answer, data, pokemon_image_urls())
+    except Exception:
+        logger.warning("answer_images_failed", exc_info=True)
+        return ""
+    if not images:
+        return ""
+    pictures = "".join(f'<img src="{html.escape(url, quote=True)}" alt="{html.escape(name, quote=True)}" '
+                       f'title="{html.escape(name, quote=True)}" width="{IMAGE_WIDTH}">' for url, name in images)
+    # Le style de l'interface (APP_CSS) aligne ces images sur une ligne et fixe leur taille.
+    return f'<div class="pokemon-images">{pictures}</div>\n\n<sub>{IMAGE_CREDIT}</sub>\n\n'
 
 
 def _final_response_text(events) -> str:
@@ -598,7 +683,8 @@ async def chat(
         },
         {
             "role": "assistant",
-            "content": response,
+            # Illustrations des Pokémon cités et présents dans les données, en haut de la réponse affichée.
+            "content": ("" if error is not None else _image_html(response, timing)) + response,
         },
     ]
 
@@ -671,8 +757,8 @@ def build_app() -> gr.Blocks:
                     )
                     with gr.Row(elem_id="question-row"):
                         message = gr.Textbox(
-                            value="",
-                            placeholder="Quelles CT Bruyverne apprend-il dans Pokémon Écarlate et Violet ?",
+                            value=FIRST_QUESTION,
+                            placeholder="Posez une question sur les Pokémon, ou choisissez une suggestion ci-dessous",
                             label="Votre question",
                             show_label=False,
                             container=False,
@@ -689,10 +775,11 @@ def build_app() -> gr.Blocks:
                         )
 
                     with gr.Row(elem_id="question-actions"):
-                        example = gr.Button(
-                            "🎲 Question d'exemple",
-                            size="sm",
-                        )
+                        suggestion_buttons = {
+                            "decouvrir": gr.Button("🌱 Je découvre Pokémon", size="sm"),
+                            "connaisseurs": gr.Button("🎮 Je connais Pokémon", size="sm"),
+                            "experts": gr.Button("🏆 Expert", size="sm"),
+                        }
 
                         clear = gr.Button(
                             "Nouvelle conversation",
@@ -741,11 +828,13 @@ def build_app() -> gr.Blocks:
                 outputs=message,
             )
 
-            # Nouvelle question d'exemple.
-            example.click(
-                fn=_random_example_question,
-                outputs=message,
-            )
+            # Question suivante de la liste de chaque public.
+            for audience, button in suggestion_buttons.items():
+                button.click(
+                    fn=lambda current, audience=audience: _next_suggestion(audience, current),
+                    inputs=state,
+                    outputs=[message, state],
+                )
 
             # Nouvelle conversation.
             clear.click(

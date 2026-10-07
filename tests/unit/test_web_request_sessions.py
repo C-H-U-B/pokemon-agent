@@ -13,6 +13,8 @@ def web(monkeypatch, tmp_path):
     from pokemon_rag.web import app
     # Les questions simulées ne doivent pas s'ajouter aux traces réelles du projet.
     monkeypatch.setattr(app, "WEB_TRACE_FILE", tmp_path / "web_traces.jsonl")
+    # Catalogue d'images vide : ces tests ne portent pas sur les illustrations et n'ouvrent pas la base.
+    monkeypatch.setattr(app, "pokemon_image_urls", lambda: {})
     return app
 
 

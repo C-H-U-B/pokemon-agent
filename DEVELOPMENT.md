@@ -1479,3 +1479,67 @@ questions.
 `pandas` and `openpyxl`, imported nowhere, leave the dependencies; `pytest`
 moves to the development dependencies and is no longer installed in the image.
 The project version becomes 0.3.0, with a database where starters are fixed.
+
+
+## 82. [Feature] Pokémon artwork in the answers
+
+For a visitor who does not know Pokémon, an answer citing "Regieleki" or
+"Capidextre" (Passimian's evolution) means nothing. The web interface now shows,
+at the top of the answer, up to five official illustrations of the Pokémon it cites.
+
+A Pokémon is illustrated only if it is cited in the answer and present in the
+data received by the agent: a name added from memory, or a common word that is
+also a Pokémon name, gets no image. Each form has its own illustration, Alolan
+Raichu as well as Bug-type Arceus; a check against PokéAPI's image repository
+found an illustration for 1,270 of the spreadsheet's 1,275 entries.
+
+The images are linked, neither downloaded nor redistributed: the browser loads
+them, the server makes no request and the model never receives them. A Gradio
+gallery, tried first, was squeezed into the answer bubble and showed no image:
+the illustrations are inserted as HTML, with a fixed width.
+
+
+## 83. [Feature] Suggested questions by audience
+
+The random question button drew from 142 questions, many of which assumed
+knowledge of Pokémon. It is replaced by three buttons: "Je découvre Pokémon"
+(new to Pokémon), with plain-language questions whose answer can be checked
+without any knowledge ("How many Pokémon are there?", "Which Pokémon is the
+fastest?"), "Je connais Pokémon" (I know Pokémon) and "Expert", with combined
+filters, rare cases and the fixed pitfalls.
+
+Each button moves to the next question of its list rather than a random one,
+and each browser goes through the lists independently. On opening, the input
+already holds the first question for newcomers. Each question was checked
+against the database before being suggested.
+
+
+## 84. [Bug fix] Particularities sheet: read, readable and no longer refused
+
+The free-text headings of the spreadsheet (notable stats, how a Pokémon was
+obtained, its spotlight, movepool, former type) were covered by no test. A
+dedicated campaign of 26 questions, one per kind of fact, tells three failures
+apart: the sheet is not requested, the heading does not arrive, or the answer
+renders it badly. First run with Qwen: 12 out of 26.
+
+Three defects were fixed. The spreadsheet shorthand was copied as is or read
+backwards ("PV #6 (30)" under "Bottom 10" became a good score): the engine now
+spells it out, each value carrying its own meaning ("PV : 6e plus basse (30)").
+A first rewrite with a legend up front ("rang 1 = la plus basse") was read as a
+fact by the model. The guard then refused every tool as soon as a question
+mentioned a type or the word "version" about a named Pokémon ("Rondoudou
+a-t-il toujours été de type Fée ?", "Dans quelle version obtenait-on Abo ?"):
+the type is now read from the sheet, which holds the current types and the
+former type, and "quelle version" no longer counts as a named game. Finally a
+Pokédex number of 0, a filler value from the model, made the opening question
+of the interface ("Combien de Pokémon existe-t-il ?") fail two times out of
+three: it is removed like the other filler values.
+
+Accepting the types tool for a type being asked about, tried first, replaced an
+abstention with a wrong answer: the tool ignores history and the model made it
+up. Only the sheet is therefore accepted.
+
+Second run: 13 out of 26, a gap within noise; Abo and the ranks pass, Rondoudou
+passes on one try in the interface. Still open: denials drawn from an absence
+("Dracaufeu has no Mega Evolution" from an empty evolution list) and questions
+the model sends to another tool.

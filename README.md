@@ -192,6 +192,7 @@ Contributor guides are written in French.
 The code and the reference spreadsheet are released under the [MIT license](LICENSE). That license does not cover third-party data:
 
 - **PokéAPI**: the game data in the database comes from [PokéAPI](https://github.com/PokeAPI/pokeapi).
+- **Pokémon artwork**: the illustrations shown with the answers are official artwork © Nintendo, Game Freak and The Pokémon Company, linked from the public [PokeAPI sprites](https://github.com/PokeAPI/sprites) repository and not redistributed.
 - **Poképédia**: the texts of the document corpus and the index derived from them come from [Poképédia](https://www.pokepedia.fr) and remain under the [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/) license: attribution, non-commercial use, share-alike.
 
 Pokémon and related names are trademarks of Nintendo, Game Freak and The Pokémon Company. This project is unofficial and non-commercial.
