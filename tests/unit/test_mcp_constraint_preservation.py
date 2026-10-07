@@ -88,7 +88,9 @@ def test_client_preserves_stat_ranking_category_and_other_filters():
     name, actual = reconcile_tool_call(
         "Quels sont les 5 Pokémon Méga Feu avec le plus d'Attaque ?", "pokemon_search", args, [search])
     assert name == "pokemon_search"
-    assert actual == {**args, "type_match":"all", "best_only":False, "offset":0}
+    # legendary=False n'est pas demandé par la question : filtre inventé, retiré.
+    expected = {key: value for key, value in args.items() if key != "legendary"}
+    assert actual == {**expected, "type_match":"all", "best_only":False, "offset":0}
 
 
 def test_restores_game_and_max_level_before_execution() -> None:

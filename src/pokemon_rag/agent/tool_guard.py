@@ -9,9 +9,9 @@ from pokemon_rag.constraints.query_constraints import (
     extract_named_pokemon, is_named_identity_question, is_named_stat_question, is_purely_documentary,
     without_unnamed_learning_method,
     normalize,
-    VERSION_ALIASES,
+    named_version_groups, has_explicit_game,
 )
-from pokemon_rag.structured.query_engine import pokemon_name_catalogue, get_pokedex_identity
+from pokemon_rag.structured.query_engine import pokemon_name_catalogue, get_pokedex_identity, search_filter_values
 
 
 VERSION_GROUP_TOOLS = {
@@ -41,6 +41,7 @@ MOVE_FILTER_TOOLS = {"pokemon_moves", "pokemon_search"}
 LEVEL_TOOLS = MOVE_FILTER_TOOLS | {"pokemon_level_up_moves"}
 # Catégories que la fiche de particularités renvoie pour un Pokémon nommé (sous-groupe du tableur).
 CATEGORY_FIELDS = {"legendary", "mythical", "subgroup"}
+PLACEHOLDER_VALUES = {"", "none", "null", "nil", "undefined", "n-a", "na", "aucun", "aucune"}
 
 
 def _explicit_arguments(constraints: ExplicitConstraints) -> dict[str, Any]:
@@ -84,6 +85,27 @@ def _unsupported(tool_name: str, required: dict[str, Any]) -> dict[str, Any] | N
                 response["required_tool"] = "pokemon_search"
             return response
     return None
+
+
+def _without_invented_values(question: str, args: dict[str, Any]) -> dict[str, Any]:
+    """Retire une valeur de sous-groupe, talent ou jeu absente de la base et que la question ne justifie pas.
+
+    Observé : subgroup="Galar", talent="speed", version_group="ruby" faisaient échouer toute la
+    recherche. Une valeur inconnue est gardée quand la question nomme la dimension (« talent »,
+    « sous-groupe », un jeu) ou contient la valeur : le refus du moteur, transmis au modèle,
+    signale alors une faute de frappe au lieu d'élargir la liste en silence.
+    """
+    text = normalize(question)
+    padded = f"-{text}-"
+    named = {"subgroup": "-sous-groupe" in padded, "talent": bool(re.search(r"-talents?-", padded)),
+             "version_group": has_explicit_game(question)}
+    candidates = [key for key in named if isinstance(args.get(key), str) and not named[key]
+                  and not (key == "talent" and f"-{normalize(args[key])}-" in padded)]
+    if not candidates:
+        return args
+    known = search_filter_values()
+    return {key: value for key, value in args.items() if key not in candidates
+            or (value if key == "version_group" else normalize(value)) in known[key]}
 
 
 def _extract_user_text(user_content: Any) -> str:
@@ -142,10 +164,13 @@ def before_tool_guard(
                 "message": "Question de description : seule la recherche Poképédia peut y répondre."}
     historical = tool_name in {"pokemon_level_up_moves", "pokemon_machine_moves", "pokemon_move_learning_methods"} and bool(
         re.search(r"(?:^|-)(?:historique|toutes-les-versions|tous-les-jeux|plusieurs-versions)(?:-|$)", normalize(question)))
-    padded = "-" + normalize(question) + "-"
-    historical_without_named_game = historical and not any(f"-{alias}-" in padded for alias in VERSION_ALIASES)
+    historical_without_named_game = historical and not named_version_groups(normalize(question))
 
-    corrected = dict(args)
+    # Valeur de remplissage (« none », « null »…) : le modèle n'a rien choisi, l'argument est retiré.
+    # Observé : talent="none" faisait échouer toute la recherche.
+    corrected = {key: value for key, value in args.items()
+                 if not (isinstance(value, str) and normalize(value) in PLACEHOLDER_VALUES)}
+    corrected = _without_invented_values(question, corrected)
     try:
         constraints = extract_explicit_constraints(question)
         required = _explicit_arguments(constraints)
@@ -201,6 +226,11 @@ def before_tool_guard(
                 corrected.update(entity)
         if tool_name == "pokemon_search":
             corrected = reconcile_search_args(question, corrected)
+        if tool_name in MOVE_FILTER_TOOLS and corrected.get("limit") == 0 and not re.search(
+                r"(?:^|-)(?:combien|nombres?|compte[rz]?|total)(?:-|$)", normalize(question)):
+            # limit=0 ne renvoie que le total : sur une question de liste, la page vide passait pour
+            # complète et la liste était rédigée de mémoire. La page par défaut est rétablie.
+            corrected.pop("limit")
         corrected.update(required)
         if tool_name in MOVE_FILTER_TOOLS:
             corrected = without_unnamed_learning_method(question, corrected)

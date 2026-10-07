@@ -42,3 +42,13 @@ def isolated_name_catalog(request, monkeypatch):
 
     monkeypatch.setattr(router, "sqlite3", SimpleNamespace(connect=catalog, Row=sqlite3.Row))
     monkeypatch.setattr(query_engine, "_connect", catalog)
+
+
+@pytest.fixture(autouse=True)
+def known_filter_values(monkeypatch):
+    """Valeurs de filtres connues du guard, sans ouvrir la base."""
+    from pokemon_rag.constraints.query_constraints import SUBGROUP_ALIASES, VERSION_GROUP_NAMES_FR, normalize
+    values = {"subgroup": frozenset(map(normalize, SUBGROUP_ALIASES.values())),
+              "talent": frozenset({"levitation", "momie", "statik", "attention", "multiecaille"}),
+              "version_group": frozenset(VERSION_GROUP_NAMES_FR)}
+    monkeypatch.setattr("pokemon_rag.agent.tool_guard.search_filter_values", lambda: values)

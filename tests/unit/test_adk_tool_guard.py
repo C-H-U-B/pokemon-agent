@@ -32,6 +32,8 @@ def test_guard_preserves_stat_ranking_and_mega_category_arguments():
     original = dict(args)
     assert before_tool_guard(_tool("pokemon_search"), args, _context(
         "Quels sont les 5 Pokémon Méga Feu avec le plus d'Attaque ?")) is None
+    # legendary=False n'est pas demandé par la question : filtre inventé, retiré.
+    del original["legendary"]
     assert args == {**original, "types":["fire"], "type_match":"all", "best_only":False, "offset":0}
 
 

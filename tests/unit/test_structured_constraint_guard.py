@@ -10,7 +10,7 @@ import pytest
 
 from pokemon_rag.agent.tool_guard import before_tool_guard
 from pokemon_rag.constraints.query_constraints import (
-    extract_generation, extract_move_constraints,
+    extract_explicit_constraints, extract_generation, extract_move_constraints,
     extract_national_pokedex_number, extract_pokemon_types, extract_power_bounds,
 )
 
@@ -315,3 +315,96 @@ def test_level_bounds_still_force_level_up_after_the_method_check():
     args = {"pokemon":"Krakos"}
     assert guard("Quelles capacités Krakos apprend-il entre les niveaux 10 et 20 ?", "pokemon_moves", args) is None
     assert (args["learning_method"], args["min_level"], args["max_level"]) == ("level-up", 10, 20)
+
+
+@pytest.mark.parametrize("question", [
+    "Comment Krakos apprend-il Lance-Soleil ?",
+    "Comment évolue Krakos avec une Pierre Lune ?",
+    "Comment Krakos apprend-il Lune Rouge ?",
+    "Combien d'EV donne Krakos ?",
+    "Quels Pokémon de type Feu dans la première génération ?",
+])
+def test_a_game_word_inside_a_name_or_a_plain_dans_is_not_a_game(question):
+    constraints = extract_explicit_constraints(question)
+    assert (constraints.version_group, constraints.version_ambiguous, constraints.explicit_game) == (None, False, False)
+
+
+@pytest.mark.parametrize("question,game", [
+    ("Quelles CT Krakos apprend-il dans Pokémon Écarlate ?", "scarlet-violet"),
+    ("Quelles CT Krakos apprend-il en Lune ?", "sun-moon"),
+    ("Quelles CT Krakos apprend-il dans Soleil et Lune ?", "sun-moon"),
+    ("Quelles CT Krakos apprend-il dans Épée/Bouclier ?", "sword-shield"),
+    ("Quelles CT Krakos apprend-il dans Rouge Feu ?", "firered-leafgreen"),
+    ("Quelles capacités Krakos apprend-il par Lance-Soleil dans Pokémon Soleil ?", "sun-moon"),
+])
+def test_a_named_game_keeps_its_constraint(question, game):
+    assert extract_explicit_constraints(question).version_group == game
+
+
+@pytest.mark.parametrize("question", ["Quelles CT dans Diamant, Perle et Platine ?",
+                                      "Quelles CT Krakos apprend-il dans JeuInconnu ?"])
+def test_several_or_unknown_named_games_stay_ambiguous(question):
+    constraints = extract_explicit_constraints(question)
+    assert constraints.version_group is None and constraints.version_ambiguous
+
+
+@pytest.mark.parametrize("question,form", [
+    ("Quels Pokémon viennent de Galar ?", None),
+    ("Quels sont les starters de la région d'Alola ?", None),
+    ("Quels Pokémon vivent en Hisui ?", None),
+    ("Quelles sont les formes de Galar ?", "galar"),
+    ("Quels sont les types de Krakos d'Alola ?", "alola"),
+])
+def test_a_region_is_a_form_only_when_it_qualifies_a_pokemon(question, form):
+    assert extract_explicit_constraints(question).form == form
+
+
+def test_a_region_as_a_place_adds_no_form_to_the_search():
+    args = {"generation": 8}
+    assert guard("Quels Pokémon viennent de Galar ?", "pokemon_search", args) is None
+    assert "form" not in args
+
+
+def test_placeholder_values_and_unrequested_classifications_are_removed():
+    # Arguments proposés par Qwen deux fois sur deux (trace 5e9464875496421f93c4a82c767b92d6).
+    args = {"subgroup": "starter", "evolution_stage": "base", "talent": "none", "legendary": True}
+    assert guard("Quels sont les types des starters de première génération ?", "pokemon_search", args) is None
+    assert args == {"subgroup": "Starter", "evolution_stage": "base", "generation": 1}
+
+
+@pytest.mark.parametrize("question,expected", [
+    ("Quels Pokémon légendaires ont le talent Lévitation ?", {"talent": "Lévitation", "legendary": True}),
+    ("Quels Pokémon ont le talent Lévitation ?", {"talent": "Lévitation"}),
+])
+def test_a_named_talent_is_kept_and_a_classification_needs_its_word(question, expected):
+    args = {"talent": "Lévitation", "legendary": True}
+    assert guard(question, "pokemon_search", args) is None
+    assert args == expected
+
+
+@pytest.mark.parametrize("question,proposed,expected", [
+    # Valeurs proposées sous LM Studio le 7 octobre : chacune faisait échouer toute la recherche.
+    ("Quels Pokémon viennent de Galar ?", {"generation": 8, "subgroup": "Galar", "talent": "Galarian"},
+     {"generation": 8}),
+    ("Quels sont les 4 Pokémon les plus lents ?", {"subgroup": "base", "version_group": "ruby"}, {}),
+])
+def test_values_absent_from_the_database_and_unjustified_by_the_question_are_removed(question, proposed, expected):
+    assert guard(question, "pokemon_search", proposed) is None
+    assert {key: proposed[key] for key in ("generation", "subgroup", "talent", "version_group") if key in proposed} == expected
+
+
+@pytest.mark.parametrize("question", ["Quels Pokémon ont le talent Lévitaion ?", "Quels Pokémon ont Lévitaion ?"])
+def test_an_unknown_talent_named_by_the_question_is_kept_for_the_engine_refusal(question):
+    args = {"talent": "Lévitaion"}
+    assert guard(question, "pokemon_search", args) is None
+    assert args["talent"] == "Lévitaion"
+
+
+@pytest.mark.parametrize("question,limit", [
+    ("Quels sont les Pokémon légendaires introduits en quatrième génération ?", None),
+    ("Combien de Pokémon sont de type Spectre ?", 0),
+])
+def test_limit_zero_is_kept_only_for_a_counting_question(question, limit):
+    args = {"generation": 4, "legendary": True, "limit": 0}
+    assert guard(question, "pokemon_search", args) is None
+    assert args.get("limit") == limit

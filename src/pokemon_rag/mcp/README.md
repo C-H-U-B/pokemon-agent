@@ -75,7 +75,11 @@ technique n'autorise pas une description inventée.
 Les outils structurés renvoient les dictionnaires des fonctions `get_*`. Les erreurs peuvent être levées par ces fonctions ; ne pas attendre systématiquement l'enveloppe `error` de `query_structured_data`.
 Sur le transport MCP, une exception de résolution est signalée comme erreur
 d'outil (`is_error`) ; un résultat structuré de `count=0` n'est pas la même
-situation. Les noms français et anglais de capacités sont conservés, ainsi que
+situation. Les outils structurés convertissent la `ValueError` du moteur en
+`EngineRefusal`, à la fois `ToolError` et `ValueError` : le SDK MCP ne transmet
+au modèle que le message d'une `ToolError` (sinon « Error executing tool »), et
+l'API HTTP garde ses codes 400 ou 404. Le modèle lit ainsi l'argument à corriger
+(« talent inconnu : 'speed' »). Les noms français et anglais de capacités sont conservés, ainsi que
 les identifiants techniques des jeux. L'instruction du client ADK privilégie les
 libellés français et interdit de compléter une récupération échouée de mémoire.
 
