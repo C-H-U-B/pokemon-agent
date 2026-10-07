@@ -344,17 +344,13 @@ def reconcile_search_args(question: str, arguments: dict) -> dict:
                 raise ValueError("Superlatif non reconnu : précisez la statistique ou une quantité.")
             result["best_only"] = False
     classifications = extract_classifications(question)
-    if classifications:
-        for key in ("legendary", "mythical"):
-            if key in classifications:
-                result[key] = True
-            else:
-                result.pop(key, None)
-    elif extract_subgroup(question):
-        # Sous-groupe nommé sans « légendaire » ni « fabuleux » dans la question : ces filtres sont
-        # inventés, et « légendaire » viderait par exemple la liste des pseudo-légendaires.
-        result.pop("legendary", None)
-        result.pop("mythical", None)
+    # Sans « légendaire » ni « fabuleux » dans la question, ces filtres sont inventés : « légendaire »
+    # viderait par exemple la liste des pseudo-légendaires ou d'une recherche par talent.
+    for key in ("legendary", "mythical"):
+        if key in classifications:
+            result[key] = True
+        else:
+            result.pop(key, None)
     return result
 
 
@@ -450,26 +446,64 @@ def reconcile_stat_ranking_args(question: str, arguments: dict) -> dict:
     return corrected
 
 
+# Région désignée comme lieu, pas comme forme : « viennent de Galar », « la région d'Alola », « à Paldea ».
+_GEOGRAPHIC_REGION = (r"(?:(?:regions?|gardiens?|viennent|vient|venant|provenant|originaires?|natifs?|issus?|habitent|"
+                      r"vivent)-(?:de-|d-|du-)?(?:la-region-(?:de-|d-))?|(?:a|en|dans)-(?:la-region-(?:de-|d-))?)")
+
+
+def _form_regions(normalized: str) -> set[str]:
+    """Régions citées comme forme (« Raichu d'Alola », « formes de Galar »), hors mentions géographiques."""
+    return {form for token, form in REGION_FORMS.items()
+            for match in re.finditer(rf"(?:^|-)({re.escape(token)})(?=-|$)", normalized)
+            if not re.search(rf"(?:^|-){_GEOGRAPHIC_REGION}$", normalized[:match.start(1)])}
+
+
 def extract_form(question: str) -> str | None:
-    normalized = normalize(question)
-    matches = [
-        form
-        for token, form in REGION_FORMS.items()
-        if re.search(rf"(?:^|-){re.escape(token)}(?:-|$)", normalized)
-    ]
-    return matches[0] if len(matches) == 1 else None
+    matches = _form_regions(normalize(question))
+    return matches.pop() if len(matches) == 1 else None
+
+
+# Mots qui annoncent un jeu juste avant un nom de jeu d'un seul mot (« dans Écarlate », « Pokémon Lune »).
+_GAME_CUES = {"pokemon", "dans", "en", "sur", "in", "version", "versions", "jeu", "jeux"}
+_ARTICLES = r"(?:la|le|les|l|un|une|des|du|ce|cet|cette|ces|son|sa|ses|leur|leurs)"
+
+
+def named_version_groups(normalized: str) -> set[str]:
+    """Groupes de versions nommés par la question.
+
+    Un titre de plusieurs mots (« soleil-et-lune », « rouge-feu ») suffit. Un nom d'un seul mot
+    n'est un jeu que s'il suit un mot de jeu ou un autre jeu reconnu (« dans Diamant, Perle et
+    Platine ») : seul, c'est souvent un mot ordinaire ou un morceau de nom (« Lance-Soleil »,
+    « Pierre Lune », « Rugit-Lune », « Lune Rouge », « EV »).
+    """
+    tokens = normalized.split("-")
+    hits = []
+    for alias, value in VERSION_ALIASES.items():
+        words = alias.split("-")
+        hits.extend((start, start + len(words), value) for start in range(len(tokens) - len(words) + 1)
+                    if tokens[start:start + len(words)] == words)
+    # Les titres complets ont priorité sur les mots qu'ils contiennent.
+    hits = sorted(hit for hit in hits if not any(
+        other[0] <= hit[0] and hit[1] <= other[1] and other[1] - other[0] > hit[1] - hit[0] for other in hits))
+    accepted = []
+    for start, end, value in hits:
+        before = start - 1
+        if before >= 0 and tokens[before] in {"et", "ou"}:
+            before -= 1
+        if (end - start > 1 or (before >= 0 and tokens[before] in _GAME_CUES)
+                or any(other_end == before + 1 for _, other_end, _ in accepted)):
+            accepted.append((start, end, value))
+    return {value for _, _, value in accepted}
 
 
 def has_explicit_game(question: str) -> bool:
     normalized = normalize(question)
-    padded = f"-{normalized}-"
-    if any(f"-{alias}-" in padded for alias in VERSION_ALIASES):
+    if named_version_groups(normalized):
         return True
+    # « dans la première génération » ne désigne pas un jeu ; « dans JeuInconnu » si.
     return bool(
-        re.search(
-            r"(?:^|-)(?:dans|in|version|versions|jeu|jeux|(?:en|sur)-pokemon)(?:-|$)",
-            normalized,
-        )
+        re.search(rf"(?:^|-)(?:dans|in)-(?!{_ARTICLES}(?:-|$))[a-z0-9]", normalized)
+        or re.search(r"(?:^|-)(?:version|versions|jeu|jeux|(?:en|sur)-pokemon)(?:-|$)", normalized)
     )
 
 
@@ -479,12 +513,7 @@ def extract_version_group(
 ) -> tuple[str | None, bool]:
     normalized = normalize(question)
     padded = f"-{normalized}-"
-    hits = [(match.start(), match.start()+len(alias)+1, value)
-            for alias, value in VERSION_ALIASES.items()
-            for match in re.finditer(rf"(?=-{re.escape(alias)}-)", padded)]
-    matches = {hit[2] for hit in hits if not any(
-        other[0] <= hit[0] and hit[1] <= other[1] and other[1]-other[0] > hit[1]-hit[0]
-        for other in hits)}
+    matches = named_version_groups(normalized)
     if len(matches) > 1:
         return None, True
     if len(matches) == 1:
@@ -655,8 +684,7 @@ def extract_explicit_constraints(
         explicit_game=has_explicit_game(question),
         level_bounds=extract_level_bounds(question),
         level_explicit=level_explicit,
-        form_ambiguous=sum(bool(re.search(rf"(?:^|-){region}(?=-|$)", normalized))
-                           for region in REGION_FORMS) > 1,
+        form_ambiguous=len(_form_regions(normalized)) > 1,
         national_number=extract_national_pokedex_number(question),
         generation=extract_generation(question),
         pokemon_types=types.get("types", ()),

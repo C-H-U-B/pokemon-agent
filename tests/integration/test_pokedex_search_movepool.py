@@ -634,8 +634,8 @@ def test_spreadsheet_filters_are_exact_and_combine_in_sql(spreadsheet_filters, f
 @pytest.mark.parametrize("filters, message", [
     ({"subgroup": "Foss"}, "subgroup inconnu"),          # jamais de sous-chaîne
     ({"subgroup": "Starter ; Fossile"}, "subgroup inconnu"),
-    ({"ability": "Neige"}, "ability inconnu"),
-    ({"ability": ""}, "ability doit"),
+    ({"ability": "Neige"}, "talent inconnu"),
+    ({"ability": ""}, "talent doit"),
     ({"evolution_stage": "adulte"}, "evolution_stage invalide"),
     ({"evolution_stage": 3}, "evolution_stage invalide"),
 ])

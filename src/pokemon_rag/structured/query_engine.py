@@ -336,7 +336,7 @@ def search_pokemon(
             stage = _evolution_stage(evolution_stage)
             clauses.append("(stats.stade_d_evolution=? OR stats.stade_d_evolution LIKE ? || ' ·%')")
             params.extend([stage, stage])
-        ability = _catalogue_value(conn, "ability", ability, ("talent_1", "talent_2", "talent_cache"))
+        ability = _catalogue_value(conn, "talent", ability, ("talent_1", "talent_2", "talent_cache"))
         if ability is not None:
             clauses.append("? IN (stats.talent_1, stats.talent_2, stats.talent_cache)")
             params.append(ability)
@@ -1314,6 +1314,33 @@ def get_pokemon_types(pokemon: str, form: str | None = None) -> dict[str, Any]:
     return _pokedex_result("get_pokemon_types", pokemon, form)
 
 
+def _known_values(conn: sqlite3.Connection, columns: tuple[str, ...], separator: str | None = None) -> set[str]:
+    """Valeurs distinctes de colonnes du tableur ; les colonnes sont des constantes internes."""
+    known: set[str] = set()
+    for column in columns:
+        for (cell,) in conn.execute(f"SELECT DISTINCT {column} FROM custom_pokedex_fr WHERE {column} IS NOT NULL"):
+            known.update(part.strip() for part in (cell.split(separator) if separator else [cell]) if part.strip())
+    return known
+
+
+def search_filter_values() -> dict[str, frozenset[str]]:
+    """Valeurs normalisées acceptées par les filtres subgroup, talent et version_group.
+
+    Lu une fois par état de la base : le guard s'en sert pour écarter une valeur inventée.
+    """
+    modified = DB_PATH.stat().st_mtime_ns if DB_PATH.exists() else None
+    return _filter_values(str(DB_PATH), modified)
+
+
+@lru_cache(maxsize=2)
+def _filter_values(path: str, modified: int | None) -> dict[str, frozenset[str]]:
+    """path et modified ne servent que de clé : une base reconstruite est relue."""
+    with closing(_connect()) as conn:
+        return {"subgroup": frozenset(map(_normalize, _known_values(conn, ("sous_groupe",), " ; "))),
+                "talent": frozenset(map(_normalize, _known_values(conn, ("talent_1", "talent_2", "talent_cache")))),
+                "version_group": frozenset(row[0] for row in conn.execute("SELECT identifier FROM version_groups"))}
+
+
 def _catalogue_value(conn: sqlite3.Connection, name: str, value: str | None,
                      columns: tuple[str, ...], separator: str | None = None) -> str | None:
     """Valeur du tableur désignée par un filtre, comparée exactement après normalisation.
@@ -1325,10 +1352,7 @@ def _catalogue_value(conn: sqlite3.Connection, name: str, value: str | None,
         return None
     if not isinstance(value, str) or not _normalize(value):
         raise ValueError(f"{name} doit être une chaîne non vide.")
-    known: set[str] = set()
-    for column in columns:
-        for (cell,) in conn.execute(f"SELECT DISTINCT {column} FROM custom_pokedex_fr WHERE {column} IS NOT NULL"):
-            known.update(part.strip() for part in (cell.split(separator) if separator else [cell]) if part.strip())
+    known = _known_values(conn, columns, separator)
     wanted = _normalize(value)
     match = next((item for item in sorted(known) if _normalize(item) == wanted), None)
     if match is None:

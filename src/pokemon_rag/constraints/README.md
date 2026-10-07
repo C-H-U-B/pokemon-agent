@@ -49,11 +49,11 @@ un texte destiné à l'utilisateur.
 
 | Fonction | Résultat et limites |
 | --- | --- |
-| `extract_form(question)` | Une forme parmi `alola`, `galar`, `hisui`, `paldea` si une seule est reconnue ; sinon `None` |
+| `extract_form(question)` | Une forme parmi `alola`, `galar`, `hisui`, `paldea` si une seule est reconnue ; sinon `None`. Une région précédée d'un mot de lieu (« viennent de », « région de », « à », « en ») n'est pas une forme |
 | `extract_stat_ranking_args(question)` | Arguments de tri pour des superlatifs explicites (`moins de Défense`, `meilleure Attaque Spéciale`, `plus rapide/lent`) et top N ; `None` hors motifs reconnus, comparaisons nommées et pagination explicite ; ambiguïtés ou N invalide refusés |
 | `reconcile_stat_ranking_args(question, arguments)` | Copie les arguments, restaure le classement reconnu et les types littéraux demandés ; retire un type ou une catégorie Méga inventés ; conserve les autres filtres |
 | `extract_national_pokedex_number(question)` | Numéro explicite après numéro/n°/no, dans un contexte Pokémon ou Pokédex ; `None` sans mention reconnue ; `ValueError` pour plusieurs numéros, zéro, une valeur négative reconnue ou un Pokédex régional explicite |
-| `has_explicit_game(question)` | Détection heuristique d'un alias ou d'une mention de jeu ; ne prouve pas que le jeu est valide |
+| `has_explicit_game(question)` | Détection heuristique d'un jeu nommé ou d'une mention de jeu (« jeu », « version », « dans » suivi d'un mot qui n'est pas un article) ; ne prouve pas que le jeu est valide |
 | `extract_version_group(question, known_version_groups=None)` | Couple `(groupe, ambiguïté)` ; les alias sont examinés avant les identifiants optionnels fournis par l'appelant |
 | `extract_level_bounds(question)` | Couple inclusif `(minimum, maximum)`, avec `None` pour une borne absente ; `None` si la formulation n'est pas entièrement reconnue ; `ValueError` si l'intervalle reconnu est impossible |
 | `extract_power_bounds(question)` | Bornes inclusives de puissance : au moins/au plus, plus de/moins de, valeur exacte ou intervalle chiffré ; aucune catégorie déduite d'une puissance absente |
@@ -116,6 +116,8 @@ le catalogue injecté. Une forme inconnue reste hors extraction.
 | « après le niveau 40 et avant le niveau 50 » | `(41, 49)` |
 | « au niveau 20 ou au niveau 30 » | `None` : une alternative n'est pas un intervalle |
 | « dans Pokémon Rouge » | `version_group="red-blue"` |
+| « Comment Bulbizarre apprend-il Lance-Soleil ? » | aucun jeu : « Soleil » ne suit aucun mot de jeu |
+| « dans la première génération » | aucun jeu, pas d'ambiguïté |
 
 Les jeux sont ramenés aux groupes de versions du modèle de données, pas à une
 édition individuelle. La table d'alias couvre actuellement Rouge/Bleu,
@@ -125,11 +127,18 @@ exhaustive ; les titres complets comme Ultra-Soleil, Rouge Feu ou Diamant
 des jeux de la table de libellés sont également reconnus, sauf `champions` :
 ce mot courant ne désigne le jeu que dans le titre complet « Pokémon Champions ».
 Des identifiants supplémentaires peuvent être fournis par l'appelant.
+Un nom de jeu d'un seul mot (« Soleil », « Lune », « Rouge », « Perle »…) ne
+compte que s'il suit un mot qui annonce un jeu (« Pokémon », « dans », « en »,
+« sur », « jeu », « version ») ou un autre jeu reconnu (« dans Diamant, Perle et
+Platine ») : ces mots apparaissent dans de nombreux noms de capacités, d'objets,
+de lieux et d'espèces (« Lance-Soleil », « Pierre Lune », « Rugit-Lune »). Les
+titres de plusieurs mots comptent toujours. `tests/integration/test_constraint_vocabulary.py`
+vérifie qu'aucun nom français de la base ne produit de jeu ni de forme.
 
 ## Limites et évolution
 
 Ce parseur repose sur des motifs textuels, sans compréhension générale de la
-phrase. Par exemple, le mot « dans » peut signaler un jeu à tort. Les nombres
+phrase. Par exemple, « dans » suivi d'un nom propre inconnu signale un jeu. Les nombres
 en lettres, comparaisons entre espèces, pagination de classement, propriétés
 implicites, génération déduite d'un jeu et formes inconnues ne sont pas extraits.
 Les opérateurs numériques symboliques ne sont pas normalisés en une valeur

@@ -10,11 +10,13 @@ from __future__ import annotations
 import sys
 import threading
 import time
+from functools import wraps
 from typing import Annotated, Any, Literal
 
 from pydantic import Field
 
 from mcp.server import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 from pokemon_rag.structured.query_engine import (
     get_base_stats,
@@ -32,6 +34,27 @@ from pokemon_rag.structured.query_engine import (
 
 mcp = MCPServer("Pokémon Agent")
 
+
+class EngineRefusal(ToolError, ValueError):
+    """Refus du moteur (nom inconnu, filtre invalide) : son message atteint le modèle.
+
+    Le SDK MCP ne transmet que le message d'une ToolError ; toute autre exception devient
+    « Error executing tool », et le modèle ne sait pas quel argument corriger. ValueError
+    garde le contrat de l'API HTTP (400 ou 404).
+    """
+
+
+def _refusals_to_model(tool):
+    @wraps(tool)
+    def call(*args, **kwargs):
+        try:
+            return tool(*args, **kwargs)
+        except EngineRefusal:
+            raise
+        except ValueError as exc:
+            raise EngineRefusal(str(exc)) from exc
+    return call
+
 # Seuls le premier paragraphe d'une docstring et les descriptions d'arguments
 # restent visibles du modèle après l'abrègement ADK : y placer les règles d'appel.
 # Chaque octet ajouté ici réduit le budget de contexte ADK ; une description
@@ -39,6 +62,7 @@ mcp = MCPServer("Pokémon Agent")
 
 
 @mcp.tool()
+@_refusals_to_model
 def pokemon_search(
     pokedex_number: Annotated[int | None, Field(description="Numéro national → son Pokémon.")] = None,
     generation: int | None = None,
@@ -105,6 +129,7 @@ def pokemon_search(
 
 
 @mcp.tool()
+@_refusals_to_model
 def pokemon_moves(
     pokemon: str, form: str | None = None, version_group: str | None = None,
     move_type: str | None = None,
@@ -140,6 +165,7 @@ def pokemon_moves(
 
 
 @mcp.tool()
+@_refusals_to_model
 def pokemon_evolutions(
     pokemon: str,
     form: str | None = None,
@@ -160,6 +186,7 @@ def pokemon_evolutions(
 
 
 @mcp.tool()
+@_refusals_to_model
 def pokemon_level_up_moves(
     pokemon: str,
     form: str | None = None,
@@ -188,6 +215,7 @@ def pokemon_level_up_moves(
 
 
 @mcp.tool()
+@_refusals_to_model
 def pokemon_move_learning_methods(
     pokemon: str,
     move: str,
@@ -213,6 +241,7 @@ def pokemon_move_learning_methods(
 
 
 @mcp.tool()
+@_refusals_to_model
 def pokemon_machine_moves(
     pokemon: str,
     form: str | None = None,
@@ -236,6 +265,7 @@ def pokemon_machine_moves(
 
 
 @mcp.tool()
+@_refusals_to_model
 def pokemon_types(
     pokemon: str,
     form: str | None = None,
@@ -256,6 +286,7 @@ def pokemon_types(
 
 
 @mcp.tool()
+@_refusals_to_model
 def pokemon_base_stats(
     pokemon: str,
     form: str | None = None,
@@ -270,6 +301,7 @@ def pokemon_base_stats(
 
 
 @mcp.tool()
+@_refusals_to_model
 def pokemon_particularities(
     pokemon: str,
     form: str | None = None,
@@ -289,6 +321,7 @@ def pokemon_particularities(
 
 
 @mcp.tool()
+@_refusals_to_model
 def pokemon_pokedex_identity(
     pokemon: str,
     form: str | None = None,
@@ -313,6 +346,7 @@ def pokemon_pokedex_identity(
 
 
 @mcp.tool()
+@_refusals_to_model
 def pokemon_signature_moves(
     pokemon: str,
     form: str | None = None,
