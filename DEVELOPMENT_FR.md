@@ -1393,3 +1393,43 @@ style d'apostrophe et les termes interdits se comparent par mot entier.
 
 Avant d'être adoptés, ces contrôles ont été rejoués sur les réponses déjà
 enregistrées : ils rejettent les deux réponses inventées et acceptent les autres.
+
+## 75. [Bug fix] Mots ordinaires pris pour des contraintes, traces fidèles aux appels exécutés
+
+Une revue de l'architecture a montré que l'extracteur de contraintes, commun à
+l'agent, au client MCP et au graphe, transformait des mots ordinaires en
+contraintes. Un nom de jeu contenu dans un nom imposait ce jeu ou faisait
+refuser l'outil : « Lance-Soleil » restreignait la réponse à Soleil et Lune,
+« Rugit-Lune » faisait refuser l'outil de types. « dans la première
+génération » passait pour un jeu inconnu, et une région citée comme lieu
+devenait une forme : « Quels Pokémon viennent de Galar ? » ne trouvait aucun
+Pokémon.
+
+Un nom de jeu d'un seul mot ne compte plus que s'il suit un mot qui annonce un
+jeu (« dans », « en », « Pokémon », « version ») ou un autre jeu ; les titres
+complets comptent toujours. Une région précédée d'un mot de lieu (« viennent
+de », « région de », « à ») n'est plus une forme. Un test parcourt tous les noms
+français de la base et vérifie qu'aucun ne produit de jeu ni de forme.
+
+Le guard empêchait l'oubli d'une contrainte, pas l'ajout d'un filtre inventé.
+Qwen proposait par exemple un talent « none », qui faisait échouer la
+recherche. Une valeur de remplissage est désormais retirée, ainsi qu'un filtre
+légendaire ou fabuleux absent de la question, et une valeur de sous-groupe, de
+talent ou de jeu absente de la base quand la question ne nomme pas cette
+dimension (« Galar » proposé comme sous-groupe, « speed » comme talent). Le
+modèle demandait aussi zéro ligne sur des questions de liste, et la page vide
+passait pour complète : la liste était alors rédigée de mémoire. Une page vide
+n'est plus acceptée que pour un comptage. Enfin, le refus du moteur atteint
+maintenant le modèle : le serveur MCP n'en transmettait que « Error executing
+tool », sans dire quel argument corriger. Un talent ou un stade valides
+restent au choix du modèle : « les starters de première génération » au stade
+de base est une interprétation légitime.
+
+Enfin, la trace de l'interface Web enregistrait les arguments proposés par le
+modèle, pas ceux exécutés après le guard. Elle montre maintenant les arguments
+exécutés, avec la proposition lorsqu'elle diffère ; le panneau d'activité
+aussi. L'analyseur des traces du graphe refuse les traces Web au lieu de leur
+attribuer des durées nulles. La campagne structurée gagne un cas par défaut
+corrigé. Sa première exécution sous LM Studio a révélé les valeurs inventées et
+les pages vides, corrigées ci-dessus ; rejouées sans modèle, les cinq propositions
+fautives donnent désormais les bons résultats.
