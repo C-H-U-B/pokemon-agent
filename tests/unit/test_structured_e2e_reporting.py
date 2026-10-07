@@ -270,3 +270,9 @@ def test_a_returned_name_denied_in_its_sentence_is_not_restituted(reporting, ans
 
 def test_a_name_with_an_abbreviation_point_is_not_split(reporting):
     assert reporting["_affirmed"]("M. Mime", "Les Pokémon Psy de première génération : M. Mime et Kadabra.")
+
+
+def test_names_in_parentheses_stay_with_the_denial_of_their_sentence(reporting):
+    # Réponse réelle du 7 octobre 14:38, comptée réussie quand les parenthèses coupaient la phrase.
+    answer = "Les trois premiers (Créhelf, Créfollet, Créfadet) ne sont pas légendaires, donc ils ne sont pas inclus."
+    assert reporting["_affirmed"]("Créhelf", answer) is False
