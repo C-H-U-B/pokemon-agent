@@ -184,7 +184,8 @@ def test_simple_nine_row_list_keeps_names_and_omits_tools_after_complete_respons
             "total_count":9,"returned_count":9,"offset":0,"limit":30,"best_only":False,
             "catalogue_complete":False,"catalogue_missing_default_forms":[{"name_fr":"exception"}]}
     original = deepcopy(data)
-    result = bounded_tool_result(data,question="Liste des légendaires de génération 4")
+    result = bounded_tool_result(data,question="Liste des légendaires de génération 4",
+                                 args={"generation":4,"legendary":True})
     assert result["results"] == [{"name_fr":f"Nom {i}"} for i in range(9)]
     assert "context_truncated" not in result and result["catalogue_complete"] is False
     assert "catalogue_missing_default_forms" not in result and data == original
@@ -646,3 +647,36 @@ def test_tool_refusal_text_reaches_the_model_so_it_can_fix_the_argument():
         {"type": "text", "text": "Error executing tool pokemon_search: talent inconnu : 'speed'."}]})
     assert result["error"] == "mcp_tool_error"
     assert "talent inconnu : 'speed'" in result["message"]
+
+
+
+@pytest.mark.parametrize("question,args,fields", [
+    # Champ demandé, non filtré : transmis (seuls les noms l'étaient, le modèle rédigeait les types de mémoire).
+    ("Quels sont les types des starters de première génération ?", {"subgroup": "Starter", "generation": 1},
+     {"name_fr", "type_1_fr", "type_2_fr"}),
+    ("De quelle génération sont les fossiles ?", {"subgroup": "Fossile"}, {"name_fr", "generation"}),
+    ("Quels pseudo-légendaires sont légendaires ?", {"subgroup": "Pseudo-légendaire"},
+     {"name_fr", "legendary", "mythical"}),
+    # Champ filtré : valeur commune à toutes les lignes, non répétée.
+    ("Quels Pokémon sont de type Eau et Vol ?", {"types": ["water", "flying"]}, {"name_fr"}),
+    ("Quels sont les légendaires de quatrième génération ?", {"generation": 4, "legendary": True}, {"name_fr"}),
+    # Demande explicite malgré le filtre : le second type n'est pas connu d'avance.
+    ("Donne les Pokémon Feu de première génération avec leurs types", {"types": ["fire"], "generation": 1},
+     {"name_fr", "type_1_fr", "type_2_fr"}),
+])
+def test_a_field_named_by_the_question_reaches_the_model_unless_filtered(question, args, fields):
+    rows = [{"name_fr": "Bulbizarre", "name_en": "Bulbasaur", "type_1_fr": "Plante", "type_2_fr": "Poison",
+             "generation": 1, "legendary": 0, "mythical": 0, "national_number": 1}]
+    result = bounded_tool_result({"structuredContent": {"operation": "search_pokemon", "results": rows,
+                                                        "total_count": 1, "returned_count": 1}},
+                                 question=question, args=args)
+    assert set(result["results"][0]) - {"name_en"} == fields
+
+
+def test_pseudo_legendary_does_not_request_the_legendary_column():
+    rows = [{"name_fr": "Mucuscule", "name_en": "Goomy", "legendary": 0, "mythical": 0}]
+    result = bounded_tool_result({"structuredContent": {"operation": "search_pokemon", "results": rows,
+                                                        "total_count": 1, "returned_count": 1}},
+                                 question="Quels sont les pseudo-légendaires de la sixième génération ?",
+                                 args={"subgroup": "Pseudo-légendaire", "generation": 6})
+    assert set(result["results"][0]) == {"name_fr"}

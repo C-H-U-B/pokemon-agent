@@ -182,10 +182,20 @@ def _presentation_data(data: dict, question: str, args: dict) -> dict:
         if args.get("pokedex_number") is not None or re.search(r"numero|pokedex|identite", normalize(question)):
             fields.add("national_number")
         text = normalize(question)
-        for noun, requested in (("types?", {"type_1_fr","type_2_fr"}),
-                                ("generations?", {"generation"}),
-                                ("classifications?", {"legendary","mythical"})):
-            if re.search(rf"(?:^|-)(?:(?:et|avec)-(?:leurs?-|ses-|son-|sa-|les-|le-|la-|des-)?|leurs?-){noun}(?:-|$)",text):
+        for noun, requested, filters in (
+                ("types?", {"type_1_fr", "type_2_fr"}, ("types",)),
+                ("generations?", {"generation"}, ("generation",)),
+                # Un pseudo-légendaire n'est pas un légendaire.
+                ("classifications?|(?<!pseudo-)legendaires?|fabuleux|mythiques?", {"legendary", "mythical"},
+                 ("legendary", "mythical"))):
+            named = re.search(rf"(?:^|-)(?:{noun})(?:-|$)", text)
+            # Champ nommé par la question sans être filtré : le modèle en a besoin pour répondre
+            # (« les types des starters » ne gardait que les noms, et il rédigeait les types de mémoire).
+            # Filtré, sa valeur est commune à toutes les lignes, sauf demande explicite « avec leurs types ».
+            unfiltered = all(args.get(name) is None for name in filters)
+            explicit = re.search(
+                rf"(?:^|-)(?:(?:et|avec)-(?:leurs?-|ses-|son-|sa-|les-|le-|la-|des-)?|leurs?-)(?:{noun})(?:-|$)", text)
+            if (named and unfiltered) or explicit:
                 fields.update(requested)
         if not question:
             fields.update({"form_identifier", "national_number", "type_1_fr", "type_2_fr", "generation", "legendary", "mythical", "version_group"})

@@ -330,3 +330,15 @@ def test_an_answer_omitting_returned_rows_is_replaced_by_the_list_from_the_data(
         {"generation": 4, "legendary": True}, cites_rows=False))
     assert len(texts) == 1 and texts[0].startswith(REPLACEMENT_PREFIX)
     assert all(name in texts[0] for name in ("Créhelf", "Créfollet", "Créfadet", "Dialga", "Cresselia"))
+
+
+@pytest.mark.real_data
+def test_a_requested_field_of_a_list_reaches_the_model_within_the_request_budget():
+    # Avant : seuls les noms étaient transmis, les outils retirés, et le modèle rédigeait les types de mémoire.
+    from pokemon_rag.agent.context_budget import MAX_REQUEST_BYTES
+    model, responses, texts = asyncio.run(_run_simulated(
+        "Quels sont les types des starters de première génération ?", "pokemon_search", {"subgroup": "Starter"}))
+    rows = responses[-1]["results"]
+    assert {row["name_fr"] for row in rows} == {"Bulbizarre", "Salamèche", "Carapuce"}
+    assert all(row.get("type_1_fr") for row in rows) and rows[0]["type_2_fr"] == "Poison"
+    assert max(model.request_sizes) <= MAX_REQUEST_BYTES and model.tool_counts[-1] == 0

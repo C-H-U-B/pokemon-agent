@@ -176,6 +176,12 @@ indivisible trop grand devient une erreur, jamais une absence de données.
 Cette adaptation ne change pas les réponses de l'API MCP.
 Les recherches Pokémon sont projetées avant le seuil : noms français et valeurs,
 numéro national lorsque demandé, comptes, pagination et signal de couverture.
+Les types, la génération ou la classification d'une ligne sont transmis quand la
+question les nomme et que la recherche ne filtre pas dessus (« les types des
+starters ») ; filtrés, leur valeur est commune à toutes les lignes et n'est
+transmise que sur demande explicite (« avec leurs types »). Auparavant seuls les
+noms arrivaient, la page complète retirait les outils, et le modèle rédigeait le
+champ demandé de mémoire.
 La liste des exceptions de catalogue et les identifiants techniques sont retirés.
 Dans un classement, la valeur de chaque ligne porte le nom français de sa
 statistique, par exemple `{"name_fr": "Regieleki", "Vitesse": 200}` : le modèle

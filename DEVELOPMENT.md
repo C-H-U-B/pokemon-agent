@@ -1429,3 +1429,18 @@ The campaign uses the same detection, importing it instead of keeping a copy.
 Replayed on every recorded answer, it would only have replaced wrong ones: the
 denied legendaries, a distorted name and starters contradicting the former
 classification.
+
+
+## 79. [Bug fix] Requested field of a list passed to the model
+
+"Quels sont les types des starters de première génération ?" ("What are the
+types of the first-generation starters?") passed only the names to the model:
+types were kept only for "et leurs types" or "avec leurs types" ("and their
+types", "with their types"). The page being complete, the tools were then
+removed, and the model only had its memory to write the types.
+
+A row's types, generation or classification are now passed as soon as the
+question names them and the search does not filter on them. When filtered,
+their value is common to every row and stays omitted unless explicitly asked,
+which keeps the view short. No existing campaign case sees its view change; an
+added case checks the starters' types.
