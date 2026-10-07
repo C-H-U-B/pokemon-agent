@@ -187,7 +187,24 @@ mesures PokéAPI de la forme résolue, lues dans `pokemon` et `pokemon_species` 
 « Taille » et « Poids » (décimètres et hectogrammes en base, convertis en SQL et restitués avec leur
 unité, « 0,4 m », « 6,0 kg ») et « Taux de capture » (« 190 sur 255 », celui de l'espèce, stocké en
 texte et converti en entier). Un poids nul est une valeur de remplissage (Éthernatos Infinimax) et une
-entrée sans lien PokéAPI n'a pas de mesure : la rubrique est alors omise. `search_pokemon` filtre aussi par
+entrée sans lien PokéAPI n'a pas de mesure : la rubrique est alors omise.
+
+Entre le tableur et les mesures, la fiche porte des rubriques calculées en SQL depuis PokéAPI :
+
+| Rubrique | Source | Limite |
+| --- | --- | --- |
+| « Faiblesses de type », « Résistances de type », « Immunités de type » | `type_efficacy`, produit des facteurs des deux types de la ligne (« Roche (×4) ») | Table des types actuelle. Talents d'immunité de `ABILITY_IMMUNITIES` pris en compte : annulé par tous les talents de la fiche, le type devient « Sol (talent Lévitation) » ; par un seul, il garde son multiplicateur, « Sol (×2 ; immunisé avec le talent Lévitation) », ou « Eau (seulement avec le talent Peau Sèche) » s'il était neutre. Ni objet, ni talent qui réduit sans annuler (Isograisse), ni Garde Mystik. Un second type inconnu ne donne aucune rubrique, pas celles du premier seul |
+| « Ancien talent » | `pokemon_abilities_past`, `ability_names` | Daté par la dernière génération où il valait ; une ligne sans talent (emplacement pas encore créé) n'en est pas un |
+| « Anciennes statistiques » | `pokemon_stats_past` | Même datation ; le Spécial de la première génération est noté « G1 seulement » |
+| « Objets tenus à l'état sauvage » | `pokemon_items`, rareté et générations regroupées par objet | PokéAPI s'arrête à la septième génération ; jeux annexes exclus |
+| « Gigamax » | forme `<identifiant>-gmax` de l'entrée exacte | La capacité G-Max n'est pas en base |
+| « Jeux sans ce Pokémon depuis son introduction » | jeux où la forme n'apprend aucune capacité, après son premier jeu ; « aucun » s'il n'y en a pas | Déduction : la base n'a pas de table de présence par jeu. Seuls les jeux de `VERSION_GROUP_NAMES_FR` comptent ; sans aucun movepool, la rubrique est omise |
+
+Les quatre tables du second lot (`type_efficacy`, `pokemon_abilities_past`, `pokemon_stats_past`,
+`pokemon_items`, avec `ability_names`) manquent dans une base construite avant lui : leurs rubriques
+sont alors omises et la fiche reste servie (`_optional_rows` ne tolère que la table absente).
+
+`search_pokemon` filtre aussi par
 `subgroup` (une composante d'une valeur composée comme « Starter ; Fossile »),
 `evolution_stage` (base, intermediate, final, no-evolution, baby) et `ability`
 (talent 1, 2 ou caché, exposé `talent` par MCP et l'API ; une valeur inconnue est

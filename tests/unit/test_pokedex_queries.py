@@ -174,8 +174,12 @@ def spreadsheet(monkeypatch):
                'Insecte de début d’aventure ; Méga-Évolution','Top 10 global — Attaque',NULL,NULL,NULL,NULL,NULL,'Insecte','Poison',NULL,10090,NULL);
             -- Unités et type PokéAPI : décimètres, hectogrammes, taux de capture en TEXT. Le poids nul
             -- de la Méga est fictif : il tient lieu de valeur de remplissage (Éthernatos Infinimax).
-            CREATE TABLE pokemon(id INTEGER, species_id INTEGER, height INTEGER, weight INTEGER);
-            INSERT INTO pokemon VALUES (15,15,10,295), (10090,15,14,0);
+            CREATE TABLE pokemon(id INTEGER, species_id INTEGER, height INTEGER, weight INTEGER, identifier TEXT);
+            INSERT INTO pokemon VALUES (15,15,10,295,'beedrill'), (10090,15,14,0,'beedrill-mega');
+            -- Base d'avant le second lot PokéAPI : ni table des types, ni historique, ni objets tenus ;
+            -- sans movepool, aucune absence de jeu ne se déduit. La fiche garde ses seules rubriques d'origine.
+            CREATE TABLE version_groups(id INTEGER, identifier TEXT, generation_id INTEGER, "order" INTEGER);
+            CREATE TABLE pokemon_moves(pokemon_id INTEGER, version_group_id INTEGER);
             CREATE TABLE pokemon_species(id INTEGER, identifier TEXT, capture_rate TEXT);
             INSERT INTO pokemon_species VALUES (15,'beedrill','45');
             -- Dès que pokemon_species existe, la résolution de l'entrée passe par le catalogue des espèces.

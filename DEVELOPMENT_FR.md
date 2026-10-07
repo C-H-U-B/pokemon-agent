@@ -1662,3 +1662,41 @@ portaient le texte de leur forme Avatar, exclusive dans Noir/Blanc, alors que
 ces formes datent de Noir 2/Blanc 2. Leur rubrique est vidée. Une colonne
 fermée rend cherchable ce qu'elle copie, erreurs comprises : les lignes où une
 forme reprend le texte d'une autre sont relues avant d'être figées.
+
+## 87. [Feature] Faiblesses, historique et présence par jeu dans la fiche
+
+« Quelles sont les faiblesses de Dracaufeu ? » n'avait aucune source : la table
+des types n'était pas en base, et le modèle répondait de mémoire. Les talents
+et statistiques d'avant un changement, les objets tenus par les Pokémon
+sauvages et les jeux où un Pokémon manque étaient dans le même cas.
+
+Cinq fichiers PokéAPI de plus entrent dans la base, et la fiche d'un Pokémon
+nommé reçoit des rubriques calculées en SQL, sans nouvel outil. Les faiblesses,
+résistances et immunités sont le produit des facteurs des deux types :
+Dracaufeu craint la Roche quatre fois et n'a aucune faiblesse au Sol, que le
+type Vol annule. Un ancien talent ou une ancienne statistique est daté par la
+dernière génération où il valait (« Lévitation (jusqu'à la G6) »). Les objets
+tenus regroupent rareté et générations par objet. La forme Gigamax se lit sur
+l'entrée exacte, pas sur l'espèce.
+
+La base n'a pas de table de présence par jeu. Un jeu est compté « sans ce
+Pokémon » quand la forme n'y apprend aucune capacité, après son premier jeu.
+L'hypothèse a été vérifiée sur des cas connus avant d'être codée : Abo absent
+d'Épée et Bouclier mais présent dans Écarlate et Violet, Rattata absent des
+deux, Boréas Totémique sans capacité dans Noir et Blanc.
+
+Un talent qui annule un type compte dans le calcul. Si c'est le seul talent du
+Pokémon, le type quitte les faiblesses : Fantominus est immunisé au Sol par
+Lévitation. Si un seul de ses talents l'annule, le multiplicateur reste et le
+talent est nommé (« Sol (×2 ; immunisé avec le talent Lévitation) » pour
+Smogogo), car l'immunité dépend alors de l'individu.
+
+Les limites sont dites dans la donnée ou dans la description de l'outil : ni
+objet ni talent qui réduit sans annuler ; objets tenus connus jusqu'à la septième génération ;
+absences déduites. Une base construite avant ces fichiers garde sa fiche : les
+rubriques qui en dépendent sont omises.
+
+Un test a trouvé un défaut avant toute exécution réelle : un second type
+inconnu donnait les faiblesses du premier type seul, fausses pour ce Pokémon.
+La rubrique est maintenant omise. Sur la vraie base, chaque combinaison de
+types du tableur est comparée à une lecture indépendante de la table.

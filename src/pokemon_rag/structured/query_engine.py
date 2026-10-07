@@ -12,6 +12,7 @@ from pokemon_rag.constraints.query_constraints import (
     BASE_STAT_NAMES,
     MEASURE_NAMES,
     REGION_FORMS,
+    VERSION_GROUP_NAMES_FR,
     normalize as _normalize,
 )
 
@@ -22,6 +23,19 @@ BASE_STAT_FIELDS = {identifier: (column, BASE_STAT_NAMES[identifier]) for identi
     "special-attack":"attaque_speciale", "special-defense":"defense_speciale", "speed":"vitesse",
 }.items()}
 BASE_STAT_TOTAL = "base-stat-total"
+# Identifiants PokéAPI des statistiques (table `stats`, non importée) : 1 à 6 dans l'ordre ci-dessus,
+# 9 pour le Spécial de la première génération, scindé ensuite en Attaque et Défense Spéciales.
+# Talents qui annulent tout un type, nommés comme dans le tableur. PokéAPI ne décrit les effets des
+# talents qu'en prose : la liste est tenue ici. Terre Finale et Mer Primaire font échouer Eau et Feu.
+ABILITY_IMMUNITIES = {
+    "Lévitation": "Sol", "Absorbe-Terre": "Sol",
+    "Absorbe-Eau": "Eau", "Peau Sèche": "Eau", "Lavabo": "Eau", "Terre Finale": "Eau",
+    "Absorbe-Volt": "Électrik", "Paratonnerre": "Électrik", "Motorisé": "Électrik",
+    "Torche": "Feu", "Bien Cuit": "Feu", "Mer Primaire": "Feu",
+    "Herbivore": "Plante",
+}
+SPECIAL_STAT_ID = 9
+PAST_STAT_NAMES = {**dict(enumerate((label for _, label in BASE_STAT_FIELDS.values()), start=1)), SPECIAL_STAT_ID: "Spécial"}
 # Décimètres et hectogrammes dans PokéAPI, convertis en SQL ; un zéro est une valeur de remplissage,
 # exclue du classement comme une statistique NULL.
 MEASURE_FIELDS = {identifier: (f"NULLIF(p.{identifier}, 0) / 10.0", MEASURE_NAMES[identifier]) for identifier in MEASURE_NAMES}
@@ -1491,12 +1505,144 @@ def _measures(pokemon_id: int | None) -> dict[str, str]:
     return {label: text.format(value).replace(".", ",") for label, value, text in values if value is not None}
 
 
+def _optional_rows(conn: sqlite3.Connection, sql: str, parameters: tuple) -> list[sqlite3.Row]:
+    """Lignes d'une table PokéAPI du second lot ; une base construite avant lui n'a pas la table.
+
+    La rubrique est alors omise au lieu de faire échouer toute la fiche. Toute autre erreur SQL remonte.
+    """
+    try:
+        return conn.execute(sql, parameters).fetchall()
+    except sqlite3.OperationalError as exc:
+        if "no such table" not in str(exc):
+            raise
+        return []
+
+
+def _type_matchups(conn: sqlite3.Connection, type_1: str | None, type_2: str | None,
+                   abilities: tuple[str | None, ...] = ()) -> dict[str, str]:
+    """Faiblesses, résistances et immunités de la fiche : types multipliés en SQL, puis talents d'immunité.
+
+    Table des types actuelle. Un type que tous les talents de la fiche annulent devient une immunité ;
+    si un seul des talents l'annule, le type garde son multiplicateur et le talent est nommé. Ni objet,
+    ni talent qui réduit sans annuler (Isograisse), ni Garde Mystik.
+    """
+    pairs = tuple(ABILITY_IMMUNITIES.items())
+    held = (tuple(abilities) + (None, None, None))[:3]
+    rows = _optional_rows(conn, f"""
+        WITH immunity(ability, type) AS (VALUES {", ".join("(?, ?)" for _ in pairs)}),
+        held(slot, ability) AS (
+            SELECT column1, column2 FROM (VALUES (1, ?), (2, ?), (3, ?)) WHERE column2 IS NOT NULL AND column2 <> ''),
+        matchup AS (
+            SELECT attacking.name AS type, first.damage_type_id AS type_id,
+                first.damage_factor * COALESCE(second.damage_factor, 100) / 100 AS factor
+            FROM type_efficacy first
+            JOIN type_names attacking ON attacking.type_id = first.damage_type_id
+                AND attacking.local_language_id = (SELECT fr FROM language_ids)
+            JOIN type_names target_1 ON target_1.type_id = first.target_type_id
+                AND target_1.local_language_id = attacking.local_language_id AND target_1.name = ?
+            LEFT JOIN type_names target_2 ON target_2.local_language_id = attacking.local_language_id AND target_2.name = ?
+            LEFT JOIN type_efficacy second ON second.damage_type_id = first.damage_type_id
+                AND second.target_type_id = target_2.type_id
+            WHERE ? IS NULL OR target_2.type_id IS NOT NULL)  -- second type inconnu : rien, pas le premier seul
+        SELECT * FROM (
+            SELECT matchup.type, matchup.factor, matchup.type_id,
+                (SELECT group_concat(ability, ' ou ') FROM (
+                    SELECT held.ability FROM held JOIN immunity ON immunity.ability = held.ability
+                    WHERE immunity.type = matchup.type ORDER BY held.slot)) AS granted_by,
+                (SELECT COUNT(*) FROM held JOIN immunity ON immunity.ability = held.ability
+                    WHERE immunity.type = matchup.type) = (SELECT COUNT(*) FROM held) AS every_ability
+            FROM matchup)
+        WHERE factor <> 100 OR granted_by IS NOT NULL
+        ORDER BY factor DESC, type_id""",
+        (*(value for pair in pairs for value in pair), *held, type_1, type_2 or None, type_2 or None))
+    multipliers = {400: "×4", 200: "×2", 50: "×½", 25: "×¼"}
+    facts = {"Faiblesses de type": [], "Résistances de type": [], "Immunités de type": []}
+    for row in rows:
+        kind, factor, talent = row["type"], row["factor"], row["granted_by"]
+        by_type = "Faiblesses de type" if factor > 100 else "Résistances de type" if 0 < factor < 100 else "Immunités de type"
+        if factor == 0 or not talent:
+            facts[by_type].append(kind + (f" ({multipliers[factor]})" if factor else ""))
+        elif row["every_ability"]:
+            facts["Immunités de type"].append(f"{kind} (talent {talent})")
+        elif factor == 100:
+            facts["Immunités de type"].append(f"{kind} (seulement avec le talent {talent})")
+        else:
+            facts[by_type].append(f"{kind} ({multipliers[factor]} ; immunisé avec le talent {talent})")
+    return {label: ", ".join(values) for label, values in facts.items() if values}
+
+
+def _pokeapi_history(conn: sqlite3.Connection, pokemon_id: int) -> dict[str, str]:
+    """Talents et statistiques d'avant un changement, objets tenus, Gigamax et jeux sans ce Pokémon.
+
+    PokéAPI date un ancien talent ou une ancienne statistique par la dernière génération où il valait.
+    Objets et absences ne portent que sur les jeux de VERSION_GROUP_NAMES_FR. Un jeu est compté
+    « sans ce Pokémon » quand la forme n'y apprend aucune capacité, après son premier jeu : la base
+    n'a pas de table de présence par jeu.
+    """
+    games, facts = tuple(VERSION_GROUP_NAMES_FR), {}
+    marks = ", ".join("?" for _ in games)
+
+    abilities = _optional_rows(conn, """
+        SELECT names.name, past.is_hidden, past.generation_id FROM pokemon_abilities_past past
+        JOIN ability_names names ON names.ability_id = past.ability_id
+            AND names.local_language_id = (SELECT fr FROM language_ids)
+        WHERE past.pokemon_id = ? ORDER BY past.generation_id, past.slot""", (pokemon_id,))
+    facts["Ancien talent"] = " ; ".join(
+        f"{row['name']} ({'talent caché, ' if row['is_hidden'] else ''}jusqu'à la G{row['generation_id']})" for row in abilities)
+
+    stats = _optional_rows(conn, """SELECT stat_id, base_stat, generation_id FROM pokemon_stats_past
+        WHERE pokemon_id = ? ORDER BY generation_id, stat_id""", (pokemon_id,))
+    facts["Anciennes statistiques"] = " ; ".join(
+        f"{PAST_STAT_NAMES[row['stat_id']]} : {row['base_stat']} "
+        + ("(G1 seulement)" if row["stat_id"] == SPECIAL_STAT_ID
+           else f"(jusqu'à la G{row['generation_id']})")
+        for row in stats if row["stat_id"] in PAST_STAT_NAMES)
+
+    items = _optional_rows(conn, f"""
+        SELECT names.name, MIN(held.rarity) AS lowest, MAX(held.rarity) AS highest,
+            MIN(groups.generation_id) AS first_generation, MAX(groups.generation_id) AS last_generation
+        FROM pokemon_items held
+        JOIN versions ON versions.id = held.version_id
+        JOIN version_groups groups ON groups.id = versions.version_group_id AND groups.identifier IN ({marks})
+        JOIN item_names names ON names.item_id = held.item_id AND names.local_language_id = (SELECT fr FROM language_ids)
+        WHERE held.pokemon_id = ? GROUP BY held.item_id ORDER BY highest DESC, names.name""", (*games, pokemon_id))
+    facts["Objets tenus à l'état sauvage"] = ", ".join(
+        f"{row['name']} ("
+        + (f"{row['lowest']} %" if row["lowest"] == row["highest"] else f"{row['lowest']} à {row['highest']} %")
+        + ", " + (f"G{row['first_generation']}" if row["first_generation"] == row["last_generation"]
+                  else f"G{row['first_generation']}–G{row['last_generation']}") + ")"
+        for row in items)
+
+    gigantamax = conn.execute("""SELECT 1 FROM pokemon base JOIN pokemon gmax ON gmax.identifier = base.identifier || '-gmax'
+        WHERE base.id = ?""", (pokemon_id,)).fetchone()
+    if gigantamax:
+        facts["Gigamax"] = "Forme Gigamax dans " + VERSION_GROUP_NAMES_FR["sword-shield"]
+
+    first_game = conn.execute(f"""SELECT MIN(groups."order") FROM version_groups groups
+        WHERE groups.identifier IN ({marks}) AND EXISTS (
+            SELECT 1 FROM pokemon_moves moves WHERE moves.pokemon_id = ? AND moves.version_group_id = groups.id)""",
+        (*games, pokemon_id)).fetchone()[0]
+    if first_game is not None:
+        missing = conn.execute(f"""SELECT groups.identifier FROM version_groups groups
+            WHERE groups.identifier IN ({marks}) AND groups."order" > ? AND NOT EXISTS (
+                SELECT 1 FROM pokemon_moves moves WHERE moves.pokemon_id = ? AND moves.version_group_id = groups.id)
+            ORDER BY groups."order\"""", (*games, first_game, pokemon_id)).fetchall()
+        facts["Jeux sans ce Pokémon depuis son introduction"] = (
+            " ; ".join(VERSION_GROUP_NAMES_FR[row["identifier"]] for row in missing) or "aucun")
+    return {label: value for label, value in facts.items() if value}
+
+
 def get_particularities(pokemon: str, form: str | None = None) -> dict[str, Any]:
-    """Fiche d'un Pokémon nommé : rubriques du tableur, puis taille, poids et taux de capture ; les rubriques vides sont omises."""
+    """Fiche d'un Pokémon nommé : rubriques du tableur, faits calculés depuis PokéAPI, puis mesures ; les rubriques vides sont omises."""
     result, row, start = _spreadsheet_result(
         "get_particularities", pokemon, form, "pokemon_id, " + ", ".join(column for column, _ in PARTICULARITY_FIELDS))
     facts = {label: _readable(row[column]) for column, label in PARTICULARITY_FIELDS if row[column] not in (None, "")}
-    return {**result, "rows": [{"name_fr": result["pokemon"], **facts, **_measures(row["pokemon_id"])}],
+    with closing(_connect()) as conn:
+        derived = _type_matchups(conn, row["type_1"], row["type_2"],
+                                 (row["talent_1"], row["talent_2"], row["talent_cache"]))
+        if row["pokemon_id"] is not None:
+            derived |= _pokeapi_history(conn, row["pokemon_id"])
+    return {**result, "rows": [{"name_fr": result["pokemon"], **facts, **derived, **_measures(row["pokemon_id"])}],
             "execution_time": time.perf_counter() - start}
 
 

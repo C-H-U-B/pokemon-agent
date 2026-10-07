@@ -40,6 +40,12 @@ CSV_FILES = [
     "type_names.csv",
     "regions.csv",
     "region_names.csv",
+    # Second lot : faits calculés ou historiques joints à la fiche d'un Pokémon nommé.
+    "type_efficacy.csv",
+    "ability_names.csv",
+    "pokemon_abilities_past.csv",
+    "pokemon_stats_past.csv",
+    "pokemon_items.csv",
 ]
 
 # Colonnes utilisées comme IDs, nombres, niveaux, flags, etc.
@@ -63,6 +69,7 @@ INTEGER_NAMES = {
     "is_default", "is_battle_only", "is_mega", "form_order",
     "needs_overworld_rain", "turn_upside_down", "needs_multiplayer",
     "near_special_rock",
+    "damage_factor", "rarity", "base_stat", "effort", "slot", "is_hidden",
 }
 
 
@@ -213,6 +220,12 @@ def create_indexes(conn: sqlite3.Connection) -> None:
         "CREATE UNIQUE INDEX idx_regions_id ON regions(id)",
         "CREATE INDEX idx_regions_identifier ON regions(identifier)",
         "CREATE INDEX idx_region_names_lookup ON region_names(region_id, local_language_id)",
+
+        "CREATE INDEX idx_type_efficacy_target ON type_efficacy(target_type_id, damage_type_id)",
+        "CREATE INDEX idx_ability_names_lookup ON ability_names(ability_id, local_language_id)",
+        "CREATE INDEX idx_abilities_past_pokemon ON pokemon_abilities_past(pokemon_id)",
+        "CREATE INDEX idx_stats_past_pokemon ON pokemon_stats_past(pokemon_id)",
+        "CREATE INDEX idx_pokemon_items_pokemon ON pokemon_items(pokemon_id)",
     ]
 
     for statement in tqdm(
