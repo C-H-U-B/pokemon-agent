@@ -11,7 +11,7 @@ from pokemon_rag.constraints.query_constraints import (
     normalize,
     named_version_groups, without_unjustified_filters,
 )
-from pokemon_rag.structured.query_engine import pokemon_name_catalogue, get_pokedex_identity
+from pokemon_rag.structured.query_engine import pokemon_name_catalogue, get_pokedex_identity, talent_names
 
 
 VERSION_GROUP_TOOLS = {
@@ -145,7 +145,7 @@ def before_tool_guard(
     historical_without_named_game = historical and not named_version_groups(normalize(question))
 
     # Observé : talent="none", subgroup="Galar", evolution_stage="final" sans rapport avec la question.
-    corrected = without_unjustified_filters(question, args)
+    corrected = without_unjustified_filters(question, args, known_talents=talent_names)
     try:
         constraints = extract_explicit_constraints(question)
         required = _explicit_arguments(constraints)
