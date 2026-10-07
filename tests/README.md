@@ -62,6 +62,7 @@ décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 | Client MCP | `integration/test_mcp_client.py`, puis `long/test_mcp_client_e2e.py` exécuté par l'utilisateur |
 | Contraintes MCP | `unit/test_mcp_constraint_preservation.py` : extraction et réconciliation sans LLM |
 | Guard ADK | `unit/test_adk_tool_guard.py` : callback et vrais extracteurs, contexte et outils ADK simulés, sans LLM ni serveur MCP |
+| Extracteur de contraintes (jeux, formes) | `unit/test_structured_constraint_guard.py`, puis `integration/test_constraint_vocabulary.py` : tous les noms français de la base, aucun ne doit produire de jeu ni de forme |
 | Sessions Web | `unit/test_web_request_sessions.py` : runner ADK simulé ; questions indépendantes, historique affiché conservé, suppression des sessions après succès ou erreur ; temps d'outil et tokens du panneau, démarrage anticipé du serveur d'outils |
 | Serveur MCP | `integration/test_mcp_server.py` : vrai transport stdio et outil structuré, sans Qwen |
 | API HTTP | `unit/test_api.py` : vraie application FastAPI et vraies fonctions d'outils, moteur simulé ; les onze routes structurées, 404 ou 400 sur refus du moteur, 422 hors schéma, 503 pour une base absente |
@@ -208,7 +209,12 @@ Il couvre les nombres de domaines distincts, types de Pokémon/capacités,
 catégories, bornes, régions multiples et titres complets de jeux. Les refus
 doivent préserver la proposition d'origine et exposer les arguments requis.
 Il vérifie aussi qu'une méthode d'apprentissage absente de la question est
-retirée, et conservée dès que la question en mentionne une. Les trois cas
+retirée, et conservée dès que la question en mentionne une ; qu'un nom de jeu
+contenu dans un nom ou « dans la » ne produit pas de jeu, qu'une région citée
+comme lieu ne produit pas de forme, qu'une valeur de remplissage, une valeur
+absente de la base ou un filtre légendaire non demandé est retiré, et que
+`limit=0` n'est gardé que pour un comptage. Le catalogue des valeurs de filtres
+est injecté par `unit/conftest.py`. Les trois cas
 `moves-*` de la campagne attendent `learning_method` absent, pour qu'une
 méthode inventée apparaisse dans le diagnostic de proposition.
 `integration/test_mcp_server.py` vérifie aussi guard → vrai MCP stdio → SQLite :
@@ -219,11 +225,14 @@ vérifie les jeux récents, anciens et historiques, sans LLM.
 Les tests du vrai runner simulant le modèle couvrent également les listes de
 huit et neuf résultats ainsi que les CT d'un Pokémon substitué par Qwen.
 
-La campagne structurée compte 34 cas : types, identité, évolutions (dont deux
+La campagne structurée compte 39 cas : types, identité, évolutions (dont deux
 gains de niveau sans seuil : une capacité connue, un nombre de pas), capacités,
 recherche et classements, statistiques et particularités d'un Pokémon nommé,
-recherche par sous-groupe, talent et stade d'évolution, un comptage et un
-Pokémon inconnu dont la réponse attendue est l'abstention. Elle évite les
+recherche par sous-groupe, talent et stade d'évolution, un comptage, un
+Pokémon inconnu dont la réponse attendue est l'abstention, et des mots
+ordinaires qui ne doivent pas devenir des contraintes (nom de jeu dans un nom
+de capacité ou d'espèce, « dans la », région citée comme lieu, valeur de
+remplissage proposée par le modèle). Elle évite les
 listes longues, qui allongent la génération sans rien vérifier de plus. Le
 rapport et chaque ligne JSONL nomment le modèle et le serveur utilisés.
 Pour une évolution, chaque condition renvoyée par l'outil (nombre, nom

@@ -328,6 +328,48 @@ CASES = [
         {"pokemon": "nigirigon", "min_power": 80, "move_type":"water", "damage_class":"special", "learning_method": None},
         note="Composition type + catégorie + puissance.",
     ),
+
+    # --- Mots ordinaires qui ne sont pas des contraintes ---
+    Case(
+        "game-word-inside-move-name",
+        "Comment Bulbizarre apprend-il Lance-Soleil ?",
+        "pokemon_move_learning_methods",
+        {"pokemon": "Bulbizarre", "move": "Lance-Soleil", "version_group": None},
+        ("36",),
+        note="« Soleil » dans un nom de capacité n'impose pas Pokémon Soleil et Lune.",
+    ),
+    Case(
+        "game-word-inside-pokemon-name",
+        "Quels sont les types de Rugit-Lune ?",
+        "pokemon_types",
+        {"pokemon": "Rugit-Lune"},
+        ("Dragon", "Ténèbres"),
+        note="« Lune » dans un nom d'espèce ne fait pas refuser l'outil de types.",
+    ),
+    Case(
+        "dans-is-not-a-game",
+        "Quels Pokémon de type Feu dans la première génération ?",
+        "pokemon_search",
+        {"types": ["fire"], "generation": 1},
+        ("Salamèche", "Arcanin"),
+        note="« dans la » ne désigne pas un jeu inconnu : la recherche n'est pas refusée.",
+    ),
+    Case(
+        "region-as-a-place",
+        "Quels Pokémon viennent de Galar ?",
+        "pokemon_search",
+        {"generation": 8, "form": None},
+        ("Ouistempo",),
+        note="Région géographique : génération 8, aucune forme de Galar ajoutée (0 résultat sinon).",
+    ),
+    Case(
+        "placeholder-filter-removed",
+        "Quels sont les starters de première génération ?",
+        "pokemon_search",
+        {"subgroup": "Starter", "generation": 1, "talent": None},
+        ("Bulbizarre", "Salamèche", "Carapuce"),
+        note="Un talent « none » proposé par le modèle est retiré au lieu de faire échouer la recherche.",
+    ),
 ]
 
 
