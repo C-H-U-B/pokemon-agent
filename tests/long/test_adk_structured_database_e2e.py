@@ -387,6 +387,14 @@ CASES = [
         ("Pikachu", "Évoli"),
         note="Pikachu et Évoli, sans leurs évolutions.",
     ),
+    Case(
+        "list-with-requested-field",
+        "Quels sont les types des starters de première génération ?",
+        "pokemon_search",
+        {"subgroup": "Starter", "generation": 1},
+        ("Bulbizarre", "Salamèche", "Carapuce", "Plante", "Poison", "Feu", "Eau"),
+        note="Champ demandé sur une liste : les types doivent atteindre le modèle, pas venir de sa mémoire.",
+    ),
 ]
 
 

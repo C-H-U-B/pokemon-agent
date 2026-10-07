@@ -1500,3 +1500,17 @@ La même détection sert à la campagne, qui l'importe au lieu d'en garder une
 copie. Rejouée sur toutes les réponses enregistrées, elle n'en aurait remplacé
 que des fausses : les légendaires niés, un nom déformé et des starters
 contredisant l'ancienne classification.
+
+
+## 79. [Bug fix] Champ demandé sur une liste transmis au modèle
+
+« Quels sont les types des starters de première génération ? » ne transmettait
+au modèle que les noms : les types n'étaient gardés que pour « et leurs types »
+ou « avec leurs types ». La page étant complète, les outils étaient ensuite
+retirés, et le modèle n'avait que sa mémoire pour rédiger les types.
+
+Les types, la génération ou la classification d'une ligne sont désormais
+transmis dès que la question les nomme et que la recherche ne filtre pas
+dessus. Filtrés, leur valeur est commune à toutes les lignes et reste omise,
+sauf demande explicite, ce qui garde la vue courte. Aucun cas existant de la
+campagne ne voit sa vue changer ; un cas ajouté vérifie les types des starters.
