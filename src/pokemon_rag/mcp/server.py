@@ -74,8 +74,8 @@ def pokemon_search(
     form_category: Annotated[Literal["mega"] | None,
                              Field(description="mega : toutes les Méga ; se combine avec le tri et best_only.")] = None,
     sort_by: Annotated[Literal["national_number", "hp", "attack", "defense", "special-attack",
-                              "special-defense", "speed", "base-stat-total"],
-                       Field(description="Statistique à classer : PV=hp, Vitesse=speed, total des six=base-stat-total.")] = "national_number",
+                              "special-defense", "speed", "base-stat-total", "height", "weight"],
+                       Field(description="Statistique à classer : PV=hp, Vitesse=speed, total des six=base-stat-total. Taille=height (grand, petit), poids=weight (lourd, gros, léger).")] = "national_number",
     sort_order: Annotated[Literal["asc", "desc"],
                           Field(description="desc : le plus/meilleur/rapide ; asc : le moins/lent.")] = "asc",
     best_only: Annotated[bool, Field(description="true : superlatif sans nombre (« le plus rapide », « les plus lents »), garde tous les ex aequo. false : liste simple ou top N chiffré.")] = False,
@@ -110,6 +110,7 @@ def pokemon_search(
     Pour nommer ces capacités si elles sont demandées, appeler pokemon_moves.
     sort_by : national_number, hp, attack, defense, special-attack,
     special-defense, speed, base-stat-total. Hors IV/EV/nature/niveau/combat.
+    Aussi height (taille en mètres) et weight (poids en kilogrammes).
     Restituer name_fr et base_stat_value avec stat_name_fr ; égalités via tie/tie_count.
     best_only : filtre au minimum/maximum SQL, avec best_value et tie_count.
     Les ex aequo restent paginés ; total_count compte les gagnants, matching_count
@@ -306,7 +307,7 @@ def pokemon_particularities(
     pokemon: str,
     form: str | None = None,
 ) -> dict[str, Any]:
-    """Pokémon nommé → ses talents et particularités : sous-groupe, stade d'évolution, statistiques remarquables (rangs, records, baisse en évoluant), obtention.
+    """Pokémon nommé → ses talents et particularités : sous-groupe, stade d'évolution, statistiques remarquables (rangs, records, baisse en évoluant), obtention. Aussi sa taille, son poids et son taux de capture (3 à 255 ; élevé = capture facile).
 
     Aussi : double type unique, ancien type, mise en avant, particularité du movepool, différences selon le sexe.
 

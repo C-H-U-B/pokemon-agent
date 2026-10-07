@@ -90,6 +90,15 @@ contraintes, `ORDER BY` pour la statistique, `LIMIT/OFFSET` pour la page.
 | `special-defense` | Défense Spéciale | `defense_speciale` |
 | `speed` | Vitesse | `vitesse` |
 | `base-stat-total` | Total des statistiques | somme SQL des six colonnes |
+| `height` | Taille (m) | `pokemon.height`, décimètres convertis en mètres |
+| `weight` | Poids (kg) | `pokemon.weight`, hectogrammes convertis en kilogrammes |
+
+Taille et poids ne sont pas des statistiques de base : ce sont des mesures PokéAPI de la forme,
+classées par le même mécanisme (`MEASURE_NAMES` dans les contraintes, `MEASURE_FIELDS` dans le
+moteur). La conversion se fait en SQL ; une valeur nulle est une valeur de remplissage, exclue du
+classement comme une statistique NULL. `stat_name_fr` porte l'unité (« Taille (m) »). Le taux de
+capture ne se classe pas : 76 Pokémon partagent le minimum et 87 le maximum, plus que les 30 lignes
+couvertes par le contrôle de fidélité des listes ; il se lit dans la fiche d'un Pokémon nommé.
 
 `BASE_STAT_NAMES` dans les contraintes centralise les identifiants et libellés ;
 `BASE_STAT_FIELDS` dans le moteur associe les colonnes SQL. Les appels directs au moteur
@@ -171,7 +180,12 @@ somme SQL, pas la valeur stockée. `get_particularities` réécrit en clair la
 notation abrégée du tableur (`_readable` : « Bottom 10 global — PV #3 » devient
 « Parmi tous les Pokémon — PV : 3e plus basse » : le sens est porté par chaque
 valeur, une légende en tête était lue comme un fait) et retire les renvois au classeur, sans calculer ni
-modifier une valeur : le modèle recopiait la notation telle quelle. `search_pokemon` filtre aussi par
+modifier une valeur : le modèle recopiait la notation telle quelle. La fiche se termine par trois
+mesures PokéAPI de la forme résolue, lues dans `pokemon` et `pokemon_species` et non dans le tableur :
+« Taille » et « Poids » (décimètres et hectogrammes en base, convertis en SQL et restitués avec leur
+unité, « 0,4 m », « 6,0 kg ») et « Taux de capture » (« 190 sur 255 », celui de l'espèce, stocké en
+texte et converti en entier). Un poids nul est une valeur de remplissage (Éthernatos Infinimax) et une
+entrée sans lien PokéAPI n'a pas de mesure : la rubrique est alors omise. `search_pokemon` filtre aussi par
 `subgroup` (une composante d'une valeur composée comme « Starter ; Fossile »),
 `evolution_stage` (base, intermediate, final, no-evolution, baby) et `ability`
 (talent 1, 2 ou caché, exposé `talent` par MCP et l'API ; une valeur inconnue est

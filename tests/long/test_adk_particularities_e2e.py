@@ -25,6 +25,12 @@ RUN_ID = datetime.now().astimezone().isoformat(timespec="seconds")
 FICHE = "pokemon_particularities"
 STATS, OBTAINING, HIGHLIGHT = "Statistiques remarquables", "Rencontre ou obtention à l'introduction", "Mise en avant à l'introduction"
 MOVEPOOL, OTHER, GENDER = "Particularité du movepool", "Autre particularité", "Différences selon le sexe"
+# Fiche réduite aux rubriques que tout Pokémon possède : le tableur ne note rien de particulier (49 fiches).
+NOTHING = "une particularité"
+COMMON = {"name_fr", "Type 1", "Type 2", "Talent 1", "Talent 2", "Talent caché", "Stade d'évolution",
+          "Taille", "Poids", "Taux de capture"}
+# Ce qu'une réponse ne peut ni affirmer ni nier quand la fiche n'en dit rien.
+UNRECORDED = (r"Méga-Évolutions?", r"légendaires?", r"fabuleux", r"records?", r"signatures?", r"Paradoxe", r"formes? alternatives?")
 
 
 @dataclass(frozen=True)
@@ -69,7 +75,7 @@ CASES = [
     Case("movepool-coverage", "Qu'a de particulier le movepool de Léviator ?", MOVEPOOL, ("Tonnerre", "Laser Glace")),
     Case("movepool-single-move", "Qu'a de particulier le movepool de Métamorph ?", MOVEPOOL, ("Morphing",)),
     # --- Autre particularité : rubrique fourre-tout, un cas par sorte de fait ---
-    Case("other-former-type", "Rondoudou a-t-il toujours été de type Fée ?", OTHER, ("Normal",), (),
+    Case("other-former-type", "Rondoudou a-t-il toujours été de type Fée ?", "Ancien type", ("Normal",), (),
          "L'outil des types ne connaît que les types actuels : l'historique n'est que dans la fiche."),
     Case("other-paradox-counterpart", "Magnéton a-t-il un équivalent Paradoxe ?", OTHER, ("Pelage-Sablé",)),
     Case("other-mega-evolution", "Depuis quelle génération Dracaufeu a-t-il une Méga-Évolution ?", OTHER,
@@ -84,11 +90,22 @@ CASES = [
          (r"aucune différence", r"pas de différence", r"ne présente"),
          "Régression : la recherche documentaire était appelée et l'absence affirmée (« Non, aucune différence »). "
          "Une rubrique absente veut dire que le tableur ne note rien, pas que le fait est faux.", absent=True),
+    # --- Pokémon sans particularité : la fiche ne contient que types, talents et stade ---
+    Case("nothing-special", "Qu'a de particulier Barbicha ?", NOTHING, ("Benêt",), UNRECORDED,
+         "Rien de noté : la réponse restitue les talents et le stade, sans inventer ni nier une particularité.", absent=True),
+    Case("nothing-special-yes-no", "Tropius a-t-il quelque chose d'unique ?", NOTHING, (), UNRECORDED,
+         "Question fermée sur une fiche vide : ni « oui » inventé, ni « non » tiré d'une absence. À relire.", absent=True),
     # --- Rubriques fermées que la campagne structurée ne pose pas sous cette forme ---
     Case("unique-type-pair", "Léviator avait-il une combinaison de types unique à sa sortie ?",
          "Double type unique à l'introduction", ("Eau", "Vol")),
     Case("signature-talent", "Quel est le talent signature de Métamorph ?", "Talent signature", ("Imposteur",)),
     Case("evolution-stage", "À quel stade d'évolution est Rondoudou ?", "Stade d'évolution", (r"intermédiaire",)),
+    # --- Mesures PokéAPI jointes à la fiche : l'unité est portée par la valeur ---
+    Case("measure-weight", "Combien pèse Ronflex ?", "Poids", (r"460(,0)?", r"kg|kilogrammes?"), (r"4\s?600", "hectogrammes?"),
+         "La base stocke 4600 hectogrammes : la réponse doit donner 460 kg."),
+    Case("measure-capture-rate", "Mewtwo est-il facile à capturer ?", "Taux de capture",
+         ("3", r"difficile|pas facile|faible|bas"), (),
+         "Sens du taux : 3 sur 255 est le plus bas. La conclusion (difficile) est à relire, le contrôle ne lit que des mots."),
 ]
 
 
@@ -102,7 +119,7 @@ def _checks(case: Case, calls: list[dict], responses: list[dict], answer: str) -
     called = any(call["name"] == FICHE for call in calls)
     checks = [(called, "fiche des particularités demandée")]
     if called:
-        received = any(case.rubric in row for row in sheets)
+        received = any(set(row) - COMMON if case.rubric == NOTHING else case.rubric in row for row in sheets)
         checks.append((received != case.absent, f"rubrique « {case.rubric} » {'absente' if case.absent else 'reçue'}"))
     checks.append((bool(answer) and answer not in (BUDGET_ABSTENTION, DOUBLE_REQUEST_REFUSAL, TOOL_FAILURE_ABSTENTION),
                    "réponse rédigée"))

@@ -239,6 +239,11 @@ def test_empty_superlative_does_not_invent_a_winner(stat_catalogue):
     ({"sort_by":"attack","sort_order":"desc","form_category":"mega"}, ["Méga-Mewtwo X"], 190),
     ({"sort_by":"base-stat-total","sort_order":"desc"}, ["Arceus"], 720),
     ({"sort_by":"base-stat-total","sort_order":"desc","types":["Eau","Vol"],"type_match":"exact"}, ["Léviator"], 540),
+    # Mesures PokéAPI converties en mètres et kilogrammes ; Éthernatos Infinimax (100 m) n'est pas une forme par défaut.
+    ({"sort_by":"height","sort_order":"desc"}, ["Éthernatos"], 20.0),
+    ({"sort_by":"weight","sort_order":"desc"}, ["Cosmovum","Bamboiselle"], 999.9),
+    ({"sort_by":"weight","sort_order":"desc","types":["Eau"]}, ["Wailord"], 398.0),
+    ({"sort_by":"height","sort_order":"desc","form_category":"mega"}, ["Méga-Rayquaza"], 10.8),
 ])
 def test_rankings_against_actual_catalogue_without_llm(filters, expected, value):
     result = engine.search_pokemon(**filters, best_only=True)

@@ -196,6 +196,23 @@ CASES = [
         note="Double type + statistique calculée en SQL.",
     ),
     Case(
+        "tallest",
+        "Quel est le plus grand Pokémon ?",
+        "pokemon_search",
+        {"sort_by": "height", "sort_order": "desc", "best_only": True},
+        ("Éthernatos", "20"),
+        ("Arceus",),
+        note="Régression : sans critère de taille, le modèle triait sur le total des statistiques (« Arceus »).",
+    ),
+    Case(
+        "heaviest-tie",
+        "Quel est le Pokémon le plus lourd ?",
+        "pokemon_search",
+        {"sort_by": "weight", "sort_order": "desc", "best_only": True},
+        ("Cosmovum", "Bamboiselle", "999"),
+        note="Poids en kilogrammes et deux ex æquo à 999,9 kg.",
+    ),
+    Case(
         "top-five-ghost-special-attack",
         "Quels sont les 5 Pokémon Spectre avec le plus d'Attaque Spéciale ?",
         "pokemon_search",
@@ -627,7 +644,12 @@ def _factual_checks(result, answer):
         for row in result.get("results",[]):
             for value in (row.get("name_fr"),stat_value(row)):
                 if value is not None and require_all:
-                    present = (bool(re.search(rf"(?<!\d){re.escape(str(value))}(?!\d)",answer))
+                    # Une mesure décimale se rédige à la française : 20.0 vaut « 20 » ou « 20,0 », 999.9 « 999,9 ».
+                    number = re.escape(str(value))
+                    if type(value) is float:
+                        whole, _, decimals = f"{value:g}".partition(".")
+                        number = whole + (f"[.,]{decimals}" if decimals else "(?:[.,]0+)?") + r"(?![.,]\d)"
+                    present = (bool(re.search(rf"(?<!\d){number}(?!\d)",answer))
                                if type(value) in {int,float} else _affirmed(str(value), answer))
                     checks.append((present,f"Résultat final restitue {value!r}",f"Résultat final omet {value!r}"))
         stat = result.get("stat_name_fr")

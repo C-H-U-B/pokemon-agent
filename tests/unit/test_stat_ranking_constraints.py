@@ -162,6 +162,37 @@ def test_superlative_about_something_else_is_still_not_a_pokemon_ranking():
     assert extract_stat_ranking_args("Quelle est la capacité la plus puissante de Dracolosse ?") is None
 
 
+@pytest.mark.parametrize("question, expected", [
+    # Régression (trace Web du 7 octobre) : refusé, puis accepté avec limit=1 et trié sur le total → « Arceus ».
+    ("quel est le plus grand pokemon", {"sort_by": "height", "sort_order": "desc", "best_only": True}),
+    ("Quel est le plus petit Pokémon légendaire ?", {"sort_by": "height", "sort_order": "asc", "best_only": True}),
+    ("Quel Pokémon est le plus lourd ?", {"sort_by": "weight", "sort_order": "desc", "best_only": True}),
+    ("Quel est le plus gros Pokémon de type Eau ?", {"sort_by": "weight", "sort_order": "desc", "best_only": True}),
+    ("Quel est le Pokémon de type Feu le plus léger ?", {"sort_by": "weight", "sort_order": "asc", "best_only": True}),
+    ("Quels sont les 5 Pokémon les plus lourds ?", {"sort_by": "weight", "sort_order": "desc", "best_only": False, "limit": 5}),
+    ("Quelle est la plus grande Méga-Évolution ?", {"sort_by": "height", "sort_order": "desc", "form_category": "mega"}),
+    # L'adjectif qualifie une statistique : ce n'est pas une taille.
+    ("Quel Pokémon a la plus grande Attaque ?", {"sort_by": "attack", "sort_order": "desc"}),
+    ("Quel Pokémon a le plus gros total de statistiques ?", {"sort_by": "base-stat-total", "sort_order": "desc"}),
+])
+def test_size_and_weight_superlatives_qualify_the_pokemon_not_a_statistic(question, expected):
+    ranking = extract_stat_ranking_args(question)
+    assert ranking is not None and expected.items() <= ranking.items()
+
+
+@pytest.mark.parametrize("question", [
+    "Quel Pokémon a le plus grand nombre de PV ?", "Quel Pokémon a la plus grande statistique ?",
+    "Qui est le plus lourd entre Ronflex et Wailord ?", "Quel est le Pokémon le plus fort ?",
+])
+def test_size_words_about_something_else_are_left_to_the_existing_rules(question):
+    assert extract_stat_ranking_args(question) is None
+
+
+def test_size_and_another_criterion_in_one_superlative_are_ambiguous_not_silently_reduced():
+    with pytest.raises(ValueError, match="ambigu"):
+        extract_stat_ranking_args("Quel est le Pokémon le plus grand et le plus rapide ?")
+
+
 @pytest.mark.real_data
 def test_every_subgroup_alias_names_a_value_of_the_spreadsheet():
     import sqlite3

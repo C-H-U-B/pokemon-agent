@@ -228,9 +228,9 @@ vérifie les jeux récents, anciens et historiques, sans LLM.
 Les tests du vrai runner simulant le modèle couvrent également les listes de
 huit et neuf résultats ainsi que les CT d'un Pokémon substitué par Qwen.
 
-La campagne structurée compte 42 cas : types, identité, évolutions (dont deux
+La campagne structurée compte 44 cas : types, identité, évolutions (dont deux
 gains de niveau sans seuil : une capacité connue, un nombre de pas), capacités,
-recherche et classements, statistiques et particularités d'un Pokémon nommé,
+recherche et classements (statistiques, taille et poids), statistiques et particularités d'un Pokémon nommé,
 recherche par sous-groupe, talent et stade d'évolution, un comptage, un
 Pokémon inconnu dont la réponse attendue est l'abstention, et des mots
 ordinaires qui ne doivent pas devenir des contraintes (nom de jeu dans un nom
@@ -267,7 +267,7 @@ portent sur le déroulement (recherche appelée, passages reçus, refus d'une
 double demande), pas sur la fidélité de la réponse : celle-ci se juge
 par relecture du rapport `test_results/adk_documentary_e2e.md`, qui place la
 réponse en regard des passages renvoyés.
-`long/test_adk_particularities_e2e.py` est une campagne séparée de 26
+`long/test_adk_particularities_e2e.py` est une campagne séparée de 30
 questions sur la fiche du tableur, une par sorte de fait des rubriques en
 texte libre (rangs et records de statistiques, obtention, mise en avant,
 movepool, ancien type, différences selon le sexe, rubrique absente). Chaque

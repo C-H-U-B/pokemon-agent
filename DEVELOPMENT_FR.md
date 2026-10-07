@@ -1613,3 +1613,31 @@ Second passage : 13 sur 26, écart dans le bruit ; Abo et les rangs passent,
 Rondoudou passe sur un essai dans l'interface. Restent ouverts les négations
 tirées d'une absence (« Dracaufeu n'a pas de Méga-Évolution » d'après une liste
 d'évolutions vide) et les questions que le modèle envoie à un autre outil.
+
+## 85. [Feature] Taille, poids et taux de capture
+
+« Quel est le plus grand Pokémon ? » était refusé par le guard, puis accepté
+quand le modèle demandait une seule ligne triée sur le total des statistiques :
+la réponse était « Arceus ». La taille, le poids et le taux de capture étaient
+dans la base PokéAPI, mais aucun outil ne les renvoyait.
+
+La fiche d'un Pokémon nommé se termine maintenant par ces trois mesures, lues
+dans la base et non dans le tableur. La base stocke des décimètres et des
+hectogrammes : la conversion se fait en SQL et l'unité est écrite dans la valeur
+(« 0,4 m », « 6,0 kg », « 190 sur 255 »). Un poids nul, valeur de remplissage
+d'Éthernatos Infinimax, est omis.
+
+La recherche classe aussi par taille et par poids, avec le mécanisme des
+statistiques de base : superlatif, ex æquo et top N. Le guard impose le critère
+pour « le plus grand », « le plus petit », « le plus lourd », « le plus gros » et
+« le plus léger », seulement quand l'adjectif qualifie le Pokémon : « la plus
+grande Attaque » reste un classement par Attaque. Le taux de capture ne se
+classe pas : 76 Pokémon partagent le minimum et 87 le maximum, plus que les
+listes dont la réponse est contrôlée.
+
+Avec Qwen, le poids de Ronflex a d'abord été lu dans les statistiques de base
+(« Ronflex pèse 160 ») : le modèle ne reçoit que le premier paragraphe de la
+description d'un outil, et les mesures étaient annoncées plus bas. Une fois
+remontées dans ce paragraphe, la fiche est demandée et la réponse est
+« 460,0 kg ». Le contrôle de campagne comptait aussi pour omise une valeur
+écrite « 20,0 » quand il attendait « 20.0 » : il accepte désormais la virgule.
