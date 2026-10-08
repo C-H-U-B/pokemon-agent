@@ -1702,3 +1702,94 @@ disappears over ten runs. Nor did the sentence do its job: to "Comment
 obtient-on Mewtwo ?", the release-time encounter was given in the present
 tense, undated, with or without it. The sentence is removed from the
 instruction.
+
+
+## 90. [Feature] Hosted demo with a remote model
+
+The project only ran on a machine with its local model. Showing it required a
+public demo, on a host with no persistent disk and no graphics card.
+
+A `demo` target in the `Dockerfile` builds a self-contained image: the
+database and the index are downloaded from the release at build time, with
+their checksums verified, and the retrieval models are included. The language
+model stays external and is set at deployment through variables: the demo uses
+Gemini through its OpenAI-compatible API, with no code change. The activity
+panel shows the name of the served model instead of a hard-coded one.
+
+Measuring the image revealed that the tool server only received a reduced
+environment: the setting that forbids access to Hugging Face was ignored, and
+every start queried the network. These variables are now forwarded to it.
+
+Two settings follow from the remote model. Gemini counts its reasoning within
+the output limit, which cut long answers: the limit becomes configurable, and
+the trace records the reasoning tokens and whether the limit was reached. Since
+the trace file disappears with the instance, the demo image also writes traces
+to standard output, which the host keeps.
+
+The batch question script gains a mode that asks each question through the
+interface path, with the configured model. As the remote model is paid, a file
+gathers a few targeted questions, each preceded by the error it looks for,
+rather than a list replayed at random.
+
+
+## 91. [Feature] Interface prepared for visitors
+
+The interface had been written for its author. In front of a visitor, several
+behaviours no longer fitted.
+
+A failure of the model server displayed the raw technical error. The visitor
+now reads a plain message, and the detail goes to the log and to the trace. An
+abandoned question kept being processed: closing the tab or starting a new
+conversation now stops the agent and deletes its session.
+
+The page opens on an introduction: what the tool does, the served model, the
+repository link and the fact that questions are recorded. A question is limited
+to 300 characters. The input field is cleared when the question is sent rather
+than when the answer arrives, so a question prepared while waiting is no longer
+erased, and the conversation no longer scrolls down by itself while an earlier
+answer is being read. A warning is shown during the first loading of the
+document base, and sources cite "Poképédia, page X" instead of a file name.
+
+
+## 92. [Feature] Suggested questions chosen from written criteria
+
+The suggestion lists had only been revised by removing observed failures.
+Nothing said what makes a good question: more than a third of the suggestions
+were
+statistic rankings, mostly on Speed, and several had never been asked to a
+model.
+
+The criteria were drawn from the user's judgement of each question, then
+written in the interface guide so that an agent can apply them. The first one
+overrides the others: a suggestion is a question someone really asked
+themselves, not a capability to show. The Pokédex number of an arbitrary
+Pokémon interests nobody; the one that bears number 1 does. Then come the word
+players use, surprise, the richest example, an illustrated answer, and the
+level of each button.
+
+The three lists are rewritten with these criteria and open up to questions
+never suggested before: the weight of a Pokémon, base statistics, TMs, capture
+rate, search by ability, the origin of names with a hidden reference. Each
+candidate first goes through a model-free probe, which shows what the guard
+will enforce, then through the local model, whose answer is read and compared
+with the database or the page. Reading the answer matters: a suggestion marked
+"answered" explained that Pikachu has red cheeks because it stores its
+electricity there.
+
+Three engine fixes follow. "Type Glace pur" (pure Ice type), the players' term,
+is read as an exact type, whereas only "uniquement de type" was and the
+question had been written for the guard. Every evolution trigger has a French
+label: an answer quoted the raw "take-damage" trigger. The sheet writes
+"aucune" (none) when a Pokémon has no weakness, instead of leaving the heading
+out: the model answered that no weakness was mentioned.
+
+The first three questions of each button form a showcase of nine different
+capabilities, checked with the demo model. Two closed questions, answered
+correctly by the local model, were removed from the suggestions: the remote
+model calls two tools at once, and an error or a refusal of the second turns
+the answer into an abstention.
+
+On opening, the first question is displayed with its answer and its artwork,
+without any model call: it is a recorded answer, which the visitor reads while
+their own question loads. A test on the real database fails if this example
+stops matching the data.
