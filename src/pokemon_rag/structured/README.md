@@ -163,7 +163,9 @@ depuis les données, pas une liste d'exceptions codée en dur. La base actuelle 
 complète, ce que vérifie un test `real_data`.
 
 `get_evolutions` accompagne l'identifiant `trigger` de PokéAPI d'un libellé
-`trigger_fr` pour la montée de niveau, l'objet et l'échange. Une montée de
+`trigger_fr` pour chaque déclencheur utilisé dans la base (montée de niveau,
+objet, échange, et les déclencheurs rares comme « dégâts subis » ou « mue » ; un
+test `real_data` vérifie qu'aucun n'est sans libellé). Une montée de
 niveau sans `minimum_level` y est dite « quel que soit le niveau » : le
 seul identifiant `level-up` était restitué comme un seuil de niveau inventé.
 L'agent ADK ne transmet au modèle que ce libellé, et traduit aussi les clés et
@@ -193,7 +195,7 @@ Entre le tableur et les mesures, la fiche porte des rubriques calculées en SQL 
 
 | Rubrique | Source | Limite |
 | --- | --- | --- |
-| « Faiblesses de type », « Résistances de type », « Immunités de type » | `type_efficacy`, produit des facteurs des deux types de la ligne (« Roche (×4) ») | Table des types actuelle. Talents d'immunité de `ABILITY_IMMUNITIES` pris en compte : annulé par tous les talents de la fiche, le type devient « Sol (talent Lévitation) » ; par un seul, il garde son multiplicateur, « Sol (×2 ; immunisé seulement s'il a le talent Lévitation) », ou « Eau (seulement s'il a le talent Peau Sèche) » s'il était neutre. Ni objet, ni talent qui réduit sans annuler (Isograisse), ni Garde Mystik. Un second type inconnu ne donne aucune rubrique, pas celles du premier seul |
+| « Faiblesses de type », « Résistances de type », « Immunités de type » | `type_efficacy`, produit des facteurs des deux types de la ligne (« Roche (×4) ») | Table des types actuelle. Talents d'immunité de `ABILITY_IMMUNITIES` pris en compte : annulé par tous les talents de la fiche, le type devient « Sol (talent Lévitation) » ; par un seul, il garde son multiplicateur, « Sol (×2 ; immunisé seulement s'il a le talent Lévitation) », ou « Eau (seulement s'il a le talent Peau Sèche) » s'il était neutre. Ni objet, ni talent qui réduit sans annuler (Isograisse), ni Garde Mystik. Sans aucune faiblesse (Ohmassacre, dont le Sol est annulé par Lévitation), la rubrique dit « aucune » au lieu de disparaître : le modèle n'a pas à conclure d'une absence. Un second type inconnu ne donne aucune rubrique, pas celles du premier seul |
 | « Ancien talent » | `pokemon_abilities_past`, `ability_names` | Daté par la dernière génération où il valait et par la suivante (« Lévitation (jusqu'à la G6, changé en G7) ») : la première seule était lue comme la génération du remplacement ; une ligne sans talent (emplacement pas encore créé) n'en est pas un |
 | « Anciennes statistiques » | `pokemon_stats_past` | Même datation ; le Spécial de la première génération est noté « G1 seulement » |
 | « Objets tenus à l'état sauvage » | `pokemon_items`, rareté et générations regroupées par objet | PokéAPI s'arrête à la septième génération ; jeux annexes exclus |

@@ -41,7 +41,18 @@ PAST_STAT_NAMES = {**dict(enumerate((label for _, label in BASE_STAT_FIELDS.valu
 MEASURE_FIELDS = {identifier: (f"NULLIF(p.{identifier}, 0) / 10.0", MEASURE_NAMES[identifier]) for identifier in MEASURE_NAMES}
 
 # Déclencheurs d'évolution les plus courants ; les autres gardent leur seul identifiant PokéAPI.
-EVOLUTION_TRIGGERS_FR = {"level-up": "montée de niveau", "use-item": "utilisation d'un objet", "trade": "échange"}
+EVOLUTION_TRIGGERS_FR = {
+    "level-up": "montée de niveau", "use-item": "utilisation d'un objet", "trade": "échange",
+    # Déclencheurs rares, une ou deux évolutions chacun : sans libellé, l'identifiant anglais partait tel quel
+    # dans la réponse (« le déclencheur "take-damage" »).
+    "shed": "mue", "spin": "tourner sur soi-même", "tower-of-darkness": "entraînement à la Tour des Ténèbres",
+    "tower-of-waters": "entraînement à la Tour de l'Eau", "three-critical-hits": "trois coups critiques dans un même combat",
+    "take-damage": "dégâts subis", "in-battle-level-up": "montée de niveau en combat",
+    "agile-style-move": "capacité utilisée en style rapide", "strong-style-move": "capacité utilisée en style puissant",
+    "recoil-damage": "dégâts de recul subis", "use-move": "utilisation répétée d'une capacité",
+    "three-defeated-bisharp": "trois Scalproie vaincus", "gimmighoul-coins": "pièces de Mordudor réunies",
+    "meltan-candies": "bonbons Meltan",
+}
 
 # Stades d'évolution du tableur : identifiant accepté -> libellé stocké (éventuellement suivi de « · … »).
 EVOLUTION_STAGES = {"base": "Base", "intermediate": "Intermédiaire", "final": "Final",
@@ -1568,6 +1579,9 @@ def _type_matchups(conn: sqlite3.Connection, type_1: str | None, type_2: str | N
             facts["Immunités de type"].append(f"{kind} (seulement s'il a le talent {talent})")
         else:
             facts[by_type].append(f"{kind} ({multipliers[factor]} ; immunisé seulement s'il a le talent {talent})")
+    if rows and not facts["Faiblesses de type"]:
+        # Sans cette ligne, « aucune faiblesse » devait être déduit d'une rubrique absente (Ohmassacre).
+        facts["Faiblesses de type"] = ["aucune"]
     return {label: ", ".join(values) for label, values in facts.items() if values}
 
 

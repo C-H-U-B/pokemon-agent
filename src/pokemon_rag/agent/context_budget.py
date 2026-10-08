@@ -104,7 +104,7 @@ EVOLUTION_CONDITIONS_FR = {
     "used_move": "capacité utilisée", "known_move_type": "type d'une capacité connue", "location": "lieu",
     "region": "région", "party_species": "Pokémon présent dans l'équipe", "party_type": "type présent dans l'équipe",
     "trade_species": "Pokémon échangé contre", "gender": "sexe", "needs_overworld_rain": "pluie nécessaire",
-    "turn_upside_down": "console retournée", "needs_multiplayer": "multijoueur nécessaire",
+    "turn_upside_down": "console tenue à l'envers au moment de l'évolution", "needs_multiplayer": "multijoueur nécessaire",
     "near_special_rock": "près d'un rocher spécial", "percentage_chance": "probabilité en pourcentage",
 }
 _CONDITION_VALUES_FR = {"day": "jour", "night": "nuit", "dusk": "crépuscule", "full-moon": "pleine lune",

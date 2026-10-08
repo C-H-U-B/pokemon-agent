@@ -79,6 +79,8 @@ def _expected_matchups(type_1, type_2):
     ordered = sorted(products, key=lambda item: (-item[0], item[1]))
     groups = {WEAK: [fr + marks[f] for f, _, fr in ordered if f > 100], RESISTED: [fr + marks[f] for f, _, fr in ordered if 0 < f < 100],
               IMMUNE: [fr for f, _, fr in ordered if f == 0]}
+    if any(groups.values()) and not groups[WEAK]:
+        groups[WEAK] = ["aucune"]  # dit explicitement, pour ne pas être déduit d'une rubrique absente
     return {label: ", ".join(values) for label, values in groups.items() if values}
 
 
@@ -106,9 +108,15 @@ def test_a_weakness_and_a_resistance_cancel_out_and_are_not_listed(conn):
     assert facts == {WEAK: "Plante (×4)", RESISTED: "Roche (×½), Feu (×½)", IMMUNE: "Électrik"}  # Eau ×½ et ×2 : neutre
 
 
-def test_headings_without_any_type_are_left_out(conn):
-    assert engine._type_matchups(conn, "Normal", None) == {IMMUNE: "Spectre"}
-    assert WEAK not in engine._type_matchups(conn, "Normal", "Spectre")
+def test_resistances_and_immunities_without_any_type_are_left_out_but_no_weakness_is_stated(conn):
+    assert engine._type_matchups(conn, "Normal", None) == {WEAK: "aucune", IMMUNE: "Spectre"}
+    assert engine._type_matchups(conn, "Normal", "Spectre")[WEAK] == "aucune"
+
+
+def test_a_single_weakness_cancelled_by_the_only_ability_is_stated_as_no_weakness(conn):
+    # Ohmassacre : Électrik, seule faiblesse le Sol, annulée par Lévitation.
+    facts = engine._type_matchups(conn, "Électrik", None, ("Lévitation", None, None))
+    assert facts[WEAK] == "aucune" and facts[IMMUNE] == "Sol (talent Lévitation)"
 
 
 def test_type_order_does_not_change_the_result(conn):
@@ -376,11 +384,12 @@ def test_a_resisted_type_cancelled_by_one_ability_is_annotated_in_the_resistance
 
 def test_a_neutral_type_cancelled_by_one_ability_is_listed_as_a_conditional_immunity(conn):
     facts = engine._type_matchups(conn, "Normal", None, ("Anticipation", "Absorbe-Eau", "Toxitouche"))
-    assert facts == {IMMUNE: "Eau (seulement s'il a le talent Absorbe-Eau), Spectre"}
+    assert facts == {WEAK: "aucune", IMMUNE: "Eau (seulement s'il a le talent Absorbe-Eau), Spectre"}
 
 
 def test_a_neutral_type_cancelled_by_every_ability_is_a_plain_ability_immunity(conn):
-    assert engine._type_matchups(conn, "Normal", None, ("Absorbe-Eau", None, None)) == {IMMUNE: "Eau (talent Absorbe-Eau), Spectre"}
+    assert engine._type_matchups(conn, "Normal", None, ("Absorbe-Eau", None, None)) == {
+        WEAK: "aucune", IMMUNE: "Eau (talent Absorbe-Eau), Spectre"}
 
 
 def test_two_abilities_cancelling_the_same_type_are_both_named_in_slot_order(conn):
@@ -432,6 +441,6 @@ def test_every_listed_ability_cancels_exactly_its_type(conn, ability, cancelled)
         by_type = cancelled in plain.get(IMMUNE, "").split(", ")
         assert (f"{cancelled} (talent {ability})" in facts.get(IMMUNE, "")) is not by_type, (type_1, facts)
         # Les autres types gardent leur rubrique et leur multiplicateur.
-        strip = lambda value: [entry for entry in value.split(", ") if not entry.startswith(cancelled)]
+        strip = lambda value: [entry for entry in value.split(", ") if not entry.startswith(cancelled) and entry != "aucune"]
         assert {label: strip(value) for label, value in facts.items() if strip(value)} == \
             {label: strip(value) for label, value in plain.items() if strip(value)}

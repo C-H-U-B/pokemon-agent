@@ -424,7 +424,8 @@ def extract_pokemon_types(question: str) -> dict:
     if re.search(r"(?:non|sans|sauf|hors|pas)-(?:les-|des-|de-)?(?:pokemons?-)?(?:de-)?types?-", text):
         raise ValueError("Type négatif non représentable.")
     mode = sequences[0][1]
-    if re.search(r"(?:^|-)(?:monotypes?|uniquement-de-type|exactement-de-type)(?=-|$)", text):
+    # « type Glace pur » : le terme des joueurs pour un type unique.
+    if re.search(rf"(?:^|-)(?:monotypes?|uniquement-de-type|exactement-de-type|(?:{pattern})-purs?)(?=-|$)", text):
         mode = "exact"
     return {"types":types, "type_match":mode}
 
