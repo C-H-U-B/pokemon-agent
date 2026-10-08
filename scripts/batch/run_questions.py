@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import time
 from pathlib import Path
 
 from tqdm import tqdm
 
 from pokemon_rag.config import PROJECT_ROOT
-from pokemon_rag.graph.graph import run_graph
 
 
 DEFAULT_QUESTIONS_FILE = PROJECT_ROOT / "scripts" / "batch" / "questions.txt"
@@ -32,6 +32,8 @@ def load_questions(path: Path) -> list[str]:
 
 def run_question(question: str, *, verbose: bool = False) -> dict:
     """Exécute une question à travers le vrai graphe end-to-end."""
+    from pokemon_rag.graph.graph import run_graph
+
     return run_graph(
         {
             "question": question,
@@ -40,6 +42,34 @@ def run_question(question: str, *, verbose: bool = False) -> dict:
             "generation_retry_count": 0,
         }
     )
+
+
+async def run_agent_batch(questions: list[str]) -> None:
+    """Pose chaque question à l'agent ADK par le parcours de l'interface Web, avec le modèle configuré.
+
+    Chaque question écrit sa trace dans traces/web_traces.jsonl (appels d'outils, réponse, temps,
+    tokens) : c'est là que se lit le résultat, la console n'en montre que le début.
+    """
+    from pokemon_rag.web import app as web
+
+    failures = 0
+    progress = tqdm(questions, desc="Questions", unit="question", dynamic_ncols=True)
+    try:
+        for index, question in enumerate(progress, start=1):
+            progress.set_postfix_str(question[:45])
+            start = time.perf_counter()
+            output = None
+            # Un seul processus et une seule boucle : le serveur d'outils reste ouvert entre les questions.
+            async for output in web.chat(question, [], web.WebSession()):
+                pass
+            answer = output[0][-1]["content"] if output else ""
+            failures += answer == web.TECHNICAL_ERROR_MESSAGE
+            tqdm.write(f"[{index}/{len(questions)}] {time.perf_counter() - start:.1f} s | {question}\n"
+                       f"  {' '.join(answer.split())[:110]}")
+    finally:
+        await web.pokemon_mcp.close()
+    print(f"\nModèle : {web.LLM_MODEL} | questions : {len(questions)} | erreurs techniques : {failures}")
+    print(f"Traces : {web.WEB_TRACE_FILE}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -58,6 +88,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         help="Limite le nombre de questions exécutées.",
+    )
+    parser.add_argument(
+        "--agent",
+        action="store_true",
+        help="Passe par l'agent ADK (parcours de l'interface Web, modèle des variables LLM_*) "
+             "au lieu du graphe ; les traces vont dans traces/web_traces.jsonl.",
     )
     parser.add_argument(
         "--verbose",
@@ -87,6 +123,10 @@ def main() -> None:
     print(f"Questions chargées : {len(questions)}")
     print(f"Source             : {args.questions_file}")
     print()
+
+    if args.agent:
+        asyncio.run(run_agent_batch(questions))
+        return
 
     batch_start = time.perf_counter()
     completed = 0

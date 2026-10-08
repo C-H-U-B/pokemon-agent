@@ -1,0 +1,28 @@
+# Questions ciblées pour l'agent ADK : chacune cherche une erreur anticipée, notée au-dessus d'elle.
+# Usage : python scripts/batch/run_questions.py scripts/batch/questions_agent_risks.txt --agent
+# Résultat à lire dans traces/web_traces.jsonl, pas dans la console.
+
+# Recherche relancée après un résultat complet, puis abstention de budget
+# (observé avec Gemini 3.8 Flash : « Pokémon Spectre de septième génération… », 2 sur 2).
+Quels Pokémon sont à la fois Feu et Spectre ?
+Quels sont les Pokémon légendaires de quatrième génération ?
+
+# Réponse enrichie par plusieurs outils : budget d'appels dépassé ou réponse coupée
+# (observé avec Gemini : Magicarpe, 4 outils, coupée à 1 024 tokens).
+Qu'a de particulier Malamandre ?
+
+# Classement par taille : avant qu'elle soit en base, le refus du guard était contourné (« Arceus »).
+Quel est le plus grand Pokémon ?
+
+# Stade final que le guard n'impose pas : des stades intermédiaires peuvent entrer dans la liste.
+Quels starters au stade final sont de type Feu ?
+
+# Fiche recopiée puis complétée de mémoire (observé avec Qwen sur « Comment obtient-on Mewtwo ? »).
+Comment obtenait-on Mewtwo à sa sortie ?
+
+# Jeu et bornes de niveau à transmettre ensemble.
+Quelles capacités Lucario apprend-il entre les niveaux 20 et 40 dans Pokémon Épée et Bouclier ?
+
+# Candidates aux suggestions, jamais posées : faiblesses de type (fiche), CT (outil jamais suggéré).
+Quelles sont les faiblesses de Dracaufeu ?
+Quelles CT de type Électrik Pikachu peut-il apprendre dans Pokémon Écarlate et Violet ?

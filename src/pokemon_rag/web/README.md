@@ -172,6 +172,30 @@ première question « découvrir » (« Combien de Pokémon existe-t-il ? ») ; 
 vide après un envoi ou « Nouvelle conversation ». Un rappel visible explique
 l'absence de mémoire entre questions.
 
+## Démo hébergée
+
+La cible `demo` du `Dockerfile` produit une image autonome pour un hébergeur sans volume : base et
+index téléchargés depuis la release à la construction (sommes vérifiées), modèles de recherche
+inclus, aucun accès à Hugging Face au démarrage. Le serveur de modèle reste extérieur et se règle
+au déploiement : `LLM_BASE_URL`, `LLM_MODEL`, `LLM_MAX_OUTPUT_TOKENS`, et `LLM_API_KEY` fournie par
+le gestionnaire de secrets de l'hébergeur.
+
+Déploiement actuel : Cloud Run, service `pokemon-agent`, projet `pokemon-agent-demo`, région
+`europe-west1`, 4 Gio et 2 vCPU, une instance au plus et aucune au repos, compte de service
+`pokemon-demo`, secret `gemini-api-key`, modèle `gemini-3.8-flash`. Une nouvelle version se publie
+en trois temps : construire (`docker build --target demo`), envoyer l'image dans le dépôt
+`europe-west1-docker.pkg.dev/pokemon-agent-demo/pokemon-agent`, puis
+`gcloud run deploy pokemon-agent --image=<image> --region=europe-west1`, qui garde les autres réglages.
+
+Le fichier de traces du conteneur disparaît avec l'instance. L'image pose `WEB_TRACE_STDOUT=1` :
+les traces se lisent dans le journal de l'hébergeur, sous `jsonPayload.web_trace`
+(`gcloud logging read "resource.labels.service_name=pokemon-agent AND jsonPayload.web_trace.question:*"`).
+Les questions des visiteurs y sont donc conservées.
+
+Mesuré le 8 octobre 2026, une exécution : conteneur prêt en 24 s au déploiement, base documentaire
+prête 86 s après l'ouverture de la page ; question structurée en 8 à 18 s. Le démarrage depuis
+zéro instance n'est pas mesuré.
+
 ## Points non vérifiés
 
 L'annulation d'une question abandonnée est testée à la fermeture du générateur
