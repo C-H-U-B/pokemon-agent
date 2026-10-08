@@ -6,7 +6,8 @@ Exécuter les scripts depuis la racine, avec le paquet installé dans `langgraph
 | --- | --- |
 | `pokeapi/` | Télécharger les CSV, construire la base PokéAPI puis la base unifiée avec le tableur |
 | `pokepedia/` | Télécharger, nettoyer et indexer les pages dans Chroma |
-| `batch/` | Exécuter le vrai graphe sur un fichier de questions |
+| `batch/` | Exécuter le vrai graphe, ou l'agent ADK avec `--agent`, sur un fichier de questions |
+| `use_gemini.ps1` | Pointer un terminal PowerShell vers le modèle distant de la démo |
 | `observability/` | Analyser les traces enregistrées |
 
 Les données et index générés sont locaux. Leur absence ne se corrige pas en lançant automatiquement une reconstruction : le constructeur SQLite et l'ingestion peuvent remplacer les ressources existantes. Une modification du routeur, des tests ou de la documentation n'exige pas de reconstruire les données.
@@ -65,6 +66,31 @@ conda run -n langgraph-agent python scripts/batch/run_questions.py scripts/batch
 ```
 
 Le fichier contient une question par ligne ; les lignes vides et les commentaires commençant par `#` sont ignorés. Ce lot utilise les composants réels du graphe et peut appeler LM Studio et écrire des traces. Pour une validation légère, utiliser plutôt [les tests isolés](../tests/README.md).
+
+Avec `--agent`, le même lot passe par l'agent ADK, sur le parcours de l'interface Web et avec le
+modèle des variables `LLM_*` ; chaque question écrit sa trace dans `traces/web_traces.jsonl`
+(appels d'outils, réponse, temps, tokens), où se lit le résultat :
+
+```powershell
+conda run -n langgraph-agent python scripts/batch/run_questions.py scripts/batch/questions_agent_risks.txt --agent
+```
+
+`questions_agent_risks.txt` regroupe des questions ciblées : chacune est précédée, en commentaire,
+de l'erreur qu'elle cherche. Y ajouter une question avec son erreur anticipée plutôt que de
+rejouer une liste entière.
+
+### Modèle distant de la démo (payant)
+
+La démo hébergée utilise Gemini par son API compatible OpenAI. `. scripts/use_gemini.ps1` (avec le
+point) pose `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` et `LLM_MAX_OUTPUT_TOKENS=2048` dans le
+terminal ; sans lui, tout vise le modèle local. La clé n'entre jamais dans le dépôt ni dans une
+commande : le script la lit dans la variable d'environnement utilisateur `GEMINI_API_KEY`.
+
+Chaque question posée à ce modèle est facturée sur un crédit prépayé (environ un demi-centime,
+mesuré le 8 octobre 2026). Ne demander que des exécutions ciblées, en annonçant leur nombre et ce
+qu'elles tranchent ; une vérification sans modèle (sonde du guard, rejeu de traces, test à modèle
+simulé) passe avant. Un résultat obtenu avec le modèle local ne vaut pas pour le modèle distant,
+et inversement.
 
 Le batch doit être lancé par l'utilisateur, pas par un agent. Demander sa sortie
 terminal et les traces du lot pour interpréter les erreurs. L'analyse de traces
