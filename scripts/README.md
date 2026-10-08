@@ -8,6 +8,7 @@ Exécuter les scripts depuis la racine, avec le paquet installé dans `langgraph
 | `pokepedia/` | Télécharger, nettoyer et indexer les pages dans Chroma |
 | `batch/` | Exécuter le vrai graphe, ou l'agent ADK avec `--agent`, sur un fichier de questions |
 | `use_gemini.ps1` | Pointer un terminal PowerShell vers le modèle distant de la démo |
+| `use_qwen.ps1` | Ramener ce terminal au modèle local, après `use_gemini.ps1` |
 | `check_test_counts.py` | Comparer les compteurs de tests des deux README à la collecte pytest ; `--write` les met à jour, `--ci` est lancé par l'intégration continue |
 | `observability/` | Analyser les traces enregistrées |
 
@@ -80,11 +81,20 @@ conda run -n langgraph-agent python scripts/batch/run_questions.py scripts/batch
 de l'erreur qu'elle cherche. Y ajouter une question avec son erreur anticipée plutôt que de
 rejouer une liste entière.
 
+Deux autres fichiers servent les questions suggérées par l'interface, dont les critères sont dans le
+[guide de l'interface Web](../src/pokemon_rag/web/README.md) :
+
+- `questions_suggestion_candidates.txt` : les candidates à vérifier avant d'entrer dans une liste,
+  chacune avec la réponse attendue d'après la base. Une candidate vérifiée sort du fichier.
+- `questions_vitrine.txt` : les trois premières questions de chaque bouton, à poser au modèle de la
+  démo avant un redéploiement. Celles déjà réussies y sont en commentaire, pour ne pas les repayer.
+
 ### Modèle distant de la démo (payant)
 
 La démo hébergée utilise Gemini par son API compatible OpenAI. `. scripts/use_gemini.ps1` (avec le
 point) pose `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` et `LLM_MAX_OUTPUT_TOKENS=2048` dans le
-terminal ; sans lui, tout vise le modèle local. La clé n'entre jamais dans le dépôt ni dans une
+terminal ; sans lui, tout vise le modèle local. Ces variables restent dans le terminal : `. scripts/use_qwen.ps1`
+les supprime pour revenir au modèle local, à lancer avant toute commande prévue pour lui. La clé n'entre jamais dans le dépôt ni dans une
 commande : le script la lit dans la variable d'environnement utilisateur `GEMINI_API_KEY`.
 
 Chaque question posée à ce modèle est facturée sur un crédit prépayé (environ un demi-centime,

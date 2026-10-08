@@ -1,0 +1,19 @@
+# Vitrine de l'interface Web : les trois premières questions de chaque bouton, neuf capacités différentes.
+# À poser au modèle de la démo avant un redéploiement ; grille de lecture dans src/pokemon_rag/web/README.md, critère 11.
+# Usage : . scripts/use_gemini.ps1 puis python scripts/batch/run_questions.py scripts/batch/questions_vitrine.txt --agent
+# En commentaire : déjà réussies avec Gemini 3.8 Flash le 8 octobre, à ne pas reposer sans raison (modèle payant).
+
+# --- Je découvre : classement, comptage, texte Poképédia ---
+# Quels sont les 5 Pokémon les plus lourds ?
+# Combien de Pokémon existe-t-il ?
+# Que fait Ronflex de ses journées ?
+
+# --- Je connais Pokémon : évolution, statistiques de base, étymologie ---
+# Comment évolue Insécateur ?
+# Quelles sont les statistiques de base de Leveinard ?
+# D'où vient le nom de Tygnon ?
+
+# --- Expert : capacités par niveau et par jeu, recherche par talent, CT ---
+# Quelles capacités Lucario apprend-il entre les niveaux 20 et 40 dans Pokémon Épée et Bouclier ?
+# Quels Pokémon ont le talent Absentéisme ?
+# Quelles CT Anchwatt peut-il apprendre ?

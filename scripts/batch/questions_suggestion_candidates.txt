@@ -1,0 +1,11 @@
+# Candidates aux suggestions de l'interface Web, à vérifier avant ajout (critères : src/pokemon_rag/web/README.md).
+# Usage : python scripts/batch/run_questions.py scripts/batch/questions_suggestion_candidates.txt --agent
+# Résultat à lire dans traces/web_traces.jsonl : la réponse, pas le statut. Attendu d'après la base, noté par question.
+# Une candidate vérifiée entre dans sa liste et sort de ce fichier ; une candidate en échec va dans CHANTIER.md.
+# 8 octobre (Qwen) : 67 questions posées en quatre séries, 57 réponses justes entrées dans les listes.
+
+# --- Je connais Pokémon, en attente d'un correctif ---
+# Juste trois fois, mais le nom du champ fuit : « en utilisant le déclencheur "dégâts subis" ».
+Comment évolue Tutafeh de Galar ?
+# Réponse juste sauf « Dégide, le bouclier divin d'Athéna » : la page nettoyée écrit « dégide » pour « d'égide ».
+D'où vient le nom d'Exagide ?

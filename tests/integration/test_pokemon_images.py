@@ -35,3 +35,21 @@ def test_every_linked_entry_of_the_spreadsheet_has_an_image():
     urls = pokemon_image_urls()
     assert len(names) == 1270
     assert [name for name in names if normalize(name) not in urls] == []
+
+
+def test_the_recorded_opening_example_still_matches_the_database():
+    """L'exemple affiché à l'ouverture est figé : il doit rester la réponse que la base donnerait."""
+    import json
+    from pathlib import Path
+
+    from pokemon_rag.structured.query_engine import search_pokemon
+    from pokemon_rag.web import app
+
+    example = json.loads(Path(app.__file__).with_name("exemple_ouverture.json").read_text(encoding="utf-8"))
+    assert example["question"] == app.FIRST_QUESTION
+    heaviest = search_pokemon(sort_by="weight", sort_order="desc", limit=5)["results"]
+    assert [name for name, _ in example["images"]] == [row["name_fr"] for row in heaviest]
+    urls = pokemon_image_urls()
+    for name, number in example["images"]:
+        assert ARTWORK_URL.format(number) == urls[normalize(name)]
+        assert name in example["reponse"]
