@@ -79,6 +79,13 @@ temps d'analyse et de préparation mesuré par l'interface, transport compris.
 La conversation reçoit le texte
 final à la fin de l'exécution, sans affichage token par token de la réponse.
 La question apparaît dès l'envoi, et la saisie se trouve sous l'historique.
+En tête de page, trois lignes disent ce que fait l'outil, nomment le modèle servi, renvoient au dépôt
+et préviennent que les questions sont enregistrées. Une question est limitée à 300 caractères
+(`MAX_QUESTION_CHARS`), dans le champ de saisie et de nouveau dans `chat`, qu'un appel direct de l'API
+atteint sans passer par le champ : au-delà, aucun appel au modèle n'est fait. Tant qu'aucune recherche
+documentaire n'a abouti depuis le démarrage, le panneau prévient pendant la recherche que la base peut
+encore se charger ; c'est un indice tenu par l'interface, pas l'état réel du serveur d'outils.
+
 L'historique n'a pas de bandeau de titre. Les lignes de saisie et d'actions
 gardent une hauteur limitée à leur contenu pour laisser l'espace à la conversation.
 Une grille réserve au chat toute la hauteur restante, sans hauteur fixe.
