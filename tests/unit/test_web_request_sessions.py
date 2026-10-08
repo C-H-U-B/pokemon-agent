@@ -225,6 +225,19 @@ def test_panel_shows_database_loading_search_steps_sql_time_and_tokens(web):
     assert "Recherche :" in rag and "Requête SQL" not in rag and "Requête SQL" in sql and "Recherche :" not in sql
 
 
+def test_trace_counts_thinking_tokens_and_flags_an_answer_cut_by_the_output_limit(web):
+    # Sous Gemini, la réflexion consomme la limite de sortie : la réponse visible peut être coupée bien avant.
+    timing = web.ActivityTiming()
+    usage = SimpleNamespace(prompt_token_count=4000, candidates_token_count=456, thoughts_token_count=568)
+    event = tool_event(usage=usage)
+    event.finish_reason = web.types.FinishReason.MAX_TOKENS
+    timing.observe([], [], 1.0, event)
+    trace = web._web_trace("Question", "Réponse cou", "answered", None, [], timing, 2.0)
+    assert trace["tokens"] == {"prompt": 4000, "output": 456, "thinking": 568, "output_limit_reached": True}
+    assert web._web_trace("Q", "R", "answered", None, [], web.ActivityTiming(), 1.0)["tokens"] == {
+        "prompt": 0, "output": 0, "thinking": 0, "output_limit_reached": False}
+
+
 def test_warm_search_shows_no_loading_and_an_empty_search_shows_zero_passages(web):
     timing = web.ActivityTiming()
     timing.observe([("pokemon_rag_search", {})], [], 1.0)

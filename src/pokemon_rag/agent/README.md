@@ -212,7 +212,8 @@ sont ajoutés sans changer l'API MCP. Les seuils restent identiques.
 
 Avant chaque appel, les descriptions d'outils sont abrégées en gardant fermé
 le balisage qu'ADK pose autour des textes venus d'un serveur MCP, et la sortie
-est limitée à 1024 tokens. Dans la vue du modèle, les annotations de titres sont
+est limitée à 1024 tokens (`LLM_MAX_OUTPUT_TOKENS`, à relever pour un modèle distant
+qui compte sa réflexion dans cette limite). Dans la vue du modèle, les annotations de titres sont
 retirées et un argument facultatif décrit comme « type ou null, défaut null »
 devient son type simple ; enums, bornes, propriétés, défauts non nuls, arguments
 requis et descriptions d'arguments sont conservés. Le schéma MCP n'est pas modifié.
