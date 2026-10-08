@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from pokemon_rag.config import DB_PATH
 from pokemon_rag.mcp import server as tools
 
-app = FastAPI(title="Pokémon Agent", version="0.3.0")
+app = FastAPI(title="Pokémon Agent", version="0.4.0")
 
 ROUTES = {
     "/pokemon": tools.pokemon_search,
