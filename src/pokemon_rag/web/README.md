@@ -20,7 +20,7 @@ python -m pokemon_rag.web.app
 
 Le point d'entrée appelle `demo.launch(inbrowser=True)` et demande l'ouverture
 automatique du navigateur. Aucune adresse ou aucun port n'est fixé dans le code.
-Envoyer une question par le bouton ou Entrée appelle réellement Qwen.
+Envoyer une question par le bouton ou Entrée appelle réellement le modèle configuré (Qwen par défaut).
 
 En conteneur, le service `web` de `compose.yaml` lance ce même point d'entrée
 sur le port 7860 (`GRADIO_SERVER_NAME=0.0.0.0`). Il vise par défaut le service
@@ -47,9 +47,9 @@ Les bulles utilisateur sont alignées à gauche, celles de l'assistant à droite
 Les boutons de copie restent sous le texte, alignés avec leur bulle.
 La hauteur est adaptée à la fenêtre et les contenus longs défilent à
 l'intérieur des panneaux, plutôt que d'allonger la page.
-Il distingue l'agent ADK / Qwen des outils MCP et présente leur parcours
+Il distingue l'agent ADK et son modèle, nommé d'après `LLM_MODEL`, des outils MCP et présente leur parcours
 progressivement : analyse, consultation SQLite ou recherche de passages
-Poképédia via le RAG / Chroma, retour d'outil puis préparation du texte par Qwen.
+Poképédia via le RAG / Chroma, retour d'outil puis préparation du texte par le modèle.
 Le schéma statique et la note explicative en bas du panneau ont été retirés.
 Les outils ont un libellé français avec leur identifiant technique visible.
 Le thème Soft et les styles sont appliqués par le point d'entrée au lancement.
@@ -85,6 +85,10 @@ et préviennent que les questions sont enregistrées. Une question est limitée 
 atteint sans passer par le champ : au-delà, aucun appel au modèle n'est fait. Tant qu'aucune recherche
 documentaire n'a abouti depuis le démarrage, le panneau prévient pendant la recherche que la base peut
 encore se charger ; c'est un indice tenu par l'interface, pas l'état réel du serveur d'outils.
+
+Le champ de saisie est vidé à l'envoi, pas à l'arrivée de la réponse : une question préparée pendant
+l'attente y reste. Pendant l'exécution, seul le panneau d'activité est rafraîchi, la conversation se
+lit donc librement ; à l'arrivée de la réponse, elle revient sur la dernière question.
 
 L'historique n'a pas de bandeau de titre. Les lignes de saisie et d'actions
 gardent une hauteur limitée à leur contenu pour laisser l'espace à la conversation.
