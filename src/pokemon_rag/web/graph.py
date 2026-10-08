@@ -1,11 +1,13 @@
 """Graphe pédagogique du parcours d'une question : dessin, styles et comportement dans le navigateur.
 
-Le graphe est un SVG affiché par un `gr.HTML`. Python n'envoie qu'un état en JSON (`nodes`, `edges`, `user_icon`,
-`answer_icon`) ; le survol, l'épinglage et les animations vivent dans le navigateur. Ajouter un module revient à
+Le graphe est un SVG affiché par un `gr.HTML`. Python n'envoie que le parcours en JSON (`graph_value` : passages
+dans l'ordre, question en cours ou non, icônes) ; le navigateur le déroule pas à pas, et le survol, l'épinglage
+et les animations y vivent. Ajouter un module revient à
 ajouter une entrée dans `NODES` et ses liens dans `EDGES` : le dessin, l'angle d'arrivée du liquide et le
 comportement en découlent.
 """
 import hashlib
+import json
 import math
 import random
 from html import escape
@@ -46,6 +48,9 @@ QUEULORIOR, EXAGIDE, DRACOLOSSE = shuffle_icon(235), shuffle_icon(681), shuffle_
 METALOSSE, CREHELF, MIAMIASME = shuffle_icon(376), shuffle_icon(480), shuffle_icon(568)
 # Le liquide fonce à mesure qu'il est transformé, de la question à la réponse ; un rejet le ternit.
 PALE, ROSE, PINK, MAGENTA, DEEP, SPOILED = "#ffb3ec", "#ff7ddf", "#ff3fcf", "#e600b0", "#a3007d", "#6b7280"
+# Les deux branches forment un anneau entre le serveur d'outils et le budget : Métalosse au milieu de la sienne,
+# Poképédia et ses quatre étapes le long de l'autre. Leurs positions sont des points de cette ellipse.
+RING = {"x": 210, "y": 231, "rx": 100, "ry": 89}
 # Ajouter un module = une entrée ici (position, teinte, icône éventuelle) et ses liens dans EDGES.
 NODES = [
     {"id": "question", "label": "Votre question", "x": 210, "y": 14, "tint": PALE, "icon": "user_icon",
@@ -58,16 +63,16 @@ NODES = [
      "role": "La question ne peut pas être traitée : l'outil le dit au lieu d'inventer une réponse."},
     {"id": "mcp", "label": "Serveur d'outils", "x": 210, "y": 142, "tint": PINK, "icon": DRACOLOSSE,
      "role": "Le serveur qui exécute l'outil demandé (protocole MCP) et rapporte son résultat."},
-    {"id": "base", "label": "Base de données", "x": 140, "y": 190, "tint": PINK, "icon": METALOSSE, "label_below": True,
+    {"id": "base", "label": "Base de données", "x": 110, "y": 231, "tint": PINK, "icon": METALOSSE,
      "role": "Les données chiffrées des Pokémon. Tris, filtres et comptages sont faits ici, en SQL."},
-    {"id": "pokepedia", "label": "Poképédia", "x": 290, "y": 190, "tint": PINK, "icon": CREHELF,
+    {"id": "pokepedia", "label": "Poképédia", "x": 297, "y": 187, "tint": PINK, "icon": CREHELF,
      "role": "Les textes de l'encyclopédie Poképédia, découpés en passages."},
-    {"id": "vector", "label": "recherche par le sens", "x": 290, "y": 226, "tint": PINK, "sub": True,
+    {"id": "vector", "label": "recherche par le sens", "x": 309, "y": 222, "tint": PINK, "sub": True,
      "role": "Trouve les passages dont le sens est proche de la question."},
-    {"id": "bm25", "label": "recherche par les mots", "x": 290, "y": 246, "tint": PINK, "sub": True,
+    {"id": "bm25", "label": "recherche par les mots", "x": 308, "y": 247, "tint": PINK, "sub": True,
      "role": "Trouve les passages qui contiennent les mots de la question."},
-    {"id": "rrf", "label": "fusion", "x": 290, "y": 266, "tint": PINK, "sub": True, "role": "Réunit les deux listes en une seule."},
-    {"id": "reranker", "label": "reclassement", "x": 290, "y": 286, "tint": PINK, "sub": True,
+    {"id": "rrf", "label": "fusion", "x": 300, "y": 270, "tint": PINK, "sub": True, "role": "Réunit les deux listes en une seule."},
+    {"id": "reranker", "label": "reclassement", "x": 284, "y": 291, "tint": PINK, "sub": True,
      "role": "Un second modèle relit les meilleurs passages et garde les plus pertinents."},
     {"id": "budget", "label": "Budget de contexte", "x": 210, "y": 320, "tint": MAGENTA,
      "role": "Réduit le résultat à ce que le modèle peut lire sans dépasser sa mémoire de travail."},
@@ -76,13 +81,155 @@ NODES = [
     {"id": "reponse", "label": "Réponse", "x": 210, "y": 404, "tint": DEEP, "icon": "answer_icon",
      "role": "Le texte affiché dans la conversation."},
 ]
-EDGES = [("question", "choix"), ("choix", "guard"), ("guard", "mcp"),  ("mcp", "base"),
-         ("mcp", "pokepedia"), ("pokepedia", "vector"), ("vector", "bm25"), ("bm25", "rrf"), ("rrf", "reranker"),
-         ("base", "budget"), ("reranker", "budget"), ("budget", "redige"), ("redige", "reponse"),
-         ("budget", "choix", "loop"),
+EDGES = [("question", "choix"), ("choix", "guard"), ("guard", "mcp"), ("mcp", "base", "ring"),
+         ("mcp", "pokepedia", "ring"), ("pokepedia", "vector", "ring"), ("vector", "bm25", "ring"),
+         ("bm25", "rrf", "ring"), ("rrf", "reranker", "ring"), ("base", "budget", "ring"),
+         ("reranker", "budget", "ring"), ("budget", "redige"), ("redige", "reponse"),
+         ("budget", "choix", "loop", "hidden"),
          # Toute étape peut échouer : ces tubes vers le rejet n'apparaissent que lorsqu'ils servent.
-         ("choix", "rejet", "side", "hidden"), ("guard", "rejet", "side", "hidden"), ("mcp", "rejet", "side", "hidden"),
-         ("budget", "rejet", "side", "hidden"), ("redige", "rejet", "side", "hidden")]
+         ("question", "rejet", "over", "hidden"), ("choix", "rejet", "side", "hidden"),
+         ("guard", "rejet", "side", "hidden"), ("mcp", "rejet", "side", "hidden"),
+         ("budget", "rejet", "side", "hidden"), ("redige", "rejet", "side", "hidden"),
+         # Appel refusé ou outil en erreur : la question n'est pas rejetée, le modèle est relancé.
+         ("guard", "choix", "loop", "hidden"), ("mcp", "choix", "loop", "hidden")]
+
+
+TOOL_LABELS = {
+    "pokemon_search": "Recherche de Pokémon",
+    "pokemon_moves": "Movepool filtré",
+    "pokemon_types": "Types du Pokémon",
+    "pokemon_pokedex_identity": "Identité Pokédex",
+    "pokemon_evolutions": "Évolutions",
+    "pokemon_level_up_moves": "Capacités par niveau",
+    "pokemon_move_learning_methods": "Méthodes d'apprentissage",
+    "pokemon_machine_moves": "CT et CS",
+    "pokemon_signature_moves": "Capacités signature",
+    "pokemon_base_stats": "Statistiques de base",
+    "pokemon_particularities": "Talents et particularités",
+    "pokemon_rag_search": "Recherche documentaire Poképédia",
+}
+SEARCH_STEPS = ("vector", "bm25", "rrf", "reranker")
+# Erreurs nées après le guard ; tout autre code d'erreur dans un retour d'outil est un refus du guard.
+TOOL_ERRORS = ("mcp_tool_error", "tool_result_too_large")
+REJECTIONS = {
+    "question_too_long": "Question trop longue : elle n'est pas envoyée au modèle.",
+    "double_request_refusal": "La question demande à la fois une description et un fait précis : elle est refusée "
+                              "avant tout appel au modèle.",
+    "budget_abstention": "Limites de traitement atteintes (trop d'appels au modèle ou trop de texte à lui faire "
+                         "lire) : l'agent s'abstient.",
+    "tool_failure_abstention": "Aucun outil n'a fourni de résultat exploitable : le texte du modèle est remplacé "
+                               "par une abstention.",
+    "no_final_response": "Le modèle n'a rendu aucun texte.",
+    "error": "Erreur technique pendant cette étape.",
+    "unverified": "Réponse écrite sans consulter les données : elle n'est pas vérifiée.",
+}
+
+
+def _arguments(arguments: dict) -> str:
+    return ", ".join(f"{key} = {value}" for key, value in arguments.items()) or "aucun réglage"
+
+
+def graph_path(trace: dict) -> list[tuple[str, str, str]]:
+    """Parcours d'une trace Web : un triplet (nœud de départ, nœud atteint, phrase) par passage, dans l'ordre.
+
+    `trace` a la forme de `_web_trace` ; `outcome` vaut "running" tant que la question est en cours, et
+    "question_too_long" pour une question refusée avant tout traitement. Le parcours ne suit que des faits
+    de la trace : le guard est jugé sur le retour de l'outil, les sous-étapes de recherche sur leurs durées.
+    """
+    outcome, tools = trace["outcome"], trace.get("tools") or []
+    path = [("", "question", trace["question"])]
+    if outcome in ("question_too_long", "double_request_refusal"):
+        return path + [("question", "rejet", REJECTIONS[outcome])]
+    at, pending = "question", False
+    for index, tool in enumerate(tools):
+        name, start = tool["name"], tool.get("start")
+        result = tool["result"] if isinstance(tool.get("result"), dict) else {}
+        # Appels demandés d'un seul coup : même instant de départ, un seul passage par le modèle.
+        if index == 0 or start is None or start != tools[index - 1].get("start"):
+            turn = [tool] if start is None else [other for other in tools[index:] if other.get("start") == start]
+            path.append((at, "choix", " ; ".join(
+                f"Outil demandé : {TOOL_LABELS.get(other['name'], other['name'])} "
+                f"({_arguments(other.get('proposed_arguments', other['arguments']))})" for other in turn)))
+        if tool.get("seconds") is None and not result:
+            path += [("choix", "guard", ""), ("guard", "mcp", "Outil en cours d'exécution…")]
+            pending = True
+            break
+        error = result.get("error")
+        if error and error not in TOOL_ERRORS:
+            path.append(("choix", "guard", f"Appel refusé : {result.get('message', error)}"))
+            at = "guard"
+            continue
+        proposed = tool.get("proposed_arguments")
+        if proposed is None:
+            path.append(("choix", "guard", "Appel conforme à la question : exécuté sans changement."))
+        else:
+            changed = {key: value for key, value in tool["arguments"].items() if proposed.get(key) != value}
+            dropped = [key for key in proposed if key not in tool["arguments"]]
+            path.append(("choix", "guard", "Appel corrigé avant exécution"
+                         + (f" — ajouté ou modifié : {_arguments(changed)}" if changed else "")
+                         + (f" — retiré : {', '.join(dropped)}" if dropped else "") + "."))
+        if error == "mcp_tool_error":
+            path.append(("guard", "mcp", result.get("message", error)))
+            at = "mcp"
+            continue
+        path.append(("guard", "mcp", f"{TOOL_LABELS.get(name, name)} : résultat rendu en {tool.get('seconds') or 0:.2f} s."))
+        if name == "pokemon_rag_search":
+            timings = tool.get("timings") or {}
+            path.append(("mcp", "pokepedia", f"{tool.get('passages', 0)} passage(s) retenu(s)"
+                         + (f" en {timings['total']:.2f} s." if "total" in timings else ".")))
+            at = "pokepedia"
+            for step in SEARCH_STEPS:
+                path.append((at, step, f"{timings[step]:.2f} s" if step in timings else ""))
+                at = step
+        else:
+            rows = next((len(result[key]) for key in ("results", "moves", "rows", "evolutions", "methods")
+                         if isinstance(result.get(key), list)), None)
+            path.append(("mcp", "base", (f"Requête SQL en {tool['execution_time'] * 1000:.0f} ms"
+                                         if tool.get("execution_time") is not None else "Requête SQL")
+                         + (f" · {rows} ligne(s)." if rows is not None else ".")))
+            at = "base"
+        path.append((at, "budget",
+                     "Résultat trop volumineux : rien n'est transmis au modèle." if error
+                     else "Résultat trop long : seule une partie est transmise au modèle, et il en est prévenu."
+                     if result.get("context_truncated")
+                     else "Résultat réduit aux champs utiles à la question." if result.get("context_compacted")
+                     else "Résultat transmis en entier."))
+        at = "budget"
+    if outcome == "budget_abstention":  # décidée avant de rappeler le modèle
+        return path + [(at, "rejet", REJECTIONS[outcome])]
+    if not pending:
+        # Après un résultat, le modèle rédige ; après un appel refusé ou en erreur, il est relancé pour choisir.
+        path.append((at, "redige" if at == "budget" else "choix", ""))
+    source, last, _ = path[-1]
+    if outcome == "running":
+        return path
+    if outcome not in ("answered", "list_fidelity_replacement"):
+        return path + [(last, "rejet", REJECTIONS.get(outcome, REJECTIONS["error"]))]
+    if not tools:
+        path[-1] = (source, last, "Aucun outil demandé.")
+        return path + [(last, "rejet", REJECTIONS["unverified"])]
+    written = ("La réponse du modèle omettait ou niait une ligne de la liste : elle est remplacée par la liste "
+               "tirée des données." if outcome == "list_fidelity_replacement"
+               else "Réponse rédigée à partir des résultats reçus.")
+    if last == "choix":
+        # ponytail: réponse écrite après un dernier appel en échec (0 cas sur 153 réponses tracées) : « rédige »
+        # s'allume sans tube ; ajouter un tube choix → rédige si le cas se présente.
+        path[-1] = (source, last, "Le modèle n'appelle plus d'outil.")
+        path.append(("choix", "redige", written))
+    else:
+        path[-1] = (source, last, written)
+    return path + [("redige", "reponse", "Réponse affichée dans la conversation.")]
+
+
+def graph_value(path: list[tuple[str, str, str]], *, question_id: str = "", running: bool = False,
+                user_icon: str = "", answer_icon: str = "", pace: int = 700) -> str:
+    """Valeur envoyée au navigateur : le parcours, qu'il déroule un passage toutes les `pace` millisecondes.
+
+    `question_id` distingue deux questions : le navigateur reprend au début quand il change, et continue là où
+    il en était quand le parcours de la même question s'allonge. `running` : le dernier passage est en cours.
+    """
+    return json.dumps({"id": question_id, "path": path, "running": running, "pace": pace,
+                       "user_icon": user_icon, "answer_icon": answer_icon}, ensure_ascii=False)
 
 
 def _wave(r: float) -> str:
@@ -109,20 +256,33 @@ def _arrival_angle(curve, radius: float = 20) -> int:
 
 def graph_template() -> str:
     by_id = {node["id"]: node for node in NODES}
-    parts = ['<svg class="graph" viewBox="0 -12 440 442" role="img" aria-label="Parcours d\'une question">']
+    parts = ['<svg class="graph" viewBox="0 -12 460 442" role="img" aria-label="Parcours d\'une question">']
     for source, target, *kind in EDGES:
         a, b = by_id[source], by_id[target]
         start, end = (a["x"], a["y"]), (b["x"], b["y"])
         if kind[:1] == ["side"]:  # sortie de côté, sous le libellé de la source
             curve = (start, (a["x"] + 30, b["y"]), (a["x"] + 90, b["y"]), end)
+        elif kind[:1] == ["over"]:  # source bien plus haute : passe entre deux libellés, puis descend sur la cible
+            curve = (start, (a["x"] + 90, a["y"] + 16), (b["x"], a["y"] + 6), end)
+        elif kind[:1] == ["ring"]:  # arc de l'anneau entre deux de ses points, approché par une courbe de Bézier
+            side = 1 if a["x"] + b["x"] > 2 * RING["x"] else -1
+            t0, t1 = (math.atan2(abs(point["x"] - RING["x"]) / RING["rx"], (RING["y"] - point["y"]) / RING["ry"])
+                      for point in (a, b))
+            reach = 4 / 3 * math.tan((t1 - t0) / 4)
+            (dx0, dy0), (dx1, dy1) = ((reach * side * RING["rx"] * math.cos(t), reach * RING["ry"] * math.sin(t))
+                                      for t in (t0, t1))
+            curve = (start, (round(a["x"] + dx0, 1), round(a["y"] + dy0, 1)),
+                     (round(b["x"] - dx1, 1), round(b["y"] - dy1, 1)), end)
         elif kind:  # retour vers le modèle pour un nouvel appel d'outil
-            curve = (start, (10, a["y"]), (10, b["y"]), end)
+            # L'arc s'écarte d'autant plus que le retour est long : un retour court reste près de la colonne.
+            left = a["x"] - min(200, 40 + 0.6 * abs(a["y"] - b["y"]))
+            curve = (start, (left, a["y"]), (left, b["y"]), end)
         else:
             middle = (a["y"] + b["y"]) / 2
             curve = (start, (a["x"], middle), (b["x"], middle), end)
         path = "M {} {} C {} {}, {} {}, {} {}".format(*(value for point in curve for value in point))
         angle = _arrival_angle(curve)
-        duration = 1.4 if kind == ["loop"] else 1.3 if abs(a["y"] - b["y"]) + abs(a["x"] - b["x"]) < 70 else 0.95
+        duration = 1.4 if kind[:1] == ["loop"] else 1.3 if abs(a["y"] - b["y"]) + abs(a["x"] - b["x"]) < 70 else 0.95
         ends = f'data-to="{target}" data-from="{source}" data-dur="{duration}" data-angle="{angle}" d="{path}"'
         parts.append(f'<path class="edge track {" ".join(kind)}" {ends}/>'
                      f'<path class="edge fill" pathLength="100" style="--liquid:{b["tint"]};--dur:{duration}s" {ends}/>')
@@ -170,11 +330,10 @@ def graph_template() -> str:
 GRAPH_CSS = """
 .graph, .detail { --ink: var(--body-text-color, #1f2933); --muted: var(--body-text-color-subdued, #8a94a3);
     --line: var(--border-color-primary, #e2e6ec); --surface: var(--background-fill-primary, #fff); }
-.graph { width: 100%; max-width: 440px; display: block; margin: 0 auto; }
+.graph { width: 100%; max-width: 460px; display: block; margin: 0 auto; }
 .edge { fill: none; }
 /* Un tube de verre (trait gris large) et le liquide qui avance dedans, de la source vers la cible. */
 .edge.track { stroke: var(--line); stroke-width: 7; stroke-linecap: round; }
-.edge.track.loop { stroke-width: 3; stroke-dasharray: 1 7; }
 .edge.track.hidden { opacity: 0; }
 .edge.fill { stroke: var(--liquid); stroke-width: 4; stroke-dasharray: 100; stroke-dashoffset: 100; }
 .edge.fill.active { animation: graph-pour var(--dur) linear forwards; }
@@ -212,13 +371,17 @@ GRAPH_CSS = """
 .node.done text, .node.active text { fill: var(--ink); }
 .node:hover .face, .node.pinned .face { filter: drop-shadow(0 0 2px var(--ink)); }
 .node:hover .glass, .node.pinned .glass { stroke: var(--ink); }
+/* Au survol, la tête et son contour grossissent légèrement. */
+.node .vessel { transition: transform 0.15s ease-out; }
+.node:hover .vessel { transform: scale(1.12); }
 .node.pinned .glass { stroke-width: 3; }
 .node .badge { display: none; }
 .node.multi .badge { display: block; }
 .node .badge circle { fill: var(--ink); }
 .node .badge text { fill: var(--surface); stroke: none; font-size: 8.5px; font-weight: 700; }
-.detail { margin: 6px auto 0; max-width: 440px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px;
-          background: var(--background-fill-secondary, #f8f9fb); min-height: 84px; }
+/* Hauteur fixe : un texte long défile dans l'encart, le panneau lui-même ne défile pas. */
+.detail { margin: 6px auto 0; max-width: 460px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 14px;
+          background: var(--background-fill-secondary, #f8f9fb); height: 118px; box-sizing: border-box; overflow-y: auto; }
 .detail-title { font-weight: 600; color: var(--ink); }
 .detail-role { color: var(--muted); font-size: 13px; margin: 2px 0 8px; }
 .detail-output { color: var(--ink); font-size: 13.5px; white-space: pre-wrap; }
@@ -232,11 +395,47 @@ GRAPH_KEYFRAMES = """
 @keyframes graph-throb { to { transform: scale(1.15); } }
 """
 
-# Le survol et l'épinglage vivent dans le navigateur ; Python n'envoie que l'état du parcours.
+# Le navigateur déroule le parcours reçu et garde le survol et l'épinglage ; Python n'envoie que le parcours.
 GRAPH_JS = """
-let pinned = null, hovered = null;
+let pinned = null, hovered = null, sent = {}, shown = 0, timer = null;
+// Nouveau parcours reçu : reprendre au premier passage qui diffère, puis avancer d'un passage à la fois.
+function receive() {
+    const next = JSON.parse(props.value || '{}'), path = next.path || [], old = sent.path || [];
+    let same = 0;
+    while (next.id === sent.id && same < path.length && same < old.length
+           && path[same][0] === old[same][0] && path[same][1] === old[same][1]) same++;
+    shown = Math.min(shown, same);
+    sent = next;
+    advance();
+}
+function advance() {
+    clearTimeout(timer);
+    const total = (sent.path || []).length;
+    if (shown < total) shown++;
+    apply();
+    if (shown < total) timer = setTimeout(advance, sent.pace || 700);
+}
+// Le dessin prend la hauteur qui reste dans la fenêtre au-dessus de l'encart : ni l'un ni l'autre ne défile.
+function fit() {
+    const svg = element.querySelector('.graph'), detail = element.querySelector('.detail');
+    const box = svg.getBoundingClientRect();
+    if (!box.width) return;  // onglet masqué
+    // Mesuré par rapport au panneau qui contient le graphe : si l'en-tête de la page bouge, les deux bougent ensemble.
+    const bottom = panel ? panel.getBoundingClientRect().bottom : window.innerHeight;
+    const room = bottom - box.top - detail.offsetHeight - 36;
+    svg.style.height = Math.max(200, Math.min(room, 520)) + 'px';
+}
 function apply() {
-    const sent = JSON.parse(props.value || '{}'), state = sent.nodes || {}, edges = sent.edges || {};
+    const path = (sent.path || []).slice(0, shown), state = {}, edges = {};
+    path.forEach(([from, id, text]) => {
+        (state[id] = state[id] || {status: 'done', outputs: []}).outputs.push(text);
+        edges[from + '>' + id] = 'done';
+    });
+    const last = path[path.length - 1];
+    if (last && (sent.running || shown < (sent.path || []).length)) {
+        state[last[1]].status = 'active';
+        edges[last[0] + '>' + last[1]] = 'active';
+    }
     const status = id => (state[id] || {}).status;
     element.querySelectorAll('.node').forEach(node => {
         const id = node.dataset.id, passes = (state[id] || {}).outputs || [];
@@ -272,14 +471,20 @@ function apply() {
         }
         edge.classList.toggle('done', reached === 'done');
     });
-    const shown = pinned || hovered || Object.keys(state).find(id => status(id) === 'active');
-    const node = shown && element.querySelector(`.node[data-id="${shown}"]`);
-    const passes = ((state[shown] || {}).outputs || []).slice().reverse();
+    const chosen = pinned || hovered || Object.keys(state).find(id => status(id) === 'active');
+    const node = chosen && element.querySelector(`.node[data-id="${chosen}"]`);
+    const passes = ((state[chosen] || {}).outputs || []).slice().reverse();
     element.querySelector('.detail-title').textContent = node ? node.dataset.label : 'Suivez le parcours de votre question';
     element.querySelector('.detail-role').textContent = node ? node.dataset.role : 'Survolez un rond pour voir ce que fait chaque étape ; cliquez pour le garder affiché.';
     element.querySelector('.detail-output').textContent = passes.length > 1
         ? passes.map((text, i) => `Passage ${passes.length - i} — ${text}`).join('\\n') : (passes[0] || '');
 }
-watch('value', apply);
-apply();
+watch('value', receive);
+window.addEventListener('resize', fit);
+const panel = element.closest('#agent-panel');
+const sizes = new ResizeObserver(fit);
+sizes.observe(element);
+if (panel) sizes.observe(panel);
+receive();
+fit();
 """

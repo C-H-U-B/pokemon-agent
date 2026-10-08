@@ -24,5 +24,70 @@
       "Bourrinos",
       750
     ]
-  ]
+  ],
+  "trace": {
+    "outcome": "answered",
+    "tools": [
+      {
+        "name": "pokemon_search",
+        "arguments": {
+          "limit": 5,
+          "sort_by": "weight",
+          "best_only": false,
+          "sort_order": "desc",
+          "offset": 0
+        },
+        "seconds": 0.08815619999950286,
+        "execution_time": 0.020255200000974583,
+        "proposed_arguments": {
+          "limit": 5,
+          "sort_by": "weight",
+          "best_only": false,
+          "sort_order": "desc"
+        },
+        "result": {
+          "operation": "search_pokemon",
+          "form_selection": "default",
+          "form_category": null,
+          "sort_by": "weight",
+          "sort_order": "desc",
+          "best_only": false,
+          "stat_name_fr": "Poids (kg)",
+          "version_selection": null,
+          "type_match": "all",
+          "catalogue_complete": true,
+          "move_properties": null,
+          "results": [
+            {
+              "name_fr": "Cosmovum",
+              "Poids (kg)": 999.9
+            },
+            {
+              "name_fr": "Bamboiselle",
+              "Poids (kg)": 999.9
+            },
+            {
+              "name_fr": "Groudon",
+              "Poids (kg)": 950.0
+            },
+            {
+              "name_fr": "Éthernatos",
+              "Poids (kg)": 950.0
+            },
+            {
+              "name_fr": "Bourrinos",
+              "Poids (kg)": 920.0
+            }
+          ],
+          "total_count": 1025,
+          "returned_count": 5,
+          "limit": 5,
+          "offset": 0,
+          "truncated": true,
+          "has_more": true,
+          "context_compacted": true
+        }
+      }
+    ]
+  }
 }
