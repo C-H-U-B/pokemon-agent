@@ -37,3 +37,7 @@ jobs:
 
       - name: Tests sans données locales ni modèle
         run: python -m pytest -m "not real_data and not llm and not models" -q
+
+      - name: Compteur de tests du README
+        # Échoue si le nombre annoncé dans les README ne correspond plus aux tests lancés ci-dessus.
+        run: python scripts/check_test_counts.py --ci
