@@ -173,6 +173,13 @@ tous les clients. L'**adaptation ADK** en retire la copie textuelle. La
 Les trois dernières vivent dans `context_budget.py` et ne modifient jamais
 l'objet reçu du serveur.
 
+La fiche d'un Pokémon nommé est projetée sur les rubriques que la question
+désigne, pour trois demandes reconnues par mots : sensibilité à un type
+(faiblesses, résistances, immunités), changement de talent (ancien talent et
+talents actuels), jeux où le Pokémon est absent. Fiche entière, le modèle
+complétait la rubrique demandée par un champ voisin. Hors de ces motifs, ou si
+la fiche ne porte aucune des rubriques désignées, elle part entière.
+
 `context_budget.py` retire la copie textuelle des données MCP structurées et
 borne chaque résultat destiné à ADK à 3000 octets UTF-8. Les listes sont
 réduites avec un signalement explicite et leurs totaux conservés. Un résultat

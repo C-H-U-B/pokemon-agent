@@ -680,3 +680,38 @@ def test_pseudo_legendary_does_not_request_the_legendary_column():
                                  question="Quels sont les pseudo-légendaires de la sixième génération ?",
                                  args={"subgroup": "Pseudo-légendaire", "generation": 6})
     assert set(result["results"][0]) == {"name_fr"}
+
+
+SHEET = {"name_fr": "Ectoplasma", "Type 1": "Spectre", "Talent 1": "Corps Maudit", "Talent caché": "Corps Maudit",
+         "Rencontre ou obtention à l'introduction": "Échange de Spectrum.", "Faiblesses de type": "Sol (×2)",
+         "Résistances de type": "Plante (×½)", "Immunités de type": "Normal, Combat",
+         "Ancien talent": "Lévitation (jusqu'à la G6, changé en G7)",
+         "Jeux sans ce Pokémon depuis son introduction": "aucun", "Taille": "1,5 m"}
+MATCHUPS = {"name_fr", "Faiblesses de type", "Résistances de type", "Immunités de type"}
+
+
+@pytest.mark.parametrize("question, fields", [
+    ("Smogogo est-il faible au Sol ?", MATCHUPS),
+    ("Ectoplasma craint-il les attaques de type Normal ?", MATCHUPS),
+    # L'ancien talent seul ne dit pas le talent actuel : le modèle l'inventait (« remplacé par Spectre »).
+    ("Ectoplasma a-t-il toujours eu le même talent ?", {"name_fr", "Ancien talent", "Talent 1", "Talent caché"}),
+    ("Dans quels jeux Abo est-il absent ?", {"name_fr", "Jeux sans ce Pokémon depuis son introduction"}),
+    ("Ectoplasma a-t-il changé de talent et quelles sont ses faiblesses ?",
+     MATCHUPS | {"Ancien talent", "Talent 1", "Talent caché"}),
+    # Rien de reconnu : la fiche part entière, comme avant.
+    ("Quel est le talent signature de Métamorph ?", set(SHEET)),
+    ("Dans quelle version pouvait-on obtenir Abo à sa sortie ?", set(SHEET)),
+    ("Combien pèse Ronflex ?", set(SHEET)),
+    ("", set(SHEET)),
+])
+def test_the_sheet_keeps_only_the_rubrics_named_by_the_question(question, fields):
+    result = bounded_tool_result({"structuredContent": {"operation": "get_particularities", "rows": [dict(SHEET)]}},
+                                 question=question)
+    assert set(result["rows"][0]) == fields
+
+
+def test_a_sheet_without_the_requested_rubric_stays_whole():
+    sheet = {"name_fr": "Tropius", "Type 1": "Plante", "Taille": "2,0 m"}
+    result = bounded_tool_result({"structuredContent": {"operation": "get_particularities", "rows": [dict(sheet)]}},
+                                 question="Dans quels jeux Tropius est-il absent ?")
+    assert result["rows"][0] == sheet

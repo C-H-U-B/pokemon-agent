@@ -1661,3 +1661,36 @@ These answers passed the campaign check, which only looked for the presence of
 words. A case can now forbid terms. Still open, outside the labels: the opening
 "Oui, il a toujours eu le même talent" followed by its opposite, and sentences
 invented after a correct list.
+
+## 89. [Bug fix] Sheet reduced to the sections the question points to
+
+The agent quoted the right section of the sheet, then contradicted it: "Oui,
+Ectoplasma a toujours eu le talent Corps Maudit", followed by "donc non";
+Weezing "immunisé s'il possède Lévitation, ce qui est le cas pour lui"; a
+correct list of games followed by invented games. Read over ten runs of each
+question, 26 answers out of 30 were faulty, and the campaign check counted 18
+of them as passed.
+
+Three causes were possible: the writing instruction, a prior of the model on
+yes/no questions, or the sheet itself. Each faulty sentence could be traced to
+a field next to the requested section: the first ability of the sheet read as
+the ability the Pokémon has, the encounter at introduction added to the list
+of games. One trial settled it without touching the instruction: with a sheet
+reduced to the name and the requested section, 1 faulty answer out of 15
+remained, and none opened with "Oui" any more. The instruction was therefore
+sufficient, and the two label rewrites of the previous step targeted the
+section that was read, not the fields the error came from.
+
+The sheet sent to the model now keeps only the sections the question points
+to, for three requests recognised by their words: matchup against a type,
+change of ability, games the Pokémon is absent from. The past ability goes
+with the current abilities: alone, it pushed the model to invent today's
+ability. Outside these requests, the sheet is sent whole, as before. The
+choice is made in code rather than through an argument left to the model: to
+check that choice, the guard would have needed the same table of words. The
+MCP tools and the API still return the full sheet.
+
+With Qwen, 2 faulty answers out of 30 remain for these defects, and the
+control questions do not move. A lighter defect became visible: the list of
+missing games is sometimes followed by "ces jeux ne le contiennent pas à
+l'introduction du Pokémon", which distorts the label.
