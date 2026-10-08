@@ -18,6 +18,8 @@ from pokemon_rag.config import LLM_BASE_URL, LLM_MODEL
 from pokemon_rag.constraints.query_constraints import normalize
 from pokemon_rag.structured.query_engine import ARTWORK_URL, pokemon_image_urls
 from pokemon_rag.observability.tracing import TRACE_DIR, save_trace
+from pokemon_rag.web.graph import (GRAPH_CSS, GRAPH_JS, GRAPH_KEYFRAMES, TOOL_LABELS, graph_path, graph_template,
+                                   graph_value, random_pikachu)
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,8 @@ SHOW_LAST_QUESTION_JS = """() => setTimeout(() => {
 APP_CSS = """
 .gradio-container { padding: 12px !important; }
 .gradio-container footer { display: none; }
-#app-shell { height: calc(100dvh - 24px); min-height: 0; gap: 12px; }
+/* 56px : marges de la page (12px) et du conteneur de Gradio (16px), en haut et en bas ; avec 24px la page défilait. */
+#app-shell { height: calc(100dvh - 56px); min-height: 0; gap: 12px; }
 #app-heading { flex-shrink: 0; }
 #app-heading h1 { margin-bottom: 4px; }
 #app-heading p { margin: 0 0 2px; }
@@ -51,6 +54,8 @@ APP_CSS = """
 #agent-panel { border: 1px solid var(--border-color-primary); border-radius: 18px;
     padding: 18px; background: var(--background-fill-secondary); overflow-y: auto; }
 #agent-panel h3 { margin-top: 20px; }
+/* Onglet du graphe : le dessin et son encart tiennent dans la hauteur du panneau (ajustée dans le navigateur). */
+#agent-panel:has(#question-graph:not([hidden])) { overflow: hidden; padding-top: 8px; }
 /* Illustrations en haut d'une réponse : une ligne de petites images, malgré le style des images de Gradio. */
 #chat-history .pokemon-images { display: flex !important; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 #chat-history .pokemon-images > * { flex: 0 0 auto !important; width: auto !important; margin: 0 !important; }
@@ -85,21 +90,7 @@ APP_CSS = """
         grid-template-rows: minmax(0, 3fr) minmax(0, 2fr); }
     #agent-panel { padding: 12px; }
 }
-"""
-TOOL_LABELS = {
-    "pokemon_search": "Recherche de Pokémon",
-    "pokemon_moves": "Movepool filtré",
-    "pokemon_types": "Types du Pokémon",
-    "pokemon_pokedex_identity": "Identité Pokédex",
-    "pokemon_evolutions": "Évolutions",
-    "pokemon_level_up_moves": "Capacités par niveau",
-    "pokemon_move_learning_methods": "Méthodes d'apprentissage",
-    "pokemon_machine_moves": "CT et CS",
-    "pokemon_signature_moves": "Capacités signature",
-    "pokemon_base_stats": "Statistiques de base",
-    "pokemon_particularities": "Talents et particularités",
-    "pokemon_rag_search": "Recherche documentaire Poképédia",
-}
+""" + GRAPH_KEYFRAMES  # hors du style du composant, où Gradio les ignore
 # Questions suggérées par public, une par ligne : les boutons passent à la suivante de leur liste.
 SUGGESTION_FILES = {"decouvrir": "questions_decouvrir.txt", "connaisseurs": "questions_connaisseurs.txt",
                     "experts": "questions_experts.txt"}
@@ -114,6 +105,8 @@ class WebSession:
     user_id: str = field(default_factory=lambda: f"web_{uuid.uuid4().hex}")
     # Prochaine question de chaque liste. La première « découvrir » est déjà dans la saisie au lancement.
     next_suggestion: dict[str, int] = field(default_factory=lambda: {"decouvrir": 1, "connaisseurs": 0, "experts": 0})
+    # Tête du visiteur sur le graphe : un Pikachu tiré au hasard par conversation.
+    icon: str = field(default_factory=random_pikachu)
 
 
 runner = InMemoryRunner(agent=root_agent)
@@ -299,6 +292,31 @@ def _opening_example() -> list[dict]:
     except Exception:
         logger.warning("opening_example_failed", exc_info=True)
         return []
+
+
+def _graph(trace: dict, question_id: str, state: WebSession, pace: int = 700) -> str:
+    """Parcours d'une trace, complète ou en cours, tel que le graphe le reçoit."""
+    return graph_value(graph_path(trace), question_id=question_id, running=trace["outcome"] == "running",
+                       user_icon=state.icon, pace=pace)
+
+
+EMPTY_GRAPH = graph_value([])
+
+
+def _opening_graph() -> str:
+    """Parcours de l'exemple d'ouverture, rejoué une fois en accéléré au chargement, sans appel au modèle.
+
+    Trace réelle de la réponse affichée, gardée dans `exemple_ouverture.json`. Sans elle, ou si la première
+    question a changé, le graphe reste vide.
+    """
+    try:
+        example = json.loads(Path(__file__).with_name("exemple_ouverture.json").read_text(encoding="utf-8"))
+        if example["question"] != FIRST_QUESTION:
+            return EMPTY_GRAPH
+        return _graph({"question": example["question"], **example["trace"]}, "ouverture", WebSession(), pace=550)
+    except Exception:
+        logger.warning("opening_graph_failed", exc_info=True)
+        return EMPTY_GRAPH
 
 
 def _final_response_text(events) -> str:
@@ -520,7 +538,8 @@ def _web_trace(question: str, answer: str, outcome: str, error: Exception | None
         executed = measure.pop("executed_arguments", None)
         if executed is not None and executed != arguments:
             measure["proposed_arguments"] = arguments
-        tools.append({"name": name, "arguments": arguments if executed is None else executed,
+        # start : deux appels partis au même instant ont été demandés par le modèle dans le même tour.
+        tools.append({"name": name, "arguments": arguments if executed is None else executed, "start": call_start,
                       "seconds": None if call_start is None or call_end is None else call_end - call_start,
                       **measure, "result": timing.results.get(index)})
     return {
@@ -605,6 +624,7 @@ async def chat(
             history,
             gr.skip(),
             _format_activity([], [], 0.0, "Aucune requête envoyée."),
+            gr.skip(),
         )
         return
 
@@ -615,6 +635,8 @@ async def chat(
                        {"role": "assistant", "content": QUESTION_TOO_LONG}],
             gr.skip(),
             _format_activity([], [], 0.0, "Aucune requête envoyée."),
+            _graph({"question": message[:MAX_QUESTION_CHARS] + "…", "outcome": "question_too_long"},
+                   uuid.uuid4().hex, state),
         )
         return
 
@@ -649,6 +671,13 @@ async def chat(
     status = f"🧠 **{MODEL_LABEL} analyse la question et choisit les outils adaptés…**"
     finished = False
     error: Exception | None = None
+    question_id = uuid.uuid4().hex
+
+    def running_graph() -> str:
+        return _graph(_web_trace(message, "", "running", None, tool_calls, timing, time.perf_counter() - start),
+                      question_id, state)
+
+    sent_graph = running_graph()
 
     # Affichage immédiat.
     yield (
@@ -661,6 +690,7 @@ async def chat(
             status,
             timing,
         ),
+        sent_graph,
     )
 
     try:
@@ -715,6 +745,10 @@ async def chat(
                 pass
 
             elapsed = time.perf_counter() - start
+            # Le graphe n'est renvoyé que lorsque le parcours a changé : le navigateur le déroule seul.
+            current_graph = sent_graph if finished else running_graph()
+            graph_update = gr.skip() if current_graph == sent_graph else current_graph
+            sent_graph = current_graph
 
             # Conversation et état non renvoyés ici : dix mises à jour par seconde ramenaient le
             # défilement en bas et écrasaient une suggestion choisie pendant l'attente.
@@ -728,6 +762,7 @@ async def chat(
                     status,
                     timing,
                 ),
+                graph_update,
             )
 
         await task
@@ -758,7 +793,8 @@ async def chat(
             status = "✅ **Réponse disponible**"
             outcome = "answered"
 
-    _save_web_trace(_web_trace(message, response, outcome, error, tool_calls, timing, elapsed))
+    trace = _web_trace(message, response, outcome, error, tool_calls, timing, elapsed)
+    _save_web_trace(trace)
 
     updated_history = history + [
         {
@@ -782,6 +818,7 @@ async def chat(
             status,
             timing,
         ),
+        _graph(trace, question_id, state),
     )
 
 
@@ -793,6 +830,7 @@ def new_conversation():
         WebSession(),
         _format_activity([], [], 0.0, "En attente d'une question."),
         "",
+        EMPTY_GRAPH,
     )
 
 
@@ -881,9 +919,20 @@ def build_app() -> gr.Blocks:
 
                 # Activité
                 with gr.Column(scale=2, min_width=320, elem_id="agent-panel"):
-                    activity = gr.Markdown(
-                        _format_activity([], [], 0.0, "En attente d'une question."),
-                    )
+                    # Onglets : un troisième (guide des questions) s'ajoutera sans refaire la bascule.
+                    with gr.Tabs():
+                        with gr.Tab("Parcours"):
+                            graph = gr.HTML(
+                                value=_opening_graph() if opening else EMPTY_GRAPH,
+                                html_template=graph_template(),
+                                css_template=GRAPH_CSS,
+                                js_on_load=GRAPH_JS,
+                                elem_id="question-graph",
+                            )
+                        with gr.Tab("Temps"):
+                            activity = gr.Markdown(
+                                _format_activity([], [], 0.0, "En attente d'une question."),
+                            )
 
             # La saisie est vidée dès l'envoi, pas à l'arrivée de la réponse : une question préparée
             # pendant l'attente (suggestion ou frappe) reste dans le champ. Bouton et touche Entrée.
@@ -897,7 +946,7 @@ def build_app() -> gr.Blocks:
                 ).then(
                     fn=chat,
                     inputs=[pending_question, chatbot, state],
-                    outputs=[chatbot, state, activity],
+                    outputs=[chatbot, state, activity, graph],
                 )
                 # Réponse arrivée : la conversation revient sur la dernière question, même si le lecteur
                 # était remonté lire une réponse précédente (Gradio ne redescend que s'il était déjà en bas).
@@ -920,6 +969,7 @@ def build_app() -> gr.Blocks:
                     state,
                     activity,
                     message,
+                    graph,
                 ],
                 cancels=chat_events,
             )

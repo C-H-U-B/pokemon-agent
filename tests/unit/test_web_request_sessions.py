@@ -126,6 +126,42 @@ def test_question_is_visible_before_answer_without_duplicate(web, monkeypatch):
     assert history == [{"role": "assistant", "content": "Ancienne réponse"}]
 
 
+def test_the_graph_receives_the_path_at_the_start_and_at_the_end_not_at_every_refresh(web, monkeypatch):
+    import json
+
+    class SlowRunner(FakeRunner):
+        async def run_async(self, session_id, new_message, **kwargs):
+            await asyncio.sleep(0.05)  # plusieurs rafraîchissements du chrono sans événement
+            async for event in super().run_async(session_id, new_message, **kwargs):
+                yield event
+
+    monkeypatch.setattr(web, "runner", SlowRunner())
+    monkeypatch.setattr(web, "REFRESH_INTERVAL", 0.01)
+    state = web.WebSession()
+
+    async def run(message):
+        return [output[3] async for output in web.chat(message, [], state)]
+
+    sent = asyncio.run(run("Pikachu ?"))
+    first, last = json.loads(sent[0]), json.loads(sent[-1])
+    assert [step[1] for step in first["path"]] == ["question", "choix"] and first["running"] is True
+    assert first["user_icon"] == state.icon
+    assert len(sent) > 3 and all(value == web.gr.skip() for value in sent[1:-1])
+    # Réponse du modèle simulé sans aucun outil : non vérifiée, donc vers le rejet ; même question, même identifiant.
+    assert [step[1] for step in last["path"]] == ["question", "choix", "rejet"] and last["running"] is False
+    assert last["id"] == first["id"]
+    too_long = json.loads(asyncio.run(run("x" * (web.MAX_QUESTION_CHARS + 1)))[-1])
+    assert [step[:2] for step in too_long["path"]][-1] == ["question", "rejet"] and too_long["id"] != first["id"]
+
+
+def test_the_opening_graph_replays_the_recorded_example_without_any_model_call(web):
+    import json
+    opening = json.loads(web._opening_graph())
+    assert [step[1] for step in opening["path"]] == [
+        "question", "choix", "guard", "mcp", "base", "budget", "redige", "reponse"]
+    assert opening["path"][0][2] == web.FIRST_QUESTION and opening["running"] is False
+
+
 def test_overlong_question_is_refused_before_any_model_call(web, monkeypatch):
     fake = FakeRunner()
     monkeypatch.setattr(web, "runner", fake)
@@ -394,8 +430,8 @@ def test_trace_keeps_tool_arguments_measures_results_and_names_abstentions(web):
     timing.transition("finished", 9.0)
     trace = web._web_trace("Question", "Carabaffe est de type Eau.", "answered", None, calls, timing, 9.0)
     assert trace["tools"] == [
-        {"name": "pokemon_level_up_moves", "arguments": calls[0][1], "seconds": 0.5, "result": refusal},
-        {"name": "pokemon_types", "arguments": calls[1][1], "seconds": 0.25, "execution_time": 0.04, "result": types_result},
+        {"name": "pokemon_level_up_moves", "arguments": calls[0][1], "start": 1.0, "seconds": 0.5, "result": refusal},
+        {"name": "pokemon_types", "arguments": calls[1][1], "start": 3.0, "seconds": 0.25, "execution_time": 0.04, "result": types_result},
     ]
     assert trace["seconds"] == {"total": 9.0, "analysis": 1.0, "tools": 0.75, "generation": 7.25}
     for text, outcome in ((web.TOOL_FAILURE_ABSTENTION, "tool_failure_abstention"),
