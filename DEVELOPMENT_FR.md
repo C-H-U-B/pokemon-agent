@@ -1700,3 +1700,37 @@ Un test a trouvé un défaut avant toute exécution réelle : un second type
 inconnu donnait les faiblesses du premier type seul, fausses pour ce Pokémon.
 La rubrique est maintenant omise. Sur la vraie base, chaque combinaison de
 types du tableur est comparée à une lecture indépendante de la table.
+
+## 88. [Bug fix] Sensibilité à un type d'attaque lue dans la fiche
+
+« Ectoplasma craint-il les attaques de type Normal ? » était refusé par le
+guard : « attaques de type Normal » comptait pour un filtre de capacités, que
+la fiche ne porte pas, alors que « craint-il le type Normal ? » passait. Le
+refus renvoyait le modèle vers la liste des capacités, qui ne répond pas à la
+question.
+
+Le type d'attaque est maintenant lu dans la fiche quand la question nomme un
+Pokémon et porte un mot de sensibilité (craint, faible à, résiste, immunisé).
+Sans ce mot, il reste un filtre exigé : « Quelles attaques de type Feu
+Dracaufeu apprend-il ? » est toujours refusé sur la fiche, et « la capacité la
+plus faible » parle de puissance. Accepter la fiche dès qu'un Pokémon est nommé
+aurait fait disparaître ce filtre en silence.
+
+Écrire le test a montré un défaut voisin : « Quelle est l'attaque de type
+Dragon de Dracolosse ? » perdait son type sans refus, parce que « attaque » au
+singulier était pris pour la statistique. Suivi de « de type », le mot désigne
+maintenant une capacité, sauf après un superlatif.
+
+Avec Qwen, la fiche est demandée d'emblée et la réponse parle d'immunité. La
+relecture des autres réponses a montré deux libellés mal lus. « Lévitation
+(jusqu'à la G6) » était rendu par « remplacé à la génération 6 » : la fiche
+écrit « (jusqu'à la G6, changé en G7) », et la date est juste depuis.
+« immunisé avec le talent Lévitation » était rendu sans condition pour Smogogo,
+qui a trois talents : la fiche écrit « immunisé seulement s'il a le talent
+Lévitation ». La condition est reprise, mais le modèle la contredit ou la lève
+dans la suite de sa réponse.
+
+Ces réponses passaient le contrôle de campagne, qui ne cherchait que la présence
+de mots. Un cas peut maintenant interdire des termes. Restent ouverts, hors des
+libellés : l'ouverture « Oui, il a toujours eu le même talent » suivie de son
+contraire, et les phrases inventées après une liste juste.
