@@ -45,16 +45,16 @@ def spreadsheet_rows(conn):
     ("Raichu d’Alola", "Sol (×2), Insecte (×2), Spectre (×2), Ténèbres (×2)",     # aucun talent d'immunité
      "Combat (×½), Vol (×½), Acier (×½), Électrik (×½), Psy (×½)", None),
     # Talent caché seul à annuler l'Électrik : le multiplicateur reste, le talent est nommé.
-    ("Pikachu", "Sol (×2)", "Vol (×½), Acier (×½), Électrik (×½ ; immunisé avec le talent Paratonnerre)", None),
+    ("Pikachu", "Sol (×2)", "Vol (×½), Acier (×½), Électrik (×½ ; immunisé seulement s'il a le talent Paratonnerre)", None),
     # Seul talent de la fiche : le Sol quitte les faiblesses.
     ("Fantominus", "Spectre (×2), Psy (×2), Ténèbres (×2)", "Plante (×½), Fée (×½), Poison (×¼), Insecte (×¼)",
      "Sol (talent Lévitation), Normal, Combat"),
     # Un talent sur trois : la faiblesse au Sol reste, annotée.
-    ("Smogogo", "Sol (×2 ; immunisé avec le talent Lévitation), Psy (×2)",
+    ("Smogogo", "Sol (×2 ; immunisé seulement s'il a le talent Lévitation), Psy (×2)",
      "Combat (×½), Poison (×½), Insecte (×½), Plante (×½), Fée (×½)", None),
     # Type neutre annulé par un talent sur trois : immunité conditionnelle.
     ("Coatox", "Psy (×4), Vol (×2), Sol (×2)",
-     "Combat (×½), Poison (×½), Roche (×½), Plante (×½), Ténèbres (×½), Insecte (×¼)", "Eau (seulement avec le talent Peau Sèche)"),
+     "Combat (×½), Poison (×½), Roche (×½), Plante (×½), Ténèbres (×½), Insecte (×¼)", "Eau (seulement s'il a le talent Peau Sèche)"),
     ("Primo-Groudon", "Sol (×2)", "Poison (×½), Insecte (×½), Acier (×½), Feu (×½), Fée (×½)", "Eau (talent Terre Finale), Électrik"),
     ("Leveinard", "Combat (×2)", None, "Spectre"),                           # aucune résistance
     ("Méga-Dracaufeu X", "Sol (×2), Roche (×2), Dragon (×2)",                # types de la forme, pas de l'espèce
@@ -67,8 +67,8 @@ def test_type_matchups_of_known_pokemon(pokemon, weak, resisted, immune):
 
 
 def test_past_abilities_of_known_pokemon():
-    assert sheet("Ectoplasma")[PAST_ABILITY] == "Lévitation (jusqu'à la G6)"
-    assert sheet("Électhor")[PAST_ABILITY] == "Paratonnerre (talent caché, jusqu'à la G5)"
+    assert sheet("Ectoplasma")[PAST_ABILITY] == "Lévitation (jusqu'à la G6, changé en G7)"
+    assert sheet("Électhor")[PAST_ABILITY] == "Paratonnerre (talent caché, jusqu'à la G5, changé en G6)"
     assert sheet("Ectoplasma")["Talent 1"] == "Corps Maudit"  # l'ancien talent ne remplace pas l'actuel
     assert PAST_ABILITY not in sheet("Tortank")  # talent caché inexistant avant la G5 : pas un ancien talent
     assert PAST_ABILITY not in sheet("Dracaufeu")
@@ -164,7 +164,7 @@ def test_ability_immunities_only_move_the_type_they_cancel(conn):
             entry = next(entry for entry in entries if entry.startswith(kind + " ("))
             assert all(ability in entry for ability in granting), (row["nom"], entry)
             assert (entry in facts.get(IMMUNE, "").split(", ") and "seulement" not in entry) is every or \
-                ("seulement avec" in entry and not every), (row["nom"], entry)
+                ("seulement s'il a" in entry and not every), (row["nom"], entry)
             touched += 1
     assert touched > 100
 

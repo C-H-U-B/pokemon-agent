@@ -209,6 +209,16 @@ def is_named_stat_question(question: str) -> bool:
     return (named or bool(re.search(r"-(?:statistiques?|stats?)-", text))) and not extract_move_constraints(question)
 
 
+def is_type_matchup_question(question: str) -> bool:
+    """Mot de sensibilité à un type (« craint », « faible à », « résiste », « immunisé »).
+
+    « faible » exige sa préposition : « la capacité la plus faible » parle de puissance.
+    """
+    return bool(re.search(
+        r"(?:^|-)(?:crai(?:nt|gn[a-z]*)|faibles?-(?:a|au|aux|contre|face)|faiblesses?|resist[a-z]*|"
+        r"immunis[a-z]*|immunites?|(?:in)?sensibles?|vulnerab[a-z]*)(?:-|$)", normalize(question)))
+
+
 def extract_generation(question: str) -> int | None:
     """Origine explicitement numérotée, pas la génération déduite d'un jeu."""
     text = normalize(question)
@@ -264,8 +274,12 @@ def extract_move_constraints(question: str) -> dict:
     type_pattern = "|".join(sorted(type_aliases, key=len, reverse=True))
     category_pattern = r"physiques?|speciales?|de-statut|statut"
     noun = r"(?:capacites?|attaques?)"
+    # « attaque » seul nomme la statistique ; suivi de « de type », c'est une capacité (« l'attaque de type
+    # Dragon de Dracolosse »), sauf après un superlatif, qui reste un classement sur la statistique.
     move_context = bool(re.search(r"(?:^|-)(?:capacites?|attaques|une-attaque)(?=-|$)", text)
-                        or re.search(r"(?:^|-)(?:apprendre|apprend|apprennent)(?=-|$)", text))
+                        or re.search(r"(?:^|-)(?:apprendre|apprend|apprennent)(?=-|$)", text)
+                        or re.search(r"(?:^|-)(?<!meilleure-)(?<!haute-)(?<!grande-)(?<!forte-)(?<!grosse-)"
+                                     r"attaque-de-types?-", text))
     if not move_context:
         return {}
     categories = set()

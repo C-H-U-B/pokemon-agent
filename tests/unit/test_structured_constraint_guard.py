@@ -177,6 +177,17 @@ def test_species_type_and_move_type_have_separate_literal_contexts(question,expe
     assert extract_pokemon_types(question) == expected
 
 
+@pytest.mark.parametrize("question,expected", [
+    # Régression : « attaque » au singulier valait la statistique, et le type disparaissait sans refus.
+    ("Quelle est l'attaque de type Dragon de Dracolosse ?", "dragon"),
+    ("Quelle attaque de type Dragon Dracolosse apprend-il ?", "dragon"),
+    ("Quel Pokémon a la meilleure attaque de type Dragon ?", None),   # superlatif : classement sur la statistique
+    ("Quel Pokémon de type Dragon a la meilleure Attaque ?", None),
+])
+def test_singular_attack_followed_by_a_type_names_a_move_not_the_stat(question, expected):
+    assert extract_explicit_constraints(question).move_type == expected
+
+
 def test_unrelated_or_does_not_turn_double_type_into_union():
     args = {"types":["fire"],"type_match":"any"}
     assert guard("Les Pokémon Eau/Vol les plus rapides, sans objets ou talents", "pokemon_search", args) is None

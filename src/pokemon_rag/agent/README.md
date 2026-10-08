@@ -378,6 +378,16 @@ génération) reste exigée et maintient le refus. Limite : une question qui nom
 un Pokémon et filtre réellement sur un type ou une catégorie (« Quels Pokémon de
 type Fée peuvent battre Dracaufeu ? ») n'a aucun outil pour y répondre ; la
 fiche du Pokémon nommé est alors acceptée.
+
+Un type d'attaque suit la même règle à une condition de plus : la question doit
+porter un mot de sensibilité (`is_type_matchup_question` : craint, faible à,
+faiblesse, résiste, immunisé, sensible, vulnérable). « Ectoplasma craint-il les
+attaques de type Normal ? » se lit alors dans la fiche, qui renvoie faiblesses,
+résistances et immunités, et `pokemon_moves` est refusé en la désignant. Sans ce
+mot (« Quelles attaques de type Feu Dracaufeu apprend-il ? »), avec une
+catégorie ou une puissance en plus, ou sans Pokémon nommé, le type d'attaque
+reste un filtre exigé. « faible » ne compte que suivi de sa préposition : « la
+capacité la plus faible » parle de puissance.
 Les événements de function call portent la proposition du modèle : ADK en donne
 une copie aux callbacks, que le guard corrige. `after_tool_budget`, appelé même
 après un refus du guard, consigne donc les arguments réellement exécutés dans

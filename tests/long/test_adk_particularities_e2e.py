@@ -117,10 +117,15 @@ CASES = [
     Case("type-immunity", "Ectoplasma craint-il les attaques de type Normal ?", IMMUNE,
          (r"immunis\w*|immunités?|aucun effet|insensible|n'affectent? pas",), (r"faible au type Normal", r"super efficaces?"),
          "Une immunité se lit dans sa propre rubrique ; le type Normal n'est ni une faiblesse ni une résistance."),
-    Case("past-ability", "Ectoplasma a-t-il toujours eu le même talent ?", PAST_ABILITY, ("Lévitation", "Corps Maudit"), (),
-         "L'ancien talent est daté par sa dernière génération (G6) ; à relire : il ne doit pas être donné pour actuel."),
+    Case("type-weakness-one-ability", "Smogogo est-il faible au Sol ?", WEAK, ("Lévitation",), (),
+         "Un seul des talents annule la faiblesse : la fiche donne « Sol (×2 ; immunisé seulement s'il a le talent Lévitation) ». "
+         "À relire : ni « oui » sans le talent, ni « non, immunisé » sans condition."),
+    Case("past-ability","Ectoplasma a-t-il toujours eu le même talent ?", PAST_ABILITY, ("Lévitation", "Corps Maudit"),
+         (r"^Oui", "G1", r"introduction", r"remplac\w+(?:(?!jusqu)[^.])*(?:génération 6|G6)"),
+         "L'ancien talent est daté par sa dernière génération (G6) et celle du changement (G7). Régression : « Oui, toujours "
+         "le même talent », puis « à l'introduction (G1), remplacé à la génération 6 », deux fois sur deux."),
     Case("held-item", "Quel objet un Pikachu sauvage peut-il tenir ?", HELD_ITEMS, ("Balle Lumière",), ("Light Ball",)),
-    Case("missing-games", "Dans quels jeux Abo est-il absent ?", MISSING_GAMES, (r"Épée",), (),
+    Case("missing-games", "Dans quels jeux Abo est-il absent ?", MISSING_GAMES, (r"Épée",), (r"Version (?:2|X)", r"plus disponible", r"supprimé", r"Sword"),
          "Absences déduites des capacités apprises par jeu. À relire : Écarlate et Violet ne doit pas être cité comme une absence."),
     Case("gigantamax", "Dracaufeu a-t-il une forme Gigamax ?", GIGANTAMAX, ("Gigamax", r"Épée"), (r"pas de forme Gigamax", r"n'a pas")),
 ]
