@@ -1765,5 +1765,12 @@ outils MCP et l'API renvoient toujours la fiche complète.
 
 Avec Qwen, il reste 2 réponses fautives sur 30 pour ces défauts, et les
 questions témoins ne bougent pas. Un défaut plus léger est devenu visible : la
-liste des jeux absents est parfois suivie de « ces jeux ne le contiennent pas à
-l'introduction du Pokémon », qui déforme le libellé.
+liste des jeux absents était parfois suivie de « ces jeux ne le contiennent pas
+à l'introduction du Pokémon », qui déforme le libellé.
+
+Il venait d'une phrase de la consigne, qui demandait de dire qu'un fait « à
+l'introduction » date de la sortie du Pokémon : le modèle l'appliquait à une
+liste qu'elle ne visait pas. Sans elle, la déformation disparaît sur dix
+exécutions. Elle ne remplissait pas non plus son rôle : à « Comment obtient-on
+Mewtwo ? », la rencontre de la sortie était donnée au présent, sans date, avec
+ou sans elle. La phrase est retirée de la consigne.

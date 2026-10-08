@@ -1692,5 +1692,13 @@ MCP tools and the API still return the full sheet.
 
 With Qwen, 2 faulty answers out of 30 remain for these defects, and the
 control questions do not move. A lighter defect became visible: the list of
-missing games is sometimes followed by "ces jeux ne le contiennent pas à
+missing games was sometimes followed by "ces jeux ne le contiennent pas à
 l'introduction du Pokémon", which distorts the label.
+
+It came from one sentence of the instruction, which asked the model to say
+that a fact "à l'introduction" dates from the release of the Pokémon: the
+model applied it to a list it did not target. Without it, the distortion
+disappears over ten runs. Nor did the sentence do its job: to "Comment
+obtient-on Mewtwo ?", the release-time encounter was given in the present
+tense, undated, with or without it. The sentence is removed from the
+instruction.
