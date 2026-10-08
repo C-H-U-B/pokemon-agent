@@ -15,6 +15,7 @@ from google.adk.models.llm_response import LlmResponse
 from google.genai import types
 from pokemon_rag.agent.list_fidelity import complete_list, render, unfaithful_names
 from pokemon_rag.agent.tool_guard import _extract_user_text
+from pokemon_rag.config import LLM_MAX_OUTPUT_TOKENS
 from pokemon_rag.constraints.query_constraints import (
     DOCUMENTARY_PATTERN, has_structured_request, is_purely_documentary, is_type_matchup_question, normalize,
     VERSION_GROUP_NAMES_FR,
@@ -24,7 +25,7 @@ from pokemon_rag.constraints.query_constraints import (
 MAX_REQUEST_BYTES = 13_500
 MAX_TOOL_RESULT_BYTES = 3_000
 MAX_MODEL_CALLS = 4
-MAX_OUTPUT_TOKENS = 1_024
+MAX_OUTPUT_TOKENS = LLM_MAX_OUTPUT_TOKENS
 
 TOOL_FAILURE_ABSTENTION = (
     "Aucun outil n'a renvoyé de résultat exploitable pour cette question (erreur technique, "

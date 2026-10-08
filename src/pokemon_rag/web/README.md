@@ -130,7 +130,8 @@ journalisé (`warm_up_failed`) et ne bloque pas l'interface.
 Chaque question ajoute une ligne à `traces/web_traces.jsonl` : modèle et serveur
 utilisés, question, issue (`answered`, `budget_abstention`,
 `tool_failure_abstention`, `double_request_refusal`, `list_fidelity_replacement`, `no_final_response`, `error`), réponse, temps par
-étape, tokens, et pour chaque appel d'outil ses arguments exécutés après le
+étape, tokens (lus, générés, de réflexion, et `output_limit_reached` quand le
+modèle s'est arrêté sur la limite de sortie), et pour chaque appel d'outil ses arguments exécutés après le
 guard (`arguments`), la proposition du modèle lorsqu'elle diffère
 (`proposed_arguments`), sa durée, ses mesures et le résultat tel que le modèle
 l'a reçu. `scripts/observability/analyze_traces.py` ne lit que les traces du

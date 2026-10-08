@@ -9,6 +9,10 @@ LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "http://localhost:1234/v1")
 LLM_MODEL = os.environ.get("LLM_MODEL", "qwen/qwen3-vl-8b")
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "lm-studio")
 
+# Limite de sortie par appel de l'agent ADK. 1 024 convient au contexte de 16 384 tokens de Qwen local ;
+# un modèle distant qui compte sa réflexion dans cette limite (Gemini) coupe la réponse visible avant.
+LLM_MAX_OUTPUT_TOKENS = int(os.environ.get("LLM_MAX_OUTPUT_TOKENS", "1024"))
+
 # Délai réseau par appel et reprises de transport du client LLM.
 LLM_TIMEOUT_SECONDS = 120.0
 LLM_MAX_RETRIES = 0

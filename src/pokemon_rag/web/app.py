@@ -116,6 +116,9 @@ class ActivityTiming:
     seen_measures: int = 0
     prompt_tokens: int = 0
     output_tokens: int = 0
+    # Tokens de réflexion : facturés et comptés dans la limite de sortie, absents de la réponse.
+    thinking_tokens: int = 0
+    output_limit_reached: bool = False
 
     def transition(self, phase: str, elapsed: float) -> None:
         if phase != self.phase:
@@ -133,6 +136,9 @@ class ActivityTiming:
             if usage is not None:
                 self.prompt_tokens += usage.prompt_token_count or 0
                 self.output_tokens += usage.candidates_token_count or 0
+                self.thinking_tokens += getattr(usage, "thoughts_token_count", None) or 0
+            if getattr(event, "finish_reason", None) == types.FinishReason.MAX_TOKENS:
+                self.output_limit_reached = True
         returned = [part.function_response for part in getattr(getattr(event, "content", None), "parts", None) or []
                     if getattr(part, "function_response", None) is not None]
         self.calls.extend((name, elapsed, None) for name, _ in calls)
@@ -484,7 +490,8 @@ def _web_trace(question: str, answer: str, outcome: str, error: Exception | None
         "error": None if error is None else f"{type(error).__name__}: {error}",
         "seconds": {"total": elapsed, **{phase: timing.duration(phase, elapsed)
                                         for phase in ("analysis", "tools", "generation")}},
-        "tokens": {"prompt": timing.prompt_tokens, "output": timing.output_tokens},
+        "tokens": {"prompt": timing.prompt_tokens, "output": timing.output_tokens,
+                   "thinking": timing.thinking_tokens, "output_limit_reached": timing.output_limit_reached},
         "tools": tools,
     }
 
