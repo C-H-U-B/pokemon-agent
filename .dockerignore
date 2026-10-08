@@ -6,6 +6,7 @@
 .vscode
 data
 chroma_db
+dist
 traces
 test_results
 tests

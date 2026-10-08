@@ -183,9 +183,9 @@ def test_activity_explains_requested_backend_and_response_preparation(web, tool,
     received = web._format_activity([(tool, {})], [tool], 2.0, "Retour reçu")
     assert technology in waiting
     assert description in waiting
-    assert "Préparation de la réponse · Qwen" not in waiting
+    assert f"Préparation de la réponse · {web.MODEL_LABEL}" not in waiting
     assert "Réponse reçue" in received
-    assert "Préparation de la réponse · Qwen" in received
+    assert f"Préparation de la réponse · {web.MODEL_LABEL}" in received
     assert "passages textuels" not in waiting if tool == "pokemon_types" else "base SQLite" not in waiting
 
 
@@ -219,7 +219,7 @@ def test_panel_shows_database_loading_search_steps_sql_time_and_tokens(web):
             "reclassement 1.10 s) · 5 passage(s)") in panel
     assert "- Requête SQL : 48 ms" in panel
     # Analyse 4 s + préparation 10 s = 14 s de modèle pour 200 tokens générés.
-    assert "- Qwen : 3200 tokens lus, 200 générés · ≈ 14 tokens/s, lecture des requêtes comprise" in panel
+    assert f"- {web.MODEL_LABEL} : 3200 tokens lus, 200 générés · ≈ 14 tokens/s, lecture des requêtes comprise" in panel
     # Chaque mesure reste sous son propre appel.
     rag, sql = panel.split("### 1.2")
     assert "Recherche :" in rag and "Requête SQL" not in rag and "Requête SQL" in sql and "Recherche :" not in sql

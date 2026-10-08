@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pokemon-agent"
-version = "0.3.0"
+version = "0.4.0"
 description = "Local hybrid RAG and structured query system for Pokémon data"
 requires-python = ">=3.10"
 

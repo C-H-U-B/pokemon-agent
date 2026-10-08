@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 REFRESH_INTERVAL = 0.1
+# Nom du modèle affiché dans le panneau : celui qui est réellement servi (Qwen local, modèle distant de la démo).
+MODEL_LABEL = LLM_MODEL.rsplit("/", 1)[-1]
 APP_CSS = """
 .gradio-container { padding: 12px !important; }
 .gradio-container footer { display: none; }
@@ -349,8 +351,8 @@ def _format_activity(
     lines = [
         "## Agent et outils en action",
         "",
-        "**Agent Pokémon — ADK + Qwen local**",
-        "ADK orchestre les échanges ; Qwen interprète la question et rédige la réponse.",
+        f"**Agent Pokémon — ADK + {MODEL_LABEL}**",
+        f"ADK orchestre les échanges ; {MODEL_LABEL} interprète la question et rédige la réponse.",
         "",
         f"**⏱ {elapsed_seconds:.1f} s · {len(tool_calls)} appel(s) d'outil**",
         "",
@@ -374,7 +376,7 @@ def _format_activity(
             # Le serveur de modèle ne sépare pas lecture et génération : ce débit couvre les deux.
             rate = (f" · ≈ {timing.output_tokens / model_time:.0f} tokens/s, lecture des requêtes comprise"
                     if timing.output_tokens and model_time > 0 else "")
-            lines.append(f"- Qwen : {timing.prompt_tokens} tokens lus, {timing.output_tokens} générés{rate}")
+            lines.append(f"- {MODEL_LABEL} : {timing.prompt_tokens} tokens lus, {timing.output_tokens} générés{rate}")
         lines.append("")
 
     if not tool_calls:
@@ -389,7 +391,7 @@ def _format_activity(
     displayed_counts: dict[str, int] = {}
 
     lines.extend([
-        "### 1. Analyse de la question · Qwen",
+        f"### 1. Analyse de la question · {MODEL_LABEL}",
         "L'agent a demandé les outils ci-dessous pour traiter la question.",
         "",
     ])
@@ -446,8 +448,8 @@ def _format_activity(
 
     if completed_tools:
         lines.extend([
-            "### 2. Préparation de la réponse · Qwen",
-            "Qwen dispose des retours d'outils pour préparer une réponse textuelle en français.",
+            f"### 2. Préparation de la réponse · {MODEL_LABEL}",
+            f"{MODEL_LABEL} dispose des retours d'outils pour préparer une réponse textuelle en français.",
             "",
         ])
 
@@ -580,7 +582,7 @@ async def chat(
         )
     )
 
-    status = "🧠 **Qwen analyse la question et choisit les outils adaptés…**"
+    status = f"🧠 **{MODEL_LABEL} analyse la question et choisit les outils adaptés…**"
     finished = False
     error: Exception | None = None
 
@@ -627,7 +629,7 @@ async def chat(
 
                     if new_responses:
                         completed_tools.extend(new_responses)
-                        status = "🧠 **Retour d'outil reçu — Qwen prépare la réponse textuelle…**"
+                        status = f"🧠 **Retour d'outil reçu — {MODEL_LABEL} prépare la réponse textuelle…**"
 
                 elif item_type == "error":
                     error = payload
