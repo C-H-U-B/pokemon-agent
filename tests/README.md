@@ -273,14 +273,17 @@ portent sur le déroulement (recherche appelée, passages reçus, refus d'une
 double demande), pas sur la fidélité de la réponse : celle-ci se juge
 par relecture du rapport `test_results/adk_documentary_e2e.md`, qui place la
 réponse en regard des passages renvoyés.
-`long/test_adk_particularities_e2e.py` est une campagne séparée de 36
+`long/test_adk_particularities_e2e.py` est une campagne séparée de 37
 questions sur la fiche d'un Pokémon nommé, une par sorte de fait des rubriques en
 texte libre (rangs et records de statistiques, obtention, mise en avant,
 movepool, ancien type, différences selon le sexe, rubrique absente) et une par
-rubrique calculée depuis PokéAPI (faiblesses, immunité, ancien talent, objet tenu,
-jeux sans ce Pokémon, Gigamax). Chaque
+rubrique calculée depuis PokéAPI (faiblesses, faiblesse annulée par un seul des talents, immunité, ancien talent,
+objet tenu, jeux sans ce Pokémon, Gigamax). Chaque
 cas distingue trois pannes : fiche non demandée, rubrique non reçue, réponse
-qui ne restitue pas les termes du tableur. Le sens d'un rang ou la date d'une
+qui ne restitue pas les termes du tableur. Un cas peut aussi interdire des
+termes : une réponse qui cite les bons mots dans une phrase fausse (« Oui, il a
+toujours eu le même talent », un jeu inventé après une liste juste) passait le
+contrôle. Le sens d'un rang ou la date d'une
 mise en avant se jugent par relecture de
 `test_results/adk_particularities_e2e.md`.
 

@@ -1628,3 +1628,36 @@ A test found a defect before any real run: an unknown second type gave the
 weaknesses of the first type alone, wrong for that Pokémon. The heading is now
 left out. On the real database, every type combination of the spreadsheet is
 compared with an independent reading of the chart.
+
+## 88. [Bug fix] Matchup against an attack type read from the sheet
+
+"Ectoplasma craint-il les attaques de type Normal ?" was refused by the guard:
+"attaques de type Normal" counted as a move filter, which the sheet does not
+carry, while "craint-il le type Normal ?" was accepted. The refusal sent the
+model to the move list, which does not answer the question.
+
+The attack type is now read from the sheet when the question names a Pokémon
+and carries a matchup word (craint, faible à, résiste, immunisé). Without that
+word, it remains a required filter: "Quelles attaques de type Feu Dracaufeu
+apprend-il ?" is still refused on the sheet, and "la capacité la plus faible"
+is about power. Accepting the sheet as soon as a Pokémon is named would have
+dropped that filter silently.
+
+Writing the test exposed a neighbouring defect: "Quelle est l'attaque de type
+Dragon de Dracolosse ?" lost its type without a refusal, because the singular
+"attaque" was taken for the stat. Followed by "de type", the word now names a
+move, except after a superlative.
+
+With Qwen, the sheet is requested straight away and the answer speaks of an
+immunity. Reading the other answers showed two misread labels. "Lévitation
+(jusqu'à la G6)" was rendered as "replaced in generation 6": the sheet now
+writes "(jusqu'à la G6, changé en G7)", and the date has been right since.
+"immunisé avec le talent Lévitation" was rendered without a condition for
+Weezing, which has three abilities: the sheet now writes "immunisé seulement
+s'il a le talent Lévitation". The condition is repeated, but the model
+contradicts or lifts it later in its answer.
+
+These answers passed the campaign check, which only looked for the presence of
+words. A case can now forbid terms. Still open, outside the labels: the opening
+"Oui, il a toujours eu le même talent" followed by its opposite, and sentences
+invented after a correct list.
