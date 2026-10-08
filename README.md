@@ -8,6 +8,19 @@ A complete data pipeline, from raw sources to a queryable service: two heterogen
 
 Everything runs locally: SQLite, ChromaDB and an 8B Qwen model served by LM Studio.
 
+## Live demo
+
+**[Try the agent in the browser](https://pokemon-agent-592924290447.europe-west1.run.app)**: the web interface, hosted on Cloud Run. The local model is replaced there by Gemini 3.8 Flash, called through its API; the data, the tools and the control of tool calls are those of this repository. The interface and the answers are in French.
+
+What to know before asking a question:
+
+- The service stops when nobody uses it and restarts at the next visit. Questions about descriptions only answer once the document base is loaded, about a minute and a half after the page opens (one measurement, 8 October 2026).
+- Each question is independent: the agent does not keep the conversation in memory.
+- The remote model abstains on some questions the local model answers: it sometimes calls two tools at once, and the failure of the second makes it give up the answer.
+- The questions asked are recorded to improve the tool.
+
+The deployment and its settings are described in the [web interface guide](src/pokemon_rag/web/README.md).
+
 ## At a glance
 
 | | |
@@ -16,7 +29,7 @@ Everything runs locally: SQLite, ChromaDB and an 8B Qwen model served by LM Stud
 | Relational database | 35 tables, 56 indexes, 8 views; 638,000 move-learning rows across 26 game groups |
 | Reference data | 1,025 species, 1,351 Pokémon, 1,579 forms, 937 moves |
 | Document index | 36,280 embedded chunks |
-| Tests | 1,598 tests, 1,459 of which need no model |
+| Tests | 1,604 tests, 1,465 of which need no model |
 | End-to-end campaign | 41 of 42 questions passed with a local 8-billion-parameter model; the one failure, fixed since, then passed 2 of 2 |
 
 ## Data flow
@@ -67,7 +80,7 @@ Each chunk keeps the Pokémon, source file and section path it comes from, which
 - **Tests on real data.** Matching, default forms, evolutions and moves are checked against the built database.
 - **Tests on a controlled catalogue.** The SQL logic is tested on small SQLite databases created for each test, with adversarial cases: out-of-order identifiers, null values, ties, missing forms.
 - **Isolation.** Light tests fail if they open the project databases or load a model. The SQL engine imports no model client, which a test verifies.
-- **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the 1,229 tests that depend on neither local data nor a model.
+- **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the 1,233 tests that depend on neither local data nor a model.
 
 One data anomaly met along the way shows why these checks matter: the most recent game uses a single learning method, so a search for moves by level returned an empty list for more than 300 Pokémon. Game selection now takes the requested method into account.
 

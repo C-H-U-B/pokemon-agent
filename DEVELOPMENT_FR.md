@@ -1774,3 +1774,96 @@ liste qu'elle ne visait pas. Sans elle, la déformation disparaît sur dix
 exécutions. Elle ne remplissait pas non plus son rôle : à « Comment obtient-on
 Mewtwo ? », la rencontre de la sortie était donnée au présent, sans date, avec
 ou sans elle. La phrase est retirée de la consigne.
+
+
+## 90. [Feature] Démo hébergée avec un modèle distant
+
+Le projet ne tournait que sur une machine équipée de son modèle local. Pour le
+montrer, il fallait une démo publique, chez un hébergeur sans disque
+persistant et sans carte graphique.
+
+Une cible `demo` du `Dockerfile` produit une image autonome : la base et
+l'index sont téléchargés depuis la release à la construction, avec vérification
+de leurs sommes, et les modèles de recherche sont inclus. Le modèle de langage
+reste extérieur et se règle au déploiement par des variables : la démo utilise
+Gemini par son API compatible OpenAI, sans changement de code. Le panneau
+d'activité affiche le nom du modèle servi au lieu d'un nom écrit en dur.
+
+La mesure de l'image a révélé que le serveur d'outils ne recevait qu'un
+environnement réduit : le réglage qui interdit l'accès à Hugging Face était
+ignoré, et chaque démarrage interrogeait le réseau. Ces variables lui sont
+maintenant transmises.
+
+Deux réglages suivent du modèle distant. Gemini compte sa réflexion dans la
+limite de sortie, ce qui coupait les réponses longues : la limite devient
+configurable, et la trace note les tokens de réflexion et si la limite a été
+atteinte. Le fichier de traces disparaissant avec l'instance, l'image de la
+démo écrit aussi les traces sur la sortie standard, que l'hébergeur conserve.
+
+Le script de questions en lot gagne un mode qui pose chaque question par le
+parcours de l'interface, avec le modèle configuré. Le modèle distant étant
+payant, un fichier regroupe quelques questions ciblées, chacune précédée de
+l'erreur qu'elle cherche, plutôt qu'une liste rejouée au hasard.
+
+
+## 91. [Feature] Interface préparée pour des visiteurs
+
+L'interface avait été écrite pour son auteur. Devant un visiteur, plusieurs
+comportements ne convenaient plus.
+
+Une panne du serveur de modèle affichait l'erreur technique brute. Le visiteur
+lit maintenant un message simple, et le détail va au journal et dans la trace.
+Une question abandonnée continuait d'être traitée : fermer l'onglet ou lancer
+une nouvelle conversation arrête désormais l'agent et supprime sa session.
+
+La page s'ouvre sur un texte de présentation : le rôle de l'outil, le modèle
+servi, le lien du dépôt et le fait que les questions sont enregistrées. La
+question est limitée à 300 caractères. Le champ de saisie se vide à l'envoi et
+non à l'arrivée de la réponse, si bien qu'une question préparée pendant
+l'attente n'est plus effacée, et la conversation ne redescend plus toute seule
+pendant qu'on relit une réponse. Un avertissement s'affiche pendant le premier
+chargement de la base documentaire, et les sources citent « Poképédia, page X »
+au lieu d'un nom de fichier.
+
+
+## 92. [Feature] Questions suggérées choisies selon des critères écrits
+
+Les listes de suggestions n'avaient été revues qu'en retirant les échecs
+constatés. Rien ne disait ce qui fait une bonne question : plus d'un tiers
+des suggestions étaient des classements par statistique, surtout sur la Vitesse,
+et plusieurs n'avaient jamais été posées à un modèle.
+
+Les critères ont été tirés des jugements de l'utilisateur sur chaque question,
+puis écrits dans le guide de l'interface pour qu'un agent puisse les appliquer.
+Le premier prime sur les autres : une suggestion est une question que quelqu'un
+s'est réellement posée, pas une capacité à montrer. Le numéro de Pokédex d'un
+Pokémon quelconque n'intéresse personne ; celui qui porte le numéro 1, si.
+Suivent le mot que les joueurs emploient, la surprise, l'exemple le plus riche,
+une réponse illustrée, et le niveau de chaque bouton.
+
+Les trois listes sont réécrites avec ces critères et s'ouvrent à des questions
+jamais proposées : poids d'un Pokémon, statistiques de base, CT, taux de
+capture, recherche par talent, origine des noms à référence cachée. Chaque
+candidate passe d'abord par une sonde sans modèle, qui montre ce que le guard
+imposera, puis par le modèle local, dont la réponse est lue et comparée à la
+base ou à la page. Lire la réponse compte : une suggestion notée « répondue »
+expliquait que Pikachu a les joues rouges parce qu'il y stocke son électricité.
+
+Trois corrections du moteur en découlent. « Type Glace pur », le terme des
+joueurs, est lu comme un type exact, alors que seul « uniquement de type »
+l'était et que la question avait été écrite pour le guard. Chaque déclencheur
+d'évolution a un libellé français : une réponse citait « le déclencheur
+"take-damage" ». La fiche écrit « aucune » quand un Pokémon n'a pas de
+faiblesse, au lieu d'omettre la rubrique : le modèle répondait qu'aucune
+faiblesse n'était mentionnée.
+
+Les trois premières questions de chaque bouton forment une vitrine de neuf
+capacités différentes, vérifiée avec le modèle de la démo. Deux questions
+fermées, réussies avec le modèle local, ont été retirées des suggestions : le
+modèle distant lance deux outils à la fois, et une erreur ou un refus du second
+transforme la réponse en abstention.
+
+À l'ouverture, la première question est affichée avec sa réponse et ses
+illustrations, sans appel au modèle : c'est une réponse enregistrée, que le
+visiteur lit pendant que sa propre question charge. Un test sur la base réelle
+échoue si cet exemple cesse de correspondre aux données.
