@@ -43,6 +43,9 @@ pokemon_mcp = McpToolset(
                 # Précharge la base documentaire dès le lancement du serveur (conteneur Web).
                 *(["--preload"] if os.environ.get("POKEMON_RAG_PRELOAD") == "1" else []),
             ],
+            # Le client MCP ne transmet au serveur qu'un environnement réduit : sans ceci, HF_HUB_OFFLINE
+            # posé dans l'image de démo est ignoré et le serveur interroge Hugging Face à chaque démarrage.
+            env={key: value for key, value in os.environ.items() if key.startswith("HF_")},
         ),
         timeout=MCP_TIMEOUT_SECONDS,
     ),
