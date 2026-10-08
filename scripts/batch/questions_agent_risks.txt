@@ -1,6 +1,8 @@
 # Questions ciblées pour l'agent ADK : chacune cherche une erreur anticipée, notée au-dessus d'elle.
 # Usage : python scripts/batch/run_questions.py scripts/batch/questions_agent_risks.txt --agent
 # Résultat à lire dans traces/web_traces.jsonl, pas dans la console.
+# Passage du 8 octobre 2026 (Gemini 3.8 Flash) : 6 réponses justes, 3 abstentions — Feu et Spectre,
+# Malamandre, CT de Pikachu. Ces trois questions ne sont pas suggérées par l'interface.
 
 # Recherche relancée après un résultat complet, puis abstention de budget
 # (observé avec Gemini 3.8 Flash : « Pokémon Spectre de septième génération… », 2 sur 2).
