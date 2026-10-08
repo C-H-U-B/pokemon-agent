@@ -91,7 +91,8 @@ orientées par les instructions vers `pokemon_rag_search`, avec la question
 complète et le Pokémon ciblé. Des types ou une identité Pokédex ne sont pas des
 preuves de description physique. L'agent doit s'en tenir aux passages retrouvés,
 citer leurs sources et signaler une description indisponible s'ils ne suffisent
-pas. Ce choix reste réalisé par le modèle, sans routage déterministe ajouté au guard.
+pas. Dans la vue du modèle, chaque passage porte `source` (« Poképédia, page Ronflex ») à la
+place du nom du fichier local, que la réponse MCP garde dans `source_file`. Ce choix reste réalisé par le modèle, sans routage déterministe ajouté au guard.
 
 Les instructions de réponse privilégient les champs français des outils et
 les noms français des jeux, sans traductions anglaises ajoutées sauf demande

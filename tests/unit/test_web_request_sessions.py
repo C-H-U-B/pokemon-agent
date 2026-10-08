@@ -55,7 +55,7 @@ def test_questions_use_distinct_sessions_and_keep_display_history(web, monkeypat
         state = web.WebSession()
         for message in ("Palmaval ?", "Cocotine ?"):
             outputs = [output async for output in web.chat(message, history, state)]
-            history, state, _ = outputs[-1]
+            history = outputs[-1][0]
         return history
 
     history = asyncio.run(run())
@@ -116,10 +116,51 @@ def test_question_is_visible_before_answer_without_duplicate(web, monkeypatch):
 
     outputs = asyncio.run(run())
     assert outputs[0][0][:-1] == history + [{"role": "user", "content": "Pikachu ?"}]
-    assert all(output[0][-1]["content"] == "…" for output in outputs[:-1])
+    assert outputs[0][0][-1]["content"] == "…"
+    # Les rafraîchissements du chrono ne renvoient ni la conversation (le navigateur redescendrait en bas
+    # dix fois par seconde) ni l'état (une suggestion choisie pendant l'attente serait écrasée).
+    skip = web.gr.skip()
+    assert all(output[0] == skip for output in outputs[1:-1]) and all(output[1] == skip for output in outputs)
     assert outputs[-1][0][-1]["content"] == "Réponse"
     assert len(outputs[-1][0]) == 3
     assert history == [{"role": "assistant", "content": "Ancienne réponse"}]
+
+
+def test_overlong_question_is_refused_before_any_model_call(web, monkeypatch):
+    fake = FakeRunner()
+    monkeypatch.setattr(web, "runner", fake)
+
+    async def run(message):
+        return [output async for output in web.chat(message, [], web.WebSession())]
+
+    outputs = asyncio.run(run("a" * (web.MAX_QUESTION_CHARS + 1)))
+    assert outputs[-1][0][-1]["content"] == web.QUESTION_TOO_LONG and fake.messages == []
+    asyncio.run(run("a" * web.MAX_QUESTION_CHARS))
+    assert len(fake.messages) == 1
+
+
+def test_first_documentary_search_warns_that_the_base_may_still_be_loading(web, monkeypatch):
+    def event(call=None, response=None):
+        return SimpleNamespace(is_final_response=lambda: False, content=SimpleNamespace(parts=[SimpleNamespace(
+            text=None, function_call=call and SimpleNamespace(name=call, args={}),
+            function_response=response and SimpleNamespace(name=response, response={}))]))
+
+    class SearchRunner(FakeRunner):
+        async def run_async(self, session_id, new_message, **kwargs):
+            yield event(call="pokemon_rag_search")
+            await asyncio.sleep(0.05)
+            yield event(response="pokemon_rag_search")
+
+    monkeypatch.setattr(web, "runner", SearchRunner())
+    monkeypatch.setattr(web, "REFRESH_INTERVAL", 0.01)
+    monkeypatch.setattr(web, "_documentary_base_ready", False)
+
+    async def run():
+        return [output[2] async for output in web.chat("Décris Ronflex", [], web.WebSession())]
+
+    assert any("peut encore se charger" in panel for panel in asyncio.run(run()))
+    assert web._documentary_base_ready
+    assert not any("peut encore se charger" in panel for panel in asyncio.run(run()))
 
 
 def test_missing_final_response_is_not_reported_as_success(web, monkeypatch):
@@ -136,6 +177,15 @@ def test_missing_final_response_is_not_reported_as_success(web, monkeypatch):
     outputs = asyncio.run(run())
     assert "Aucune réponse finale" in outputs[-1][2]
     assert "Réponse disponible" not in outputs[-1][2]
+
+
+def test_model_sees_the_wiki_page_instead_of_the_local_file_name():
+    from pokemon_rag.agent.context_budget import bounded_tool_result
+    passages = {"question": "Que fait Ronflex ?", "pokemon": "Ronflex", "results": [
+        {"text": "Ronflex dort.", "pokemon": "Ronflex", "source_file": "0143_ronflex.md", "section_path": "Descriptions"}]}
+    row = bounded_tool_result(passages, question="Que fait Ronflex ?")["results"][0]
+    assert row["source"] == "Poképédia, page Ronflex" and "source_file" not in row
+    assert passages["results"][0]["source_file"] == "0143_ronflex.md"   # la réponse MCP n'est pas modifiée
 
 
 def test_repeated_tool_calls_distinguish_received_and_pending(web):

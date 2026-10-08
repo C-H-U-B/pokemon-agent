@@ -303,6 +303,17 @@ def _structured_content(response: dict[str, Any]) -> Any:
     return data
 
 
+def _readable_sources(data: dict[str, Any]) -> None:
+    """Passages documentaires : la page Poképédia remplace le nom du fichier local.
+
+    Le modèle cite ses sources telles qu'il les reçoit ; « 0143_ronflex.md » ne dit rien au lecteur.
+    """
+    for row in data.get("results") or []:
+        if isinstance(row, dict) and row.get("source_file") and row.get("pokemon"):
+            del row["source_file"]
+            row["source"] = f"Poképédia, page {row['pokemon']}"
+
+
 def bounded_tool_result(response: dict[str, Any], *, keep_english: bool = False,
                         question: str = "", args: dict | None = None) -> dict[str, Any]:
     """Enlève la copie MCP textuelle et réduit les listes avec troncature explicite."""
@@ -319,6 +330,7 @@ def bounded_tool_result(response: dict[str, Any], *, keep_english: bool = False,
     if not keep_english:
         data = _french_fields(data)
     data = _presentation_data(data, question, args or {})
+    _readable_sources(data)
     if _size(data) > MAX_TOOL_RESULT_BYTES and data.get("operation") == "get_pokemon_moves":
         # Avant de couper des lignes, ne garder que les faits demandés de chaque capacité.
         fields = _requested_move_fields(question, args or {})

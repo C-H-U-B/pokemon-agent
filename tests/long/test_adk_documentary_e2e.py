@@ -50,7 +50,7 @@ def write_report(run_id: str = RUN_ID) -> None:
             data = response["response"] if isinstance(response["response"], dict) else {}
             if response["name"] == SEARCH and data.get("results"):
                 for passage in data["results"]:
-                    lines += [f"**Passage — {passage.get('source_file')} › {passage.get('section_path')}**", "",
+                    lines += [f"**Passage — {passage.get('source') or passage.get('source_file')} › {passage.get('section_path')}**", "",
                               "> " + str(passage.get("text", "")).replace("\n", "\n> "), ""]
             else:
                 lines += [f"`{response['name']}` : `{json.dumps(data, ensure_ascii=False)[:600]}`", ""]

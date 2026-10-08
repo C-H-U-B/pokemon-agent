@@ -25,11 +25,26 @@ logger = logging.getLogger(__name__)
 REFRESH_INTERVAL = 0.1
 # Nom du modèle affiché dans le panneau : celui qui est réellement servi (Qwen local, modèle distant de la démo).
 MODEL_LABEL = LLM_MODEL.rsplit("/", 1)[-1]
+REPOSITORY_URL = "https://github.com/C-H-U-B/pokemon-agent"
+# Page publique : chaque caractère de la question est payé au modèle distant.
+MAX_QUESTION_CHARS = 300
+QUESTION_TOO_LONG = f"Question trop longue : {MAX_QUESTION_CHARS} caractères au plus."
+# Tant qu'aucune recherche documentaire n'a abouti dans ce processus, la base peut encore se charger.
+# ponytail: indice et non état réel du serveur d'outils ; lui faire exposer son état si l'attente gêne.
+_documentary_base_ready = False
+# Le court délai laisse le navigateur afficher la réponse avant de calculer la position.
+SHOW_LAST_QUESTION_JS = """() => setTimeout(() => {
+    const rows = document.querySelectorAll('#chat-history .user-row');
+    if (rows.length) rows[rows.length - 1].scrollIntoView({behavior: 'smooth', block: 'start'});
+}, 150)"""
 APP_CSS = """
 .gradio-container { padding: 12px !important; }
 .gradio-container footer { display: none; }
 #app-shell { height: calc(100dvh - 24px); min-height: 0; gap: 12px; }
 #app-heading { flex-shrink: 0; }
+#app-heading h1 { margin-bottom: 4px; }
+#app-heading p { margin: 0 0 2px; }
+#app-heading .app-meta { font-size: 0.85em; color: var(--body-text-color-subdued); }
 #workspace { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
     gap: 16px; flex: 1 1 0; height: 0; min-height: 0; }
 #workspace > div { min-width: 0 !important; min-height: 0; }
@@ -557,13 +572,24 @@ async def chat(
     state: WebSession,
 ):
     """Exécute l'agent avec activité et chrono temps réel."""
+    global _documentary_base_ready
 
     message = message.strip()
 
     if not message:
         yield (
             history,
-            state,
+            gr.skip(),
+            _format_activity([], [], 0.0, "Aucune requête envoyée."),
+        )
+        return
+
+    if len(message) > MAX_QUESTION_CHARS:
+        # Refusée ici aussi : la limite du champ de saisie ne s'applique pas à un appel direct de l'API.
+        yield (
+            history + [{"role": "user", "content": message[:MAX_QUESTION_CHARS] + "…"},
+                       {"role": "assistant", "content": QUESTION_TOO_LONG}],
+            gr.skip(),
             _format_activity([], [], 0.0, "Aucune requête envoyée."),
         )
         return
@@ -603,7 +629,7 @@ async def chat(
     # Affichage immédiat.
     yield (
         pending_history,
-        state,
+        gr.skip(),
         _format_activity(
             tool_calls,
             completed_tools,
@@ -640,8 +666,14 @@ async def chat(
                             if source not in sources:
                                 sources.append(source)
                         status = "🔎 **En cours : " + " ; ".join(sources) + ".**"
+                        if not _documentary_base_ready and any(name == "pokemon_rag_search" for name, _ in new_calls):
+                            status += ("\n\nPremière recherche depuis le démarrage : la base documentaire peut "
+                                       "encore se charger (jusqu'à une minute et demie). Les questions sur les "
+                                       "données, elles, répondent tout de suite.")
 
                     if new_responses:
+                        if "pokemon_rag_search" in new_responses:
+                            _documentary_base_ready = True
                         completed_tools.extend(new_responses)
                         status = f"🧠 **Retour d'outil reçu — {MODEL_LABEL} prépare la réponse textuelle…**"
 
@@ -660,9 +692,11 @@ async def chat(
 
             elapsed = time.perf_counter() - start
 
+            # Conversation et état non renvoyés ici : dix mises à jour par seconde ramenaient le
+            # défilement en bas et écrasaient une suggestion choisie pendant l'attente.
             yield (
-                pending_history,
-                state,
+                gr.skip(),
+                gr.skip(),
                 _format_activity(
                     tool_calls,
                     completed_tools,
@@ -716,7 +750,7 @@ async def chat(
 
     yield (
         updated_history,
-        state,
+        gr.skip(),
         _format_activity(
             tool_calls,
             completed_tools,
@@ -761,9 +795,14 @@ def build_app() -> gr.Blocks:
             state = gr.State(WebSession())
 
             gr.Markdown(
-                """
+                f"""
                 # Pokémon Agent
-                Posez une question et observez comment l'agent utilise ses outils.
+                Des réponses tirées d'une base de données et de Poképédia, pas de la mémoire du modèle.
+                Posez une question et suivez à droite ce que fait l'agent.
+
+                <span class="app-meta">Modèle : {MODEL_LABEL} ·
+                <a href="{REPOSITORY_URL}" target="_blank">Code et explications sur GitHub</a> ·
+                Les questions posées sont enregistrées pour améliorer l'outil.</span>
                 """,
                 elem_id="app-heading",
             )
@@ -786,6 +825,7 @@ def build_app() -> gr.Blocks:
                             value=FIRST_QUESTION,
                             placeholder="Posez une question sur les Pokémon, ou choisissez une suggestion ci-dessous",
                             label="Votre question",
+                            max_length=MAX_QUESTION_CHARS,
                             show_label=False,
                             container=False,
                             lines=1,
@@ -818,37 +858,24 @@ def build_app() -> gr.Blocks:
                         _format_activity([], [], 0.0, "En attente d'une question."),
                     )
 
-            # Envoi avec le bouton.
-            send_event = send.click(
-                fn=chat,
-                inputs=[
-                    message,
-                    chatbot,
-                    state,
-                ],
-                outputs=[
-                    chatbot,
-                    state,
-                    activity,
-                ],
-            )
-            send_event.then(fn=lambda: "", outputs=message)
-
-            # Envoi avec Entrée.
-            submit_event = message.submit(
-                fn=chat,
-                inputs=[
-                    message,
-                    chatbot,
-                    state,
-                ],
-                outputs=[
-                    chatbot,
-                    state,
-                    activity,
-                ],
-            )
-            submit_event.then(fn=lambda: "", outputs=message)
+            # La saisie est vidée dès l'envoi, pas à l'arrivée de la réponse : une question préparée
+            # pendant l'attente (suggestion ou frappe) reste dans le champ. Bouton et touche Entrée.
+            pending_question = gr.State("")
+            chat_events = []
+            for trigger in (send.click, message.submit):
+                chat_event = trigger(
+                    fn=lambda text: ("", text),
+                    inputs=message,
+                    outputs=[message, pending_question],
+                ).then(
+                    fn=chat,
+                    inputs=[pending_question, chatbot, state],
+                    outputs=[chatbot, state, activity],
+                )
+                # Réponse arrivée : la conversation revient sur la dernière question, même si le lecteur
+                # était remonté lire une réponse précédente (Gradio ne redescend que s'il était déjà en bas).
+                chat_event.then(fn=None, js=SHOW_LAST_QUESTION_JS)
+                chat_events.append(chat_event)
 
             # Question suivante de la liste de chaque public.
             for audience, button in suggestion_buttons.items():
@@ -867,7 +894,7 @@ def build_app() -> gr.Blocks:
                     activity,
                     message,
                 ],
-                cancels=[send_event, submit_event],
+                cancels=chat_events,
             )
 
         app.load(fn=_warm_up)
