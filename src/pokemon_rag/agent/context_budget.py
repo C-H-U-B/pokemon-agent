@@ -16,7 +16,8 @@ from google.genai import types
 from pokemon_rag.agent.list_fidelity import complete_list, render, unfaithful_names
 from pokemon_rag.agent.tool_guard import _extract_user_text
 from pokemon_rag.constraints.query_constraints import (
-    DOCUMENTARY_PATTERN, has_structured_request, is_purely_documentary, normalize, VERSION_GROUP_NAMES_FR,
+    DOCUMENTARY_PATTERN, has_structured_request, is_purely_documentary, is_type_matchup_question, normalize,
+    VERSION_GROUP_NAMES_FR,
 )
 
 
@@ -172,10 +173,41 @@ def _requested_move_fields(question: str, args: dict) -> set[str]:
     return fields
 
 
+def _requested_sheet_rubrics(question: str) -> set[str]:
+    """Rubriques de la fiche désignées par la question ; vide : rien de reconnu, la fiche part entière.
+
+    Fiche entière, le modèle complète la rubrique demandée par un champ voisin (« Talent 1 » lu comme le
+    talent possédé, rencontre à l'introduction ajoutée à une liste de jeux) : 26 réponses fautives sur 30,
+    1 sur 15 avec la rubrique seule (mesure du 8 octobre).
+    """
+    text = normalize(question)
+
+    def asked(pattern: str) -> bool:
+        return bool(re.search(rf"(?:^|-)(?:{pattern})(?:-|$)", text))
+
+    # ponytail: trois rubriques mesurées ; une seconde demande non reconnue dans la même question perd
+    # sa rubrique. Étendre la table aux autres rubriques avant d'en reconnaître davantage.
+    rubrics: set[str] = set()
+    if is_type_matchup_question(question):
+        rubrics.update(("Faiblesses de type", "Résistances de type", "Immunités de type"))
+    if asked("talents?") and asked("toujours|anciens?|avant|autrefois|change[a-z]*|meme"):
+        # L'ancien talent ne se lit qu'à côté de l'actuel.
+        rubrics.update(("Ancien talent", "Talent 1", "Talent 2", "Talent caché"))
+    if asked("jeux?|versions?") and asked("absente?s?|absences?|manque[a-z]*|indisponibles?"):
+        rubrics.add("Jeux sans ce Pokémon depuis son introduction")
+    return rubrics
+
+
 def _presentation_data(data: dict, question: str, args: dict) -> dict:
     """Projection ADK uniquement ; conserver compte, pagination et faits nécessaires."""
     operation = data.get("operation")
-    if operation == "search_pokemon":
+    if operation == "get_particularities":
+        rubrics = _requested_sheet_rubrics(question)
+        for index, row in enumerate(data.get("rows", [])):
+            kept = {key: value for key, value in row.items() if key == "name_fr" or key in rubrics}
+            if len(kept) > 1:  # aucune rubrique demandée dans cette fiche : la garder entière
+                data["rows"][index] = kept
+    elif operation == "search_pokemon":
         data.pop("catalogue_missing_default_forms", None)
         data.pop("catalogue", None)
         fields = {"name_fr", "name_en", "base_stat_value"}

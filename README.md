@@ -16,7 +16,7 @@ Everything runs locally: SQLite, ChromaDB and an 8B Qwen model served by LM Stud
 | Relational database | 35 tables, 56 indexes, 8 views; 638,000 move-learning rows across 26 game groups |
 | Reference data | 1,025 species, 1,351 Pokémon, 1,579 forms, 937 moves |
 | Document index | 36,280 embedded chunks |
-| Tests | 1,582 tests, 1,443 of which need no model |
+| Tests | 1,592 tests, 1,453 of which need no model |
 | End-to-end campaign | 41 of 42 questions passed with a local 8-billion-parameter model; the one failure, fixed since, then passed 2 of 2 |
 
 ## Data flow
@@ -67,7 +67,7 @@ Each chunk keeps the Pokémon, source file and section path it comes from, which
 - **Tests on real data.** Matching, default forms, evolutions and moves are checked against the built database.
 - **Tests on a controlled catalogue.** The SQL logic is tested on small SQLite databases created for each test, with adversarial cases: out-of-order identifiers, null values, ties, missing forms.
 - **Isolation.** Light tests fail if they open the project databases or load a model. The SQL engine imports no model client, which a test verifies.
-- **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the 1,213 tests that depend on neither local data nor a model.
+- **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the 1,223 tests that depend on neither local data nor a model.
 
 One data anomaly met along the way shows why these checks matter: the most recent game uses a single learning method, so a search for moves by level returned an empty list for more than 300 Pokémon. Game selection now takes the requested method into account.
 

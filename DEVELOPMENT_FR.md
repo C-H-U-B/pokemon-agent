@@ -1734,3 +1734,36 @@ Ces réponses passaient le contrôle de campagne, qui ne cherchait que la prése
 de mots. Un cas peut maintenant interdire des termes. Restent ouverts, hors des
 libellés : l'ouverture « Oui, il a toujours eu le même talent » suivie de son
 contraire, et les phrases inventées après une liste juste.
+
+## 89. [Bug fix] Fiche réduite aux rubriques que la question désigne
+
+L'agent citait la bonne rubrique de la fiche puis la contredisait : « Oui,
+Ectoplasma a toujours eu le talent Corps Maudit », suivi de « donc non » ;
+Smogogo « immunisé s'il possède Lévitation, ce qui est le cas pour lui » ; une
+liste juste de jeux suivie de jeux inventés. Relues sur dix exécutions de
+chaque question, 26 réponses sur 30 étaient fautives, et le contrôle de
+campagne en comptait 18 réussies.
+
+Trois causes étaient possibles : la consigne de rédaction, un a priori du
+modèle sur les questions fermées, ou la fiche elle-même. Chaque phrase fautive
+se retrouvait dans un champ voisin de la rubrique demandée : le premier talent
+de la fiche lu comme le talent possédé, la rencontre à l'introduction ajoutée à
+la liste des jeux. Un essai a tranché sans toucher à la consigne : avec une
+fiche réduite au nom et à la rubrique demandée, il restait 1 réponse fautive
+sur 15, et plus aucune n'ouvrait par « Oui ». La consigne suffisait donc, et
+les deux retouches de libellés de l'étape précédente visaient la rubrique lue,
+pas les champs d'où venait l'erreur.
+
+La fiche transmise au modèle ne garde maintenant que les rubriques que la
+question désigne, pour trois demandes reconnues par leurs mots : sensibilité à
+un type, changement de talent, jeux où le Pokémon est absent. L'ancien talent
+part avec les talents actuels : seul, il poussait le modèle à inventer le
+talent d'aujourd'hui. Hors de ces demandes, la fiche part entière, comme avant.
+Le choix se fait dans le code plutôt que par un argument confié au modèle :
+pour vérifier ce choix, le guard aurait eu besoin de la même table de mots. Les
+outils MCP et l'API renvoient toujours la fiche complète.
+
+Avec Qwen, il reste 2 réponses fautives sur 30 pour ces défauts, et les
+questions témoins ne bougent pas. Un défaut plus léger est devenu visible : la
+liste des jeux absents est parfois suivie de « ces jeux ne le contiennent pas à
+l'introduction du Pokémon », qui déforme le libellé.
