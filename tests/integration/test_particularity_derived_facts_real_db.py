@@ -153,7 +153,7 @@ def test_ability_immunities_only_move_the_type_they_cancel(conn):
         entries = [entry for value in facts.values() for entry in value.split(", ")]
         types = [entry.split(" (")[0] for entry in entries]
         assert len(types) == len(set(types)), (row["nom"], facts)  # un type n'est jamais dans deux rubriques
-        keep = lambda value: [entry for entry in value.split(", ") if entry.split(" (")[0] not in cancelled]
+        keep = lambda value: [entry for entry in value.split(", ") if entry.split(" (")[0] not in cancelled and entry != "aucune"]
         assert {label: keep(value) for label, value in facts.items() if keep(value)} == \
             {label: keep(value) for label, value in plain.items() if keep(value)}, row["nom"]
         if not cancelled:

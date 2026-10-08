@@ -167,6 +167,8 @@ def test_generation_alternatives_and_ranges_are_not_single_filters(question):
     ("Des Pokémon de type Eau et Vol", {"types":("water","flying"),"type_match":"all"}),
     ("Des Pokémon de type Feu ou Glace", {"types":("fire","ice"),"type_match":"any"}),
     ("Des Pokémon uniquement de type Électrik", {"types":("electric",),"type_match":"exact"}),
+    ("Quel Pokémon de type Glace pur est le plus rapide ?", {"types":("ice",),"type_match":"exact"}),
+    ("Des Pokémon Feu purs", {"types":("fire",),"type_match":"exact"}),
     ("Des Pokémon Eau/Vol", {"types":("water","flying"),"type_match":"all"}),
     ("Quel Pokémon Feu apprend une attaque Eau spéciale ?", {"types":("fire",),"type_match":"all"}),
     ("Quelles capacités de type Eau Krakos apprend-il ?", {}),

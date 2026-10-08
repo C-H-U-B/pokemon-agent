@@ -162,3 +162,18 @@ def test_evolution_trigger_is_stated_in_french_and_never_implies_a_level(pokemon
     evolution = get_evolutions(pokemon)["evolutions"][0]
     assert (evolution["trigger"], evolution["trigger_fr"]) == (trigger, trigger_fr)
     assert evolution["conditions"].get("minimum_level") == minimum_level
+
+
+@pytest.mark.real_data
+def test_every_evolution_trigger_used_in_the_database_has_a_french_label():
+    from pokemon_rag.structured import query_engine
+    conn = query_engine._connect()
+    try:
+        used = {row[0] for row in conn.execute(
+            "SELECT DISTINCT et.identifier FROM pokemon_evolution pe "
+            "JOIN evolution_triggers et ON et.id = pe.evolution_trigger_id")}
+    finally:
+        conn.close()
+    assert used <= set(query_engine.EVOLUTION_TRIGGERS_FR)
+    evolution = query_engine.get_evolutions("Tutafeh", form="galar")["evolutions"][0]
+    assert evolution["trigger_fr"] == "dégâts subis"
