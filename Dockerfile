@@ -34,7 +34,8 @@ RUN tar -xzf /tmp/chroma_db.tar.gz -C /app && rm /tmp/chroma_db.tar.gz
 
 # 0.0.0.0 : écouter sur toutes les interfaces du conteneur. Préchargement de la base documentaire
 # dès l'ouverture de la page, pas pendant la première question.
-ENV GRADIO_SERVER_NAME=0.0.0.0 POKEMON_RAG_PRELOAD=1
+# Traces aussi sur la sortie standard : sans volume, le fichier de traces disparaît avec l'instance.
+ENV GRADIO_SERVER_NAME=0.0.0.0 POKEMON_RAG_PRELOAD=1 WEB_TRACE_STDOUT=1
 EXPOSE 7860
 CMD ["python", "-m", "pokemon_rag.web.app"]
 

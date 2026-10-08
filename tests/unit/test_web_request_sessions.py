@@ -353,6 +353,18 @@ def test_trace_keeps_tool_arguments_measures_results_and_names_abstentions(web):
         assert web._web_trace("Question", text, "answered", None, [], web.ActivityTiming(), 1.0)["outcome"] == outcome
 
 
+def test_trace_goes_to_standard_output_only_when_the_host_has_no_persistent_disk(web, monkeypatch, capsys):
+    import json
+    trace = web._web_trace("Palmaval ?", "Réponse", "answered", None, [], web.ActivityTiming(), 1.0)
+    web._save_web_trace(trace)
+    assert capsys.readouterr().out == ""
+    monkeypatch.setenv("WEB_TRACE_STDOUT", "1")
+    web._save_web_trace(trace)
+    line = json.loads(capsys.readouterr().out)
+    assert line["message"] == "Palmaval ?" and line["web_trace"]["answer"] == "Réponse"
+    assert len(read_traces(web)) == 2
+
+
 def test_unwritable_trace_never_breaks_an_answer(web, monkeypatch, tmp_path, caplog):
     # Le chemin de trace est un dossier : l'écriture échoue, la réponse doit rester affichée.
     monkeypatch.setattr(web, "WEB_TRACE_FILE", tmp_path)
