@@ -495,6 +495,11 @@ def _save_web_trace(trace: dict) -> None:
         logger.warning("web_trace_failed", exc_info=True)
 
 
+# Affiché à la place de l'exception : son texte (adresse du serveur, nom du modèle, pile) reste
+# dans le journal et dans la trace, pas sur une page publique.
+TECHNICAL_ERROR_MESSAGE = "Une erreur technique est survenue. Réessayez dans un instant."
+
+
 async def _run_agent_into_queue(
     state: WebSession,
     content: types.Content,
@@ -592,73 +597,78 @@ async def chat(
         ),
     )
 
-    while not finished:
-        try:
-            item_type, payload = await asyncio.wait_for(
-                queue.get(),
-                timeout=REFRESH_INTERVAL,
+    try:
+        while not finished:
+            try:
+                item_type, payload = await asyncio.wait_for(
+                    queue.get(),
+                    timeout=REFRESH_INTERVAL,
+                )
+
+                if item_type == "event":
+                    event = payload
+                    events.append(event)
+
+                    new_calls = _extract_function_calls(event)
+                    new_responses = _extract_function_responses(event)
+                    timing.observe(new_calls, new_responses, time.perf_counter() - start, event)
+
+                    if new_calls:
+                        tool_calls.extend(new_calls)
+                        sources = []
+                        for name, _ in new_calls:
+                            source = ("recherche de passages textuels dans Poképédia"
+                                      if name == "pokemon_rag_search" else
+                                      "consultation de la base SQLite" if name in TOOL_LABELS else
+                                      "appel d'un outil MCP")
+                            if source not in sources:
+                                sources.append(source)
+                        status = "🔎 **En cours : " + " ; ".join(sources) + ".**"
+
+                    if new_responses:
+                        completed_tools.extend(new_responses)
+                        status = "🧠 **Retour d'outil reçu — Qwen prépare la réponse textuelle…**"
+
+                elif item_type == "error":
+                    error = payload
+                    status = "❌ **Erreur pendant l'exécution.**"
+
+                elif item_type == "done":
+                    finished = True
+                    timing.transition("finished", time.perf_counter() - start)
+
+            except asyncio.TimeoutError:
+                # Aucun nouvel événement ADK :
+                # on rafraîchit quand même le chrono.
+                pass
+
+            elapsed = time.perf_counter() - start
+
+            yield (
+                pending_history,
+                state,
+                _format_activity(
+                    tool_calls,
+                    completed_tools,
+                    elapsed,
+                    status,
+                    timing,
+                ),
             )
 
-            if item_type == "event":
-                event = payload
-                events.append(event)
+        await task
 
-                new_calls = _extract_function_calls(event)
-                new_responses = _extract_function_responses(event)
-                timing.observe(new_calls, new_responses, time.perf_counter() - start, event)
-
-                if new_calls:
-                    tool_calls.extend(new_calls)
-                    sources = []
-                    for name, _ in new_calls:
-                        source = ("recherche de passages textuels dans Poképédia"
-                                  if name == "pokemon_rag_search" else
-                                  "consultation de la base SQLite" if name in TOOL_LABELS else
-                                  "appel d'un outil MCP")
-                        if source not in sources:
-                            sources.append(source)
-                    status = "🔎 **En cours : " + " ; ".join(sources) + ".**"
-
-                if new_responses:
-                    completed_tools.extend(new_responses)
-                    status = "🧠 **Retour d'outil reçu — Qwen prépare la réponse textuelle…**"
-
-            elif item_type == "error":
-                error = payload
-                status = "❌ **Erreur pendant l'exécution.**"
-
-            elif item_type == "done":
-                finished = True
-                timing.transition("finished", time.perf_counter() - start)
-
-        except asyncio.TimeoutError:
-            # Aucun nouvel événement ADK :
-            # on rafraîchit quand même le chrono.
-            pass
-
-        elapsed = time.perf_counter() - start
-
-        yield (
-            pending_history,
-            state,
-            _format_activity(
-                tool_calls,
-                completed_tools,
-                elapsed,
-                status,
-                timing,
-            ),
-        )
-
-    await task
+    finally:
+        # Page fermée ou nouvelle conversation : Gradio ferme ce générateur. Sans annulation,
+        # l'agent continuerait d'appeler le modèle pour une réponse que personne ne lira.
+        if not task.done():
+            task.cancel()
 
     elapsed = time.perf_counter() - start
 
     if error is not None:
-        response = (
-            "Une erreur est survenue pendant l'exécution de l'agent : "
-            f"{type(error).__name__}: {error}"
-        )
+        logger.warning("web_request_failed", exc_info=error)
+        response = TECHNICAL_ERROR_MESSAGE
 
         status = "❌ **Erreur**"
         outcome = "error"
@@ -793,7 +803,7 @@ def build_app() -> gr.Blocks:
                     )
 
             # Envoi avec le bouton.
-            send.click(
+            send_event = send.click(
                 fn=chat,
                 inputs=[
                     message,
@@ -805,13 +815,11 @@ def build_app() -> gr.Blocks:
                     state,
                     activity,
                 ],
-            ).then(
-                fn=lambda: "",
-                outputs=message,
             )
+            send_event.then(fn=lambda: "", outputs=message)
 
             # Envoi avec Entrée.
-            message.submit(
+            submit_event = message.submit(
                 fn=chat,
                 inputs=[
                     message,
@@ -823,10 +831,8 @@ def build_app() -> gr.Blocks:
                     state,
                     activity,
                 ],
-            ).then(
-                fn=lambda: "",
-                outputs=message,
             )
+            submit_event.then(fn=lambda: "", outputs=message)
 
             # Question suivante de la liste de chaque public.
             for audience, button in suggestion_buttons.items():
@@ -845,6 +851,7 @@ def build_app() -> gr.Blocks:
                     activity,
                     message,
                 ],
+                cancels=[send_event, submit_event],
             )
 
         app.load(fn=_warm_up)

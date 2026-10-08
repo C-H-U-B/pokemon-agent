@@ -73,7 +73,38 @@ def test_failed_request_deletes_session_and_finishes(web, monkeypatch):
 
     outputs = asyncio.run(run())
     assert fake.deleted == ["1"]
-    assert "RuntimeError" in outputs[-1][0][-1]["content"]
+    # Page publique : ni le type ni le texte de l'exception, dans la réponse comme dans le panneau.
+    assert outputs[-1][0][-1]["content"] == web.TECHNICAL_ERROR_MESSAGE
+    assert "RuntimeError" not in outputs[-1][2] and "outil indisponible" not in outputs[-1][2]
+
+
+def test_abandoned_question_stops_the_agent_and_deletes_its_session(web, monkeypatch):
+    # Gradio ferme le générateur quand la page est fermée ou la conversation réinitialisée.
+    class SlowRunner(FakeRunner):
+        cancelled = False
+
+        async def run_async(self, session_id, new_message, **kwargs):
+            try:
+                await asyncio.sleep(60)
+            except asyncio.CancelledError:
+                self.cancelled = True
+                raise
+            yield
+
+    fake = SlowRunner()
+    monkeypatch.setattr(web, "runner", fake)
+    monkeypatch.setattr(web, "REFRESH_INTERVAL", 0.01)
+
+    async def run():
+        outputs = web.chat("Question", [], web.WebSession())
+        await outputs.__anext__()
+        await outputs.__anext__()  # un rafraîchissement : l'agent a démarré
+        await outputs.aclose()
+        await asyncio.sleep(0.05)
+        # Lu avant la fin de asyncio.run, qui annule de toute façon les tâches restantes.
+        return fake.cancelled, list(fake.deleted)
+
+    assert asyncio.run(run()) == (True, ["1"])
 
 
 def test_question_is_visible_before_answer_without_duplicate(web, monkeypatch):

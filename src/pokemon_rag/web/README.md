@@ -86,7 +86,10 @@ Une bulle « … » reste visible pendant
 l'exécution puis est remplacée par la réponse ou le message d'erreur. Elle
 indique l'attente, y compris pendant les outils, sans exposer de raisonnement.
 Une exécution sans texte final affiche « Aucune réponse finale », distinct de
-« Réponse disponible » et des erreurs techniques.
+« Réponse disponible » et des erreurs techniques. Une erreur technique affiche
+un message fixe (`TECHNICAL_ERROR_MESSAGE`), sans le type ni le texte de
+l'exception, qui peuvent contenir l'adresse du serveur de modèle : le détail va
+au journal (`web_request_failed`) et au champ `error` de la trace.
 
 ## Illustrations
 
@@ -145,6 +148,13 @@ L'historique reste affiché dans Gradio mais n'est pas envoyé à l'agent : chaq
 question doit être autonome. « Nouvelle conversation » efface l'historique
 affiché et crée un nouvel état Web. Rien n'est persisté après redémarrage.
 
+Une question abandonnée est arrêtée : « Nouvelle conversation » annule l'envoi
+en cours (`cancels`), et Gradio ferme le générateur `chat` quand le navigateur
+se déconnecte ; dans les deux cas `chat` annule la tâche de l'agent, dont la
+session ADK est supprimée. Aucun nouvel appel au modèle ne part ensuite ; un
+appel d'outil déjà transmis au serveur MCP se termine de son côté. Une question
+abandonnée n'écrit pas de trace.
+
 Trois boutons proposent des questions selon le public : « Je découvre Pokémon »
 (`questions_decouvrir.txt`, langage courant, réponses vérifiables sans rien
 connaître), « Je connais Pokémon » (`questions_connaisseurs.txt`, vocabulaire du
@@ -161,10 +171,10 @@ l'absence de mémoire entre questions.
 
 ## Points non vérifiés
 
-Une question en cours n'est jamais annulée : ni « Nouvelle conversation » ni la
-fermeture de l'onglet n'arrêtent la tâche lancée par `chat`, et sa trace n'est
-alors pas écrite. Que cette tâche continue réellement d'appeler le modèle reste
-à observer.
+L'annulation d'une question abandonnée est testée à la fermeture du générateur
+`chat`, avec un agent simulé. Que Gradio ferme bien ce générateur à la fermeture
+de l'onglet est lu dans son code (6.29 : `clean_events` puis `reset_iterators`),
+pas observé dans un navigateur.
 
 L'isolation de plusieurs navigateurs reste à vérifier : `gr.State(WebSession())`
 est construit une seule fois dans `build_app`, sans génération d'identifiants
