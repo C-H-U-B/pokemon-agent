@@ -537,6 +537,32 @@ def test_type_filter_of_a_list_is_still_required(catalogue, question):
 
 
 @pytest.mark.parametrize("question", [
+    "Dracolosse craint-il les attaques de type Glace ?",
+    "Dracolosse est-il faible aux attaques Roche ?",
+    "Dracolosse résiste-t-il aux capacités de type Plante ?",
+    "Dracolosse est-il immunisé contre les attaques de type Sol ?",
+])
+def test_attack_type_asked_about_a_named_pokemon_is_read_in_the_particularities(catalogue, question):
+    # Régression : le type d'attaque était exigé comme filtre de capacités, et la fiche refusée.
+    args = {"pokemon": "Dracolosse"}
+    assert before_tool_guard(_tool("pokemon_particularities"), args, _context(question)) is None
+    assert args == {"pokemon": "Dracolosse"}
+    refusal = before_tool_guard(_tool("pokemon_moves"), {"pokemon": "Dracolosse"}, _context(question))
+    assert (refusal["required_tool"], refusal["required_arguments"]) == ("pokemon_particularities", {"pokemon": "Dracolosse"})
+
+
+@pytest.mark.parametrize("question", [
+    "Quelles attaques de type Feu Dracolosse apprend-il ?",                  # aucun mot de sensibilité
+    "Quelle est la capacité de type Dragon la plus faible de Dracolosse ?",  # « faible » parle de puissance
+    "Dracolosse craint-il les attaques spéciales de type Glace ?",           # la catégorie reste un filtre
+    "Quels Pokémon craignent les attaques de type Glace ?",                  # aucun Pokémon nommé
+])
+def test_attack_type_filter_is_still_required_without_a_matchup_about_a_named_pokemon(catalogue, question):
+    refusal = before_tool_guard(_tool("pokemon_particularities"), {"pokemon": "Dracolosse"}, _context(question))
+    assert refusal["error"] == "unsupported_move_constraints"
+
+
+@pytest.mark.parametrize("question", [
     "Dans quelle version pouvait-on obtenir Dracolosse à sa sortie ?",
     "Dans quel jeu obtient-on Dracolosse ?",
     "Quelles versions permettent d'obtenir Dracolosse ?",

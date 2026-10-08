@@ -154,12 +154,12 @@ def test_only_a_missing_table_is_tolerated(conn):
 
 def test_past_ability_is_dated_by_its_last_generation(conn):
     conn.execute("INSERT INTO pokemon_abilities_past VALUES (94,6,26,0,1)")
-    assert engine._pokeapi_history(conn, 94)[PAST_ABILITY] == "Lévitation (jusqu'à la G6)"
+    assert engine._pokeapi_history(conn, 94)[PAST_ABILITY] == "Lévitation (jusqu'à la G6, changé en G7)"
 
 
 def test_past_hidden_ability_is_marked_as_hidden(conn):
     conn.execute("INSERT INTO pokemon_abilities_past VALUES (145,5,31,1,3)")
-    assert engine._pokeapi_history(conn, 145)[PAST_ABILITY] == "Paratonnerre (talent caché, jusqu'à la G5)"
+    assert engine._pokeapi_history(conn, 145)[PAST_ABILITY] == "Paratonnerre (talent caché, jusqu'à la G5, changé en G6)"
 
 
 def test_a_slot_that_did_not_exist_yet_is_not_a_past_ability(conn):
@@ -172,7 +172,7 @@ def test_several_past_abilities_are_ordered_by_generation_then_slot(conn):
     conn.executemany("INSERT INTO pokemon_abilities_past VALUES (?,?,?,?,?)",
                      [(25, 6, 26, 0, 1), (25, 4, 31, 1, 3), (25, 4, 9, 0, 1), (25, 3, None, 0, 2)])
     assert engine._pokeapi_history(conn, 25)[PAST_ABILITY] == (
-        "Statik (jusqu'à la G4) ; Paratonnerre (talent caché, jusqu'à la G4) ; Lévitation (jusqu'à la G6)")
+        "Statik (jusqu'à la G4, changé en G5) ; Paratonnerre (talent caché, jusqu'à la G4, changé en G5) ; Lévitation (jusqu'à la G6, changé en G7)")
 
 
 def test_a_past_ability_without_french_name_is_left_out_rather_than_shown_in_english(conn):
@@ -359,24 +359,24 @@ def test_a_type_cancelled_by_the_only_ability_leaves_the_weaknesses_and_becomes_
 
 def test_a_type_cancelled_by_one_ability_among_several_keeps_its_multiplier_and_names_the_ability(conn):
     facts = engine._type_matchups(conn, "Feu", None, ("Lévitation", "Brasier", None))
-    assert facts[WEAK] == "Sol (×2 ; immunisé avec le talent Lévitation), Roche (×2), Eau (×2)"
+    assert facts[WEAK] == "Sol (×2 ; immunisé seulement s'il a le talent Lévitation), Roche (×2), Eau (×2)"
     assert IMMUNE not in facts  # l'immunité n'est pas acquise : elle dépend du talent de l'individu
 
 
 def test_the_hidden_ability_counts_as_one_of_the_abilities(conn):
     hidden_only = engine._type_matchups(conn, "Électrik", None, ("Statik", None, "Paratonnerre"))
-    assert hidden_only[RESISTED] == "Vol (×½), Électrik (×½ ; immunisé avec le talent Paratonnerre)"
+    assert hidden_only[RESISTED] == "Vol (×½), Électrik (×½ ; immunisé seulement s'il a le talent Paratonnerre)"
     assert engine._type_matchups(conn, "Feu", None, ("Brasier", None, "Lévitation"))[WEAK].startswith("Sol (×2 ; immunisé")
 
 
 def test_a_resisted_type_cancelled_by_one_ability_is_annotated_in_the_resistances(conn):
     facts = engine._type_matchups(conn, "Eau", None, ("Absorbe-Eau", None, "Hydratation"))
-    assert facts[RESISTED] == "Feu (×½), Eau (×½ ; immunisé avec le talent Absorbe-Eau)"
+    assert facts[RESISTED] == "Feu (×½), Eau (×½ ; immunisé seulement s'il a le talent Absorbe-Eau)"
 
 
 def test_a_neutral_type_cancelled_by_one_ability_is_listed_as_a_conditional_immunity(conn):
     facts = engine._type_matchups(conn, "Normal", None, ("Anticipation", "Absorbe-Eau", "Toxitouche"))
-    assert facts == {IMMUNE: "Eau (seulement avec le talent Absorbe-Eau), Spectre"}
+    assert facts == {IMMUNE: "Eau (seulement s'il a le talent Absorbe-Eau), Spectre"}
 
 
 def test_a_neutral_type_cancelled_by_every_ability_is_a_plain_ability_immunity(conn):
@@ -385,8 +385,8 @@ def test_a_neutral_type_cancelled_by_every_ability_is_a_plain_ability_immunity(c
 
 def test_two_abilities_cancelling_the_same_type_are_both_named_in_slot_order(conn):
     two_of_three = engine._type_matchups(conn, "Électrik", None, ("Paratonnerre", "Motorisé", "Herbivore"))
-    assert "Électrik (×½ ; immunisé avec le talent Paratonnerre ou Motorisé)" in two_of_three[RESISTED]
-    assert two_of_three[IMMUNE] == "Plante (seulement avec le talent Herbivore)"
+    assert "Électrik (×½ ; immunisé seulement s'il a le talent Paratonnerre ou Motorisé)" in two_of_three[RESISTED]
+    assert two_of_three[IMMUNE] == "Plante (seulement s'il a le talent Herbivore)"
     reversed_slots = engine._type_matchups(conn, "Électrik", None, ("Motorisé", "Paratonnerre", "Herbivore"))
     assert "talent Motorisé ou Paratonnerre" in reversed_slots[RESISTED]
 
@@ -406,7 +406,7 @@ def test_an_ability_cancels_a_quadruple_weakness_too(conn):
     facts = engine._type_matchups(conn, "Feu", "Roche", ("Lévitation", None, None))
     assert "Sol" not in facts[WEAK] and "Sol (talent Lévitation)" in facts[IMMUNE]
     conditional = engine._type_matchups(conn, "Feu", "Roche", ("Lévitation", "Fermeté", None))
-    assert "Sol (×4 ; immunisé avec le talent Lévitation)" in conditional[WEAK]
+    assert "Sol (×4 ; immunisé seulement s'il a le talent Lévitation)" in conditional[WEAK]
 
 
 @pytest.mark.parametrize("abilities", [(), (None, None, None), ("", "", ""), ("Brasier", None, "Force Soleil"),

@@ -7,6 +7,7 @@ from pokemon_rag.constraints.query_constraints import (
     ExplicitConstraints,
     extract_explicit_constraints, reconcile_search_args,
     extract_named_pokemon, is_named_identity_question, is_named_stat_question, is_purely_documentary,
+    is_type_matchup_question,
     without_unnamed_learning_method,
     normalize,
     named_version_groups, without_unjustified_filters,
@@ -162,19 +163,22 @@ def before_tool_guard(
             return {"error":"ambiguous_version_constraint", "message":"Jeu explicite inconnu ou plusieurs jeux non représentables."}
         if constraints.level_explicit and constraints.level_bounds is None:
             return {"error":"ambiguous_level_constraints", "message":"Bornes de niveau explicites ambiguës ou non reconnues."}
-        named = extract_named_pokemon(question, pokemon_name_catalogue()) if ASKED_FIELDS.intersection(required) else None
+        # « Ectoplasma craint-il les attaques de type Normal ? » : le type d'attaque est interrogé lui aussi, mais
+        # seulement avec un mot de sensibilité. « Quelles attaques de type Feu Dracaufeu apprend-il ? » reste un filtre.
+        asked = ASKED_FIELDS | ({"move_type"} if is_type_matchup_question(question) else set())
+        named = extract_named_pokemon(question, pokemon_name_catalogue()) if asked.intersection(required) else None
         if named:
             # « Mewtwo est-il un légendaire ? », « Pikachu est-il de type Électrik ? » : la catégorie ou le
             # type est interrogé, pas un filtre de liste. Seule la fiche l'accepte, parce qu'elle le renvoie ;
             # toute autre contrainte de liste reste exigée.
-            without_asked = {key: value for key, value in required.items() if key not in ASKED_FIELDS}
+            without_asked = {key: value for key, value in required.items() if key not in asked}
             if _unsupported("pokemon_particularities", without_asked) is None:
                 if tool_name == "pokemon_particularities":
                     required = without_asked
                 else:
                     return {"error": "unsupported_named_pokemon_constraint", "selected_tool": tool_name,
                             "required_tool": "pokemon_particularities", "required_arguments": named,
-                            "message": "La catégorie ou le type d'un Pokémon nommé se lit dans sa fiche de particularités."}
+                            "message": "La catégorie, le type ou la sensibilité à un type d'un Pokémon nommé se lit dans sa fiche de particularités."}
         unsupported = _unsupported(tool_name, required)
         if unsupported:
             return unsupported

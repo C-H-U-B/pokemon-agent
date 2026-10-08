@@ -1565,9 +1565,9 @@ def _type_matchups(conn: sqlite3.Connection, type_1: str | None, type_2: str | N
         elif row["every_ability"]:
             facts["Immunités de type"].append(f"{kind} (talent {talent})")
         elif factor == 100:
-            facts["Immunités de type"].append(f"{kind} (seulement avec le talent {talent})")
+            facts["Immunités de type"].append(f"{kind} (seulement s'il a le talent {talent})")
         else:
-            facts[by_type].append(f"{kind} ({multipliers[factor]} ; immunisé avec le talent {talent})")
+            facts[by_type].append(f"{kind} ({multipliers[factor]} ; immunisé seulement s'il a le talent {talent})")
     return {label: ", ".join(values) for label, values in facts.items() if values}
 
 
@@ -1588,7 +1588,9 @@ def _pokeapi_history(conn: sqlite3.Connection, pokemon_id: int) -> dict[str, str
             AND names.local_language_id = (SELECT fr FROM language_ids)
         WHERE past.pokemon_id = ? ORDER BY past.generation_id, past.slot""", (pokemon_id,))
     facts["Ancien talent"] = " ; ".join(
-        f"{row['name']} ({'talent caché, ' if row['is_hidden'] else ''}jusqu'à la G{row['generation_id']})" for row in abilities)
+        # « jusqu'à la G6 » seul était rendu par « remplacé à la génération 6 » : la génération du changement est écrite.
+        f"{row['name']} ({'talent caché, ' if row['is_hidden'] else ''}jusqu'à la G{row['generation_id']}, "
+        f"changé en G{row['generation_id'] + 1})" for row in abilities)
 
     stats = _optional_rows(conn, """SELECT stat_id, base_stat, generation_id FROM pokemon_stats_past
         WHERE pokemon_id = ? ORDER BY generation_id, stat_id""", (pokemon_id,))
