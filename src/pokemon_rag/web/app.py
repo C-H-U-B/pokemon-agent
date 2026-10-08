@@ -1,6 +1,8 @@
 import asyncio
 import html
+import json
 import logging
+import os
 import time
 import uuid
 from datetime import datetime, timezone
@@ -500,6 +502,11 @@ def _save_web_trace(trace: dict) -> None:
     """Une trace illisible ou un disque plein ne doit jamais faire échouer une réponse déjà obtenue."""
     try:
         save_trace(trace, WEB_TRACE_FILE)
+        if os.environ.get("WEB_TRACE_STDOUT") == "1":
+            # Hébergeur sans disque persistant : le fichier disparaît avec l'instance, la sortie standard
+            # est gardée par le journal de la plateforme (une ligne JSON, lue comme entrée structurée).
+            print(json.dumps({"message": trace["question"], "web_trace": trace}, ensure_ascii=False, default=str),
+                  flush=True)
     except Exception:
         logger.warning("web_trace_failed", exc_info=True)
 

@@ -137,7 +137,9 @@ guard (`arguments`), la proposition du modèle lorsqu'elle diffère
 l'a reçu. `scripts/observability/analyze_traces.py` ne lit que les traces du
 graphe et refuse ce format. Le service `web` de `compose.yaml`
 monte ce dossier. Une écriture impossible est journalisée (`web_trace_failed`)
-sans affecter la réponse. Le débit affiché dans le panneau rapporte les tokens
+sans affecter la réponse. Avec `WEB_TRACE_STDOUT=1` (image `demo`), la même trace part aussi sur la
+sortie standard en une ligne JSON, sous la clé `web_trace` : sur un hébergeur sans disque persistant, c'est
+le journal de la plateforme qui la conserve. Le débit affiché dans le panneau rapporte les tokens
 générés à tout le temps passé chez le modèle, lecture des requêtes comprise :
 le serveur de modèle ne sépare pas les deux.
 
