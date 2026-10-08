@@ -170,18 +170,145 @@ appel d'outil déjà transmis au serveur MCP se termine de son côté. Une quest
 abandonnée n'écrit pas de trace.
 
 Trois boutons proposent des questions selon le public : « Je découvre Pokémon »
-(`questions_decouvrir.txt`, langage courant, réponses vérifiables sans rien
-connaître), « Je connais Pokémon » (`questions_connaisseurs.txt`, vocabulaire du
-jeu) et « Expert » (`questions_experts.txt`, filtres combinés, cas rares et pièges
-corrigés). Chaque bouton préremplit la saisie avec la question suivante de sa
-liste, sans lancer de requête, et revient au début après la dernière. La position
+(`questions_decouvrir.txt`, langage courant, pour quelqu'un qui n'a jamais
+joué), « Je connais Pokémon » (`questions_connaisseurs.txt`, ce qu'on voit en
+jouant) et « Expert » (`questions_experts.txt`, contraintes combinées, cas rares
+et histoire du jeu). Ce qui fait une bonne question est écrit plus bas, dans
+« Critères d'une suggestion ». Chaque bouton préremplit la saisie avec la
+question suivante de sa liste, sans lancer de requête, et revient au début après la dernière. La position
 dans chaque liste est propre à chaque navigateur (`WebSession.next_suggestion`) et
 repart du début avec « Nouvelle conversation ». Les fichiers sont chargés à
 l'import, en UTF-8, une question par ligne non vide ; un fichier manquant ou vide
-empêche le chargement de l'interface. Au lancement, la saisie contient la
-première question « découvrir » (« Combien de Pokémon existe-t-il ? ») ; elle est
-vide après un envoi ou « Nouvelle conversation ». Un rappel visible explique
+empêche le chargement de l'interface. Au lancement, la conversation
+montre déjà la première question « découvrir » (« Quels sont les 5 Pokémon les
+plus lourds ? ») et sa réponse, sans aucun appel au modèle : un exemple
+enregistré (`exemple_ouverture.json`, réponse réelle du modèle de la démo avec
+les numéros de ses illustrations). Rien à l'écran ne le signale comme un
+exemple : c'est dit ici seulement. La page se place sur la question, que
+Gradio laissait cachée au-dessus de la réponse. Le visiteur a ainsi de quoi
+lire pendant que sa propre question charge. Si la
+première question de la liste change sans que l'exemple suive, il n'est pas
+affiché et la question est proposée dans la saisie, comme avant ; un test
+`real_data` vérifie que l'exemple reste la réponse que donnerait la base.
+« Nouvelle conversation » l'efface. Un rappel visible explique
 l'absence de mémoire entre questions.
+
+### Critères d'une suggestion
+
+À appliquer avant d'ajouter, de reformuler ou de déplacer une question dans les
+trois fichiers. Le visiteur est un recruteur peu joueur qui essaie trois à cinq
+suggestions : les listes sont longues non pour être parcourues, mais pour qu'une
+question éveille sa curiosité. « Je découvre » parle à quelqu'un qui n'a jamais
+joué. « Je connais Pokémon » parle à un joueur occasionnel, « Expert » à un
+joueur confirmé : le visiteur n'a pas à comprendre ces réponses, il doit voir
+l'outil traiter une question pointue sans se tromper. La frontière entre les
+deux : ce qu'on voit en jouant (types, évolutions, légendaires, formes) relève
+de « Je connais Pokémon » ; l'histoire du jeu d'une génération à l'autre
+(ancien type, ancien talent, objets tenus, présence dans les jeux) relève
+d'« Expert », comme un Pokémon peu connu dont ni le nom ni l'anecdote ne sont
+célèbres (Pandespiègle, Froussardine). En cas de doute, « Expert ».
+
+Familles écartées tant que l'outil ne les sert pas comme il faut : la version
+exclusive d'un Pokémon nommé (utile seulement en liste par jeu, avec la
+contrepartie de l'autre version) et les jeux où un Pokémon nommé est absent
+(utile en classement des plus absents).
+
+1. **Une curiosité vécue.** Le critère qui prime : une question que
+   l'utilisateur ou ses amis se sont réellement posée. Aucun outil n'est
+   intéressant en soi, et montrer une capacité jamais montrée ne justifie pas
+   une question : le numéro de Pokédex d'un Pokémon quelconque n'intéresse
+   personne, celui qui porte le numéro 1, le 666 ou le 1000, si. Signes d'une
+   vraie curiosité : un extrême (Leveinard, 250 PV et 5 en Attaque), un nombre
+   rond, un contre-pied (Terhal aussi difficile à capturer que Mewtwo), un
+   Pokémon célèbre. En « Je découvre » : records du langage courant (le plus
+   lourd, le plus grand), idées reçues, comptages, origine des noms qui ne se
+   devinent pas. Une question inventée par un agent reste une candidate tant que l'utilisateur ne l'a pas reconnue ; une phrase écrite
+   pour être reconnue par le guard (parenthèse explicative, tournure d'outil)
+   est à refaire. Une question qui suppose ce que le curieux ignore n'est pas
+   spontanée : si la source ne répond pas à la question naturelle (la page dit
+   que Miaouss raffole des pièces, pas pourquoi), on abandonne le sujet au lieu
+   de tordre la phrase. Avant de conclure que la source ne répond pas, lire le
+   passage : une recherche de « mal de tête » a fait écarter à tort Psykokwak,
+   dont la page parle de « migraines ».
+2. **Le mot du domaine.** « Évolue », « type Glace pur » : le terme que les
+   joueurs emploient. Si l'extraction des contraintes ne le reconnaît pas, c'est
+   elle qu'on corrige, pas la phrase.
+3. **Surprenante.** La réponse apprend quelque chose à la personne du niveau
+   visé. Une question dont elle connaît déjà la réponse (l'apparence de Pikachu,
+   Magicarpe au niveau 20) part, comme l'origine d'un nom qui se lit tout seul
+   (Dracaufeu, « draco » et « au feu ») : une étymologie ne vaut que si le nom
+   cache quelque chose.
+4. **L'exemple le plus riche.** Pour une capacité donnée, choisir le Pokémon qui
+   fait apparaître ce que l'outil sait de moins évident : une double faiblesse
+   emblématique (Cizayox) ou une immunité due au talent qui ne laisse aucune
+   faiblesse (Ohmassacre), une égalité pour un record, deux voies pour une
+   évolution (Insécateur), une forme régionale d'un Pokémon connu (Arcanin de
+   Hisui). Éviter un Pokémon à plusieurs formes quand la réponse
+   en dépend (les faiblesses de Motisma).
+5. **Aucun échec connu.** Lire la réponse, pas le statut de la trace : une
+   réponse coupée, à côté de la question ou complétée de mémoire est un échec,
+   même notée `answered`. La question retirée est notée dans `CHANTIER.md` avec
+   sa cause, et revient quand une réponse correcte est constatée.
+6. **Réponse illustrée.** La réponse cite des Pokémon, tous affichés : cinq
+   résultats au plus (`MAX_IMAGES`). Un « top N » vaut mieux qu'un record seul,
+   plusieurs images valant mieux qu'une.
+7. **Pas de doublon.** Deux questions voisines ne donnent pas la même réponse :
+   une variante porte un filtre, une statistique ou une capacité de l'outil que
+   l'autre ne montre pas. Un même type de question peut revenir plus loin dans
+   la liste, jamais à la suite ; le contraire d'un record (les plus légers
+   après les plus lourds) n'est pas un doublon. Le doublon se juge sur toute
+   la démo : « Léviator est-il de type Dragon ? » répète « Dracaufeu est-il un
+   dragon ? » même dans une autre liste. La Vitesse ne sert qu'une fois
+   par liste.
+8. **Pokémon variés.** Dès « Je connais Pokémon », un Pokémon n'apparaît qu'une
+   fois par liste ; préférer un Pokémon connu avec un versant méconnu.
+9. **Capacités équilibrées.** Chaque liste couvre les outils qui conviennent à
+   son niveau (recherche et classements, types, évolutions, capacités, CT,
+   statistiques de base, numéro de Pokédex, capacité signature, fiche, recherche
+   documentaire), sans qu'un seul domine.
+10. **Contraintes empilées.** Une question à trois contraintes ou plus est
+    admise, jamais deux à la suite.
+11. **Vitrine.** Les trois premières de chaque liste sont ce qu'un visiteur
+    voit ; leur message est « il sait faire beaucoup de choses ». Les neuf
+    montrent donc neuf capacités différentes, sans répétition ni dans un bouton
+    ni entre boutons : un visiteur qui clique une fois sur chaque bouton ne doit
+    pas voir deux classements. Aujourd'hui : classement, comptage, texte
+    Poképédia ; évolution, statistiques de base, étymologie ; capacités par
+    niveau et par jeu, recherche par talent, CT. La première de
+    « Je découvre », affichée déjà répondue à l'ouverture, est vue par tous :
+    la plus visuelle. Celle
+    d'« Expert » est la preuve de sérieux : plusieurs contraintes tenues. Pas de
+    question documentaire avant la position 3 : la base documentaire charge
+    encore. Grille d'une réponse de vitrine, jugée sur le modèle de la démo
+    (`scripts/batch/questions_vitrine.txt`) : juste ; complète, non coupée ;
+    en phrase, la question reprise avec au moins un fait autour, pas des noms
+    nus ; les Pokémon attendus cités, donc illustrés ; aucun mot technique
+    (nom de champ, identifiant anglais) ; moins de 15 s hors premier
+    chargement de la base documentaire.
+12. **Vérification avant ajout.** D'abord la sonde sans modèle,
+    `tool_guard._explicit_arguments(extract_explicit_constraints(question))` :
+    un dictionnaire vide signifie que tout repose sur le modèle. Puis Qwen en
+    local, réponse lue et comparée à la base. Le modèle payant de la démo ne
+    sert qu'à chercher une erreur anticipée, nommée à l'avance. Une question
+    fermée (« Dracaufeu est-il un dragon ? », « Mélofée a-t-il toujours été de
+    type Fée ? ») réussie avec Qwen peut échouer avec lui : il lance deux
+    outils à la fois, et une erreur ou un refus du second donne une abstention.
+13. **Questions documentaires.** Une question précise sur une description
+    (« Pourquoi Miaouss aime-t-il les pièces ? ») sonne fabriquée, sauf
+    curiosité célèbre (le crâne d'Osselait, le déguisement de Mimiqui). La
+    forme naturelle est ouverte : « Quelle anecdote peux-tu me donner sur
+    Y ? ». « Quelle est la description du Pokédex de X ? » a reçu la physionomie
+    de la page et non les textes du Pokédex (Qwen, 8 octobre 2026) : forme non
+    retenue.
+14. **Étymologies.** Seulement les noms à référence cachée, que l'on ne devine
+    pas en les lisant : Lokhlass (Loch Ness et « la classe ! »), Tygnon (Mike
+    Tyson), Lewsor (Roswell à l'envers), Tutafeh (« tout à fait »). Un nom
+    transparent (Dracaufeu, Carapuce), un simple calembour (Théffroi) ou une
+    référence déjà connue des joueurs (Artikodin et Odin) n'apprend rien. Les
+    noms récents sont les plus travaillés ; ils vont aux deux listes de joueurs.
+15. **Ton.** Une histoire triste est admise (le crâne d'Osselait), pas la mort
+    d'un Pokémon attachant (la flamme de Salamèche). En « Je découvre », une
+    image intrigante suffit à rendre accessible un Pokémon inconnu (Mimiqui).
 
 ## Démo hébergée
 
@@ -219,6 +346,7 @@ est construit une seule fois dans `build_app`, sans génération d'identifiants
 explicitement attachée à l'ouverture de chaque session navigateur. L'UUID seul
 ne suffit donc pas à démontrer cette isolation.
 
-Le fichier d'exemples n'est pas explicitement déclaré dans les ressources
-setuptools de `pyproject.toml`. Sa présence dans une distribution construite
+Les fichiers de questions et l'exemple d'ouverture ne sont pas explicitement
+déclarés dans les ressources setuptools de `pyproject.toml`. Leur présence dans
+une distribution construite
 reste à vérifier ; la commande ci-dessus vise le checkout installé en mode éditable.

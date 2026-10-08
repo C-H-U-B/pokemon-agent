@@ -16,7 +16,7 @@ from pokemon_rag.agent.context_budget import BUDGET_ABSTENTION, DOUBLE_REQUEST_R
 from pokemon_rag.agent.list_fidelity import REPLACEMENT_PREFIX
 from pokemon_rag.config import LLM_BASE_URL, LLM_MODEL
 from pokemon_rag.constraints.query_constraints import normalize
-from pokemon_rag.structured.query_engine import pokemon_image_urls
+from pokemon_rag.structured.query_engine import ARTWORK_URL, pokemon_image_urls
 from pokemon_rag.observability.tracing import TRACE_DIR, save_trace
 
 logger = logging.getLogger(__name__)
@@ -269,12 +269,36 @@ def _image_html(answer: str, timing: "ActivityTiming") -> str:
     except Exception:
         logger.warning("answer_images_failed", exc_info=True)
         return ""
+    return _images_block(images)
+
+
+def _images_block(images: list[tuple[str, str]]) -> str:
+    """Ligne d'illustrations et son crédit, en HTML ; chaîne vide sans image."""
     if not images:
         return ""
     pictures = "".join(f'<img src="{html.escape(url, quote=True)}" alt="{html.escape(name, quote=True)}" '
                        f'title="{html.escape(name, quote=True)}" width="{IMAGE_WIDTH}">' for url, name in images)
     # Le style de l'interface (APP_CSS) aligne ces images sur une ligne et fixe leur taille.
     return f'<div class="pokemon-images">{pictures}</div>\n\n<sub>{IMAGE_CREDIT}</sub>\n\n'
+
+
+def _opening_example() -> list[dict]:
+    """Échange affiché à l'ouverture : la première question « découvrir », déjà répondue, sans appel au modèle.
+
+    Réponse réelle du modèle de la démo, enregistrée dans `exemple_ouverture.json` avec les numéros de ses
+    illustrations : le visiteur a de quoi lire pendant que sa propre question charge. Si la première
+    question de la liste a changé sans que l'exemple suive, rien n'est affiché plutôt qu'un échange faux.
+    """
+    try:
+        example = json.loads(Path(__file__).with_name("exemple_ouverture.json").read_text(encoding="utf-8"))
+        if example["question"] != FIRST_QUESTION:
+            return []
+        images = _images_block([(ARTWORK_URL.format(number), name) for name, number in example["images"]])
+        return [{"role": "user", "content": example["question"]},
+                {"role": "assistant", "content": images + example["reponse"]}]
+    except Exception:
+        logger.warning("opening_example_failed", exc_info=True)
+        return []
 
 
 def _final_response_text(events) -> str:
@@ -810,7 +834,9 @@ def build_app() -> gr.Blocks:
             with gr.Row(equal_height=True, elem_id="workspace"):
                 # Conversation
                 with gr.Column(scale=3, min_width=320, elem_id="conversation-panel"):
+                    opening = _opening_example()
                     chatbot = gr.Chatbot(
+                        value=opening,
                         show_label=False,
                         height="100%",
                         elem_id="chat-history",
@@ -822,7 +848,8 @@ def build_app() -> gr.Blocks:
                     )
                     with gr.Row(elem_id="question-row"):
                         message = gr.Textbox(
-                            value=FIRST_QUESTION,
+                            # Sans exemple affiché, la première question reste proposée dans le champ.
+                            value="" if opening else FIRST_QUESTION,
                             placeholder="Posez une question sur les Pokémon, ou choisissez une suggestion ci-dessous",
                             label="Votre question",
                             max_length=MAX_QUESTION_CHARS,
@@ -898,6 +925,8 @@ def build_app() -> gr.Blocks:
             )
 
         app.load(fn=_warm_up)
+        # Exemple d'ouverture : Gradio descend en bas de la conversation, la question restait cachée au-dessus.
+        app.load(fn=None, js=SHOW_LAST_QUESTION_JS)
 
     return app
 

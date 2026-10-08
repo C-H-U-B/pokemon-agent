@@ -1,0 +1,28 @@
+{
+  "question": "Quels sont les 5 Pokémon les plus lourds ?",
+  "modele": "Gemini 3.8 Flash",
+  "date": "8 octobre 2026",
+  "reponse": "Les 5 Pokémon les plus lourds (parmi les 1 025 Pokémon répertoriés) sont :\n\n1. **Cosmovum** : 999,9 kg (à égalité)\n2. **Bamboiselle** : 999,9 kg (à égalité)\n3. **Groudon** : 950,0 kg (à égalité)\n4. **Éthernatos** : 950,0 kg (à égalité)\n5. **Bourrinos** : 920,0 kg",
+  "images": [
+    [
+      "Cosmovum",
+      790
+    ],
+    [
+      "Bamboiselle",
+      797
+    ],
+    [
+      "Groudon",
+      383
+    ],
+    [
+      "Éthernatos",
+      890
+    ],
+    [
+      "Bourrinos",
+      750
+    ]
+  ]
+}
