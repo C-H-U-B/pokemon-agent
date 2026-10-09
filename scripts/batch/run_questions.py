@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import time
+import tomllib
 from pathlib import Path
 
 from tqdm import tqdm
@@ -14,9 +15,15 @@ DEFAULT_QUESTIONS_FILE = PROJECT_ROOT / "scripts" / "batch" / "questions.txt"
 
 
 def load_questions(path: Path) -> list[str]:
-    """Charge une question par ligne en ignorant les lignes vides et commentaires."""
+    """Charge une question par ligne en ignorant les lignes vides et commentaires, ou le guide Web (.toml)."""
     if not path.exists():
         raise FileNotFoundError(f"Fichier de questions introuvable : {path}")
+
+    if path.suffix == ".toml":
+        # Fichier du guide Web : toutes ses questions, celles du tirage puis les non disponibles.
+        guide = tomllib.loads(path.read_text(encoding="utf-8"))
+        return [question for section in ("famille", "indisponible")
+                for entry in guide.get(section, []) for question in entry["questions"]]
 
     questions = []
 
