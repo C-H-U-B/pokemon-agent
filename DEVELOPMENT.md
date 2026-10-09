@@ -1828,3 +1828,33 @@ The drawing and its card fit in the window without scrolling. The measurement
 also showed that the whole page already overflowed by a few pixels, graph or
 not; the margin at fault is fixed. The send button is inactive while an answer
 is in progress.
+
+## 94. [Feature] Clearer example questions and conversation
+
+A visitor hesitated in front of the bottom row: a button reading "Je découvre
+Pokémon" (I am new to Pokémon), next to "Nouvelle conversation" (New
+conversation), did not say that it offered a question.
+
+The three buttons now sit above the input, after a heading that carries the
+action: "Pas d'idée ? Essayez une question, puis envoyez-la :" (No idea? Try a
+question, then send it). They only name a level, "Débutant" (Beginner),
+"Joueur" (Player), "Expert". A click still fills the input without sending
+anything, so the question can be edited, and puts the cursor in it. "Nouvelle
+conversation", which clears, is alone under the input.
+
+The send button was inactive while an answer was in progress, but the Enter
+key still sent a second question. It is stopped in the browser, and the
+question prepared while waiting stays in the input.
+
+At opening, the question of the example was cut off whenever the conversation
+did not fit in height: Gradio scrolled back to the bottom once the images had
+loaded, after the view had been placed on the question. The position is held
+while they load. The defect did not show on a large screen, the only size at
+which the placement had been looked at.
+
+Three touches make the conversation easier to read. An illustration opens
+large in the middle of the screen, and a small magnifier in its corner says
+so. The copy button sits beside its bubble instead of under it, which shortens
+the conversation to scroll. The waiting bubble shows three animated dots until
+the answer: Gradio only displayed its own for a moment on sending, they are
+redrawn identically.

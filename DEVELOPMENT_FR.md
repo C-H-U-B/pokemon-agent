@@ -1902,3 +1902,33 @@ Le dessin et son encart tiennent dans la fenêtre sans défilement. La mesure a
 montré au passage que la page entière dépassait déjà de quelques pixels, graphe
 ou pas ; la marge en cause est corrigée. Le bouton d'envoi est inactif tant
 qu'une réponse est en cours.
+
+## 94. [Feature] Questions d'exemple et conversation plus lisibles
+
+Un visiteur a hésité devant la rangée du bas : un bouton « Je découvre
+Pokémon », à côté de « Nouvelle conversation », ne disait pas qu'il proposait
+une question.
+
+Les trois boutons sont maintenant au-dessus de la saisie, derrière un intitulé
+qui porte l'action : « Pas d'idée ? Essayez une question, puis envoyez-la : ».
+Ils ne nomment plus qu'un niveau, « Débutant », « Joueur », « Expert ». Le clic
+préremplit toujours la saisie sans rien envoyer, pour laisser modifier la
+question, et y place le curseur. « Nouvelle conversation », qui efface, est
+seule sous la saisie.
+
+Le bouton d'envoi était inactif pendant une réponse, mais la touche Entrée
+envoyait encore une seconde question. Elle est arrêtée dans le navigateur, et
+la question préparée pendant l'attente reste dans la saisie.
+
+À l'ouverture, la question de l'exemple était coupée dès que la conversation ne
+tenait pas en hauteur : Gradio redescendait en bas une fois les images
+chargées, après le placement sur la question. La position est maintenue le
+temps de ce chargement. Le défaut ne se voyait pas sur un grand écran, la seule
+taille où le placement avait été regardé.
+
+Trois retouches rendent la conversation plus lisible. Une illustration s'ouvre
+en grand au milieu de l'écran, et une petite loupe dans son coin l'annonce. Le
+bouton de copie est à côté de sa bulle et non dessous, ce qui raccourcit la
+conversation à faire défiler. La bulle d'attente montre trois points animés
+jusqu'à la réponse : Gradio n'affichait les siens qu'un instant à l'envoi, ils
+sont redessinés à l'identique.

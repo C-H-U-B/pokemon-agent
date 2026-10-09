@@ -116,7 +116,7 @@ def test_question_is_visible_before_answer_without_duplicate(web, monkeypatch):
 
     outputs = asyncio.run(run())
     assert outputs[0][0][:-1] == history + [{"role": "user", "content": "Pikachu ?"}]
-    assert outputs[0][0][-1]["content"] == "…"
+    assert outputs[0][0][-1]["content"] == web.PENDING_ANSWER
     # Les rafraîchissements du chrono ne renvoient ni la conversation (le navigateur redescendrait en bas
     # dix fois par seconde) ni l'état (une suggestion choisie pendant l'attente serait écrasée).
     skip = web.gr.skip()

@@ -166,6 +166,14 @@ mémoire par le modèle, ou un mot courant qui est aussi un nom de Pokémon, n'e
 donc pas illustré. Une abstention ou un refus n'a pas d'image, et le modèle ne
 reçoit jamais ces images.
 
+Un clic sur une illustration l'ouvre en grand au milieu de l'écran
+(`IMAGE_VIEWER_JS`, un élément `dialog` ajouté à la page) ; la croix, le fond ou
+Échap la referment. Une petite loupe dans le coin de chaque image l'annonce.
+
+Dans la conversation, le bouton de copie est placé à côté de sa bulle, dans la
+marge, et la bulle d'attente porte trois points animés (`PENDING_ANSWER`),
+redessinés d'après ceux que Gradio ne montre qu'à l'envoi.
+
 `pokemon_image_urls()` (moteur structuré) associe chaque entrée du tableur à son
 illustration : l'image de son `pokemon_id`, ou `espèce-forme` pour une forme
 cosmétique autre que celle par défaut. Les images sont **liées** depuis le dépôt
@@ -222,13 +230,20 @@ session ADK est supprimée. Aucun nouvel appel au modèle ne part ensuite ; un
 appel d'outil déjà transmis au serveur MCP se termine de son côté. Une question
 abandonnée n'écrit pas de trace.
 
-Trois boutons proposent des questions selon le public : « Je découvre Pokémon »
-(`questions_decouvrir.txt`, langage courant, pour quelqu'un qui n'a jamais
-joué), « Je connais Pokémon » (`questions_connaisseurs.txt`, ce qu'on voit en
-jouant) et « Expert » (`questions_experts.txt`, contraintes combinées, cas rares
-et histoire du jeu). Ce qui fait une bonne question est écrit plus bas, dans
-« Critères d'une suggestion ». Chaque bouton préremplit la saisie avec la
-question suivante de sa liste, sans lancer de requête, et revient au début après la dernière. La position
+Au-dessus de la saisie, l'intitulé « Pas d'idée ? Essayez une question, puis
+envoyez-la : » précède trois boutons qui proposent des questions selon le
+public : « Débutant » (`questions_decouvrir.txt`, langage courant, pour
+quelqu'un qui n'a jamais joué ; les critères l'appellent « Je découvre »),
+« Joueur » (`questions_connaisseurs.txt`, ce qu'on voit en jouant ; « Je
+connais Pokémon » dans les critères) et « Expert » (`questions_experts.txt`,
+contraintes combinées, cas rares et histoire du jeu). « Nouvelle
+conversation », qui efface, est seule sous la saisie. Ce qui fait une bonne
+question est écrit plus bas, dans « Critères d'une suggestion ». Chaque bouton
+préremplit la saisie avec la question suivante de sa liste, sans lancer de
+requête, y place le curseur, et revient au début après la dernière. Pendant
+une réponse, le bouton d'envoi est inactif et la touche Entrée est arrêtée
+dans le navigateur (`BLOCK_ENTER_WHILE_ANSWERING_JS`) : une question préparée
+pendant l'attente reste dans la saisie. La position
 dans chaque liste est propre à chaque navigateur (`WebSession.next_suggestion`) et
 repart du début avec « Nouvelle conversation ». Les fichiers sont chargés à
 l'import, en UTF-8, une question par ligne non vide ; un fichier manquant ou vide

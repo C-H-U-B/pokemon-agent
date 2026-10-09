@@ -34,11 +34,34 @@ QUESTION_TOO_LONG = f"Question trop longue : {MAX_QUESTION_CHARS} caractères au
 # Tant qu'aucune recherche documentaire n'a abouti dans ce processus, la base peut encore se charger.
 # ponytail: indice et non état réel du serveur d'outils ; lui faire exposer son état si l'attente gêne.
 _documentary_base_ready = False
-# Le court délai laisse le navigateur afficher la réponse avant de calculer la position.
+# Le court délai laisse le navigateur afficher la réponse avant de calculer la position. Gradio redescend
+# en bas de la conversation une fois les images chargées, après ce délai : la position est donc tenue 2 s.
+# ponytail: durée fixe, pendant laquelle un défilement du lecteur est ramené sur la question ; suivre le
+# chargement des images si une réponse s'affiche en plus de 2 s.
 SHOW_LAST_QUESTION_JS = """() => setTimeout(() => {
     const rows = document.querySelectorAll('#chat-history .user-row');
-    if (rows.length) rows[rows.length - 1].scrollIntoView({behavior: 'smooth', block: 'start'});
+    if (!rows.length) return;
+    const show = () => rows[rows.length - 1].scrollIntoView({block: 'start'});
+    show();
+    const hold = setInterval(show, 100);
+    setTimeout(() => clearInterval(hold), 2000);
 }, 150)"""
+# Un clic sur une illustration l'ouvre en grand au milieu de l'écran ; la croix, le fond ou Échap la referment.
+IMAGE_VIEWER_JS = """() => {
+    const viewer = document.createElement('dialog');
+    viewer.id = 'image-viewer';
+    viewer.innerHTML = '<button type="button" aria-label="Fermer">×</button><img alt=""><p></p>';
+    document.body.append(viewer);
+    const picture = viewer.querySelector('img');
+    viewer.addEventListener('click', (event) => { if (event.target !== picture) viewer.close(); });
+    document.addEventListener('click', (event) => {
+        const image = event.target.closest?.('#chat-history .pokemon-images img');
+        if (!image) return;
+        picture.src = image.src;
+        picture.alt = viewer.querySelector('p').textContent = image.alt;
+        viewer.showModal();
+    });
+}"""
 APP_CSS = """
 .gradio-container { padding: 12px !important; }
 .gradio-container footer { display: none; }
@@ -61,6 +84,28 @@ APP_CSS = """
 #chat-history .pokemon-images > * { flex: 0 0 auto !important; width: auto !important; margin: 0 !important; }
 #chat-history .pokemon-images img, #chat-history img[title] { width: 80px !important; height: 80px !important;
     max-width: 80px !important; object-fit: contain; display: inline-block !important; margin: 0 !important; }
+#chat-history .pokemon-images img { cursor: zoom-in; }
+/* Petite loupe au coin de chaque illustration : elle se clique pour s'ouvrir en grand. */
+#chat-history .pokemon-images .zoomable { position: relative; display: inline-block; line-height: 0; }
+#chat-history .pokemon-images .zoomable::after { content: ""; position: absolute; right: 0; bottom: 0;
+    width: 16px; height: 16px; border-radius: 50%; pointer-events: none; opacity: 0.75;
+    background: var(--background-fill-primary) center / 10px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3' stroke-linecap='round'%3E%3Ccircle cx='10' cy='10' r='7'/%3E%3Cpath d='M15.5 15.5 21 21'/%3E%3C/svg%3E");
+    box-shadow: 0 0 0 1px var(--border-color-primary); }
+/* Bulle d'attente : mêmes mesures et même animation que les trois points de Gradio (composant Pending). */
+#chat-history .pending-dots { display: flex; align-items: center; gap: var(--spacing-xs); min-height: var(--size-6); }
+#chat-history .pending-dots i { width: var(--size-1-5); height: var(--size-1-5); margin-right: var(--spacing-xs);
+    border-radius: 50%; background-color: var(--body-text-color); opacity: 0.5;
+    animation: pending-dot 1.5s infinite; }
+#chat-history .pending-dots i:nth-child(2) { animation-delay: 0.2s; }
+#chat-history .pending-dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes pending-dot { 0%, 100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } }
+#image-viewer { border: none; border-radius: 12px; padding: 16px 16px 8px; max-width: 90vw; max-height: 90vh;
+    background: var(--background-fill-primary); color: var(--body-text-color); }
+#image-viewer::backdrop { background: rgba(0, 0, 0, 0.6); }
+#image-viewer img { display: block; width: min(80vw, 70vh, 475px); height: auto; }
+#image-viewer p { margin: 4px 0 0; text-align: center; font-weight: 600; }
+#image-viewer button { position: absolute; top: 4px; right: 10px; border: none; background: none;
+    font-size: 30px; line-height: 1; cursor: pointer; color: inherit; }
 #agent-panel code { overflow-wrap: anywhere; white-space: pre-wrap; }
 #conversation-panel { display: grid; grid-template-rows: minmax(0, 1fr) auto auto auto;
     gap: 4px; overflow-y: auto; }
@@ -71,17 +116,27 @@ APP_CSS = """
 #chat-history .bubble .bot-row { justify-content: flex-end; }
 #chat-history .bubble.message-buttons-left { align-self: flex-end; }
 #chat-history .bubble.message-buttons-right { align-self: flex-start; }
-#chat-history .message-buttons-right .icon-button-wrapper { margin-left: 0; }
+/* Bouton de copie à côté de sa bulle, dans la marge, et non dessous : il n'ajoute plus de hauteur à faire défiler.
+   -34px : sa hauteur (24px) et l'écart avec la bulle (10px), pour l'aligner sur le bas de la bulle. */
+#chat-history .message-buttons { margin: -34px 0 0 !important; padding: 0 !important; width: fit-content; z-index: 1; }
+#chat-history .message-buttons .icon-button-wrapper { margin: 0 !important; }
+#chat-history .message-row.user-row { margin-left: 28px; }
+#chat-history .message-row.bot-row { margin-right: 28px; }
 #chat-history .user { border-bottom-left-radius: 0;
     border-bottom-right-radius: var(--radius-md); }
 #chat-history .bot { border-bottom-right-radius: 0;
     border-bottom-left-radius: var(--radius-md); }
-#question-row, #question-actions { flex: 0 0 auto !important; gap: 8px; }
-#question-row { align-items: center; }
+#question-row, #question-actions, #question-examples { flex: 0 0 auto !important; gap: 8px; }
+#question-row, #question-actions, #question-examples { align-items: center; }
 #question-row > div { min-width: 0 !important; }
-#question-actions button { min-height: 30px; }
+#question-actions button, #question-examples button { min-height: 30px; }
+/* Questions d'exemple : l'intitulé puis ses trois boutons, serrés à gauche, au-dessus du champ qu'ils remplissent. */
+#question-examples > * { flex: 0 0 auto !important; width: auto !important; min-width: 0 !important; }
+#question-examples-title { font-size: 13px; font-weight: 600; }
+#question-examples-title p, #question-hint p { margin: 0; }
+/* « Nouvelle conversation » efface : seule à droite, à l'écart des questions d'exemple. */
+#question-actions > button { flex: 0 0 auto !important; width: auto !important; }
 #question-hint { font-size: 12px; }
-#question-hint p { margin: 0; }
 #app-heading { padding: 0; }
 #app-heading h1 { margin: 0; font-size: 26px; }
 #question-box textarea { font-size: 16px; }
@@ -285,8 +340,10 @@ def _images_block(images: list[tuple[str, str]]) -> str:
     """Ligne d'illustrations et son crédit, en HTML ; chaîne vide sans image."""
     if not images:
         return ""
-    pictures = "".join(f'<img src="{html.escape(url, quote=True)}" alt="{html.escape(name, quote=True)}" '
-                       f'title="{html.escape(name, quote=True)}" width="{IMAGE_WIDTH}">' for url, name in images)
+    # L'enveloppe porte la petite loupe du coin (APP_CSS) : une image n'accepte pas de pseudo-élément.
+    pictures = "".join(f'<span class="zoomable"><img src="{html.escape(url, quote=True)}" '
+                       f'alt="{html.escape(name, quote=True)}" title="{html.escape(name, quote=True)}" '
+                       f'width="{IMAGE_WIDTH}"></span>' for url, name in images)
     # Le style de l'interface (APP_CSS) aligne ces images sur une ligne et fixe leur taille.
     return f'<div class="pokemon-images">{pictures}</div>\n\n<sub>{IMAGE_CREDIT}</sub>\n\n'
 
@@ -595,6 +652,21 @@ def _save_web_trace(trace: dict) -> None:
 # dans le journal et dans la trace, pas sur une page publique.
 TECHNICAL_ERROR_MESSAGE = "Une erreur technique est survenue. Réessayez dans un instant."
 SEND_LABEL, WAITING_LABEL = "Envoyer", "Réponse en cours…"
+# Bulle d'attente du chatbot : les trois points animés que Gradio montre un instant à l'envoi, et qu'il retire
+# dès la première mise à jour ; redessinés ici (style dans APP_CSS) pour durer jusqu'à la réponse.
+PENDING_ANSWER = '<span class="pending-dots" role="status" aria-label="Réponse en cours"><i></i><i></i><i></i></span>'
+EXAMPLES_TITLE = "Pas d'idée ? Essayez une question, puis envoyez-la :"
+SUGGESTION_LABELS = {"decouvrir": "🌱 Débutant", "connaisseurs": "🎮 Joueur", "experts": "🏆 Expert"}
+FOCUS_QUESTION_JS = "() => document.querySelector('#question-box textarea')?.focus()"
+# Le bouton d'envoi est inactif pendant une réponse ; la touche Entrée doit l'être aussi, sans vider le champ.
+# En phase de capture sur le document : avant l'écouteur de Gradio sur le champ.
+BLOCK_ENTER_WHILE_ANSWERING_JS = """() => document.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey && event.target.closest?.('#question-box')
+            && document.querySelector('#send-button')?.disabled) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+}, true)"""
 
 
 async def _run_agent_into_queue(
@@ -673,7 +745,7 @@ async def chat(
     start = time.perf_counter()
     pending_history = history + [
         {"role": "user", "content": message},
-        {"role": "assistant", "content": "…"},
+        {"role": "assistant", "content": PENDING_ANSWER},
     ]
 
     events = []
@@ -908,16 +980,17 @@ def build_app() -> gr.Blocks:
                         height="100%",
                         elem_id="chat-history",
                     )
-                    gr.Markdown(
-                        "Chaque question est indépendante : précisez le Pokémon, "
-                        "sa forme et le jeu si nécessaire.",
-                        elem_id="question-hint",
-                    )
+                    with gr.Row(elem_id="question-examples"):
+                        gr.Markdown(EXAMPLES_TITLE, elem_id="question-examples-title")
+                        suggestion_buttons = {
+                            audience: gr.Button(label, size="sm", scale=0, min_width=0)
+                            for audience, label in SUGGESTION_LABELS.items()
+                        }
                     with gr.Row(elem_id="question-row"):
                         message = gr.Textbox(
                             # Sans exemple affiché, la première question reste proposée dans le champ.
                             value="" if opening else FIRST_QUESTION,
-                            placeholder="Posez une question sur les Pokémon, ou choisissez une suggestion ci-dessous",
+                            placeholder="Posez une question sur les Pokémon",
                             label="Votre question",
                             max_length=MAX_QUESTION_CHARS,
                             show_label=False,
@@ -932,18 +1005,19 @@ def build_app() -> gr.Blocks:
                             SEND_LABEL,
                             variant="primary",
                             scale=1,
+                            elem_id="send-button",
                         )
 
                     with gr.Row(elem_id="question-actions"):
-                        suggestion_buttons = {
-                            "decouvrir": gr.Button("🌱 Je découvre Pokémon", size="sm"),
-                            "connaisseurs": gr.Button("🎮 Je connais Pokémon", size="sm"),
-                            "experts": gr.Button("🏆 Expert", size="sm"),
-                        }
-
+                        gr.Markdown(
+                            "Chaque question est indépendante : précisez le Pokémon, "
+                            "sa forme et le jeu si nécessaire.",
+                            elem_id="question-hint",
+                        )
                         clear = gr.Button(
                             "Nouvelle conversation",
                             size="sm",
+                            scale=0,
                         )
 
                 # Activité
@@ -985,13 +1059,13 @@ def build_app() -> gr.Blocks:
                 chat_event.then(fn=lambda: gr.update(value=SEND_LABEL, interactive=True), outputs=send)
                 chat_events.append(chat_event)
 
-            # Question suivante de la liste de chaque public.
+            # Question suivante de la liste de chaque public, puis curseur dans le champ : il reste à l'envoyer.
             for audience, button in suggestion_buttons.items():
                 button.click(
                     fn=lambda current, audience=audience: _next_suggestion(audience, current),
                     inputs=state,
                     outputs=[message, state],
-                )
+                ).then(fn=None, js=FOCUS_QUESTION_JS)
 
             # Nouvelle conversation.
             clear.click(
@@ -1008,6 +1082,8 @@ def build_app() -> gr.Blocks:
             )
 
         app.load(fn=_warm_up)
+        app.load(fn=None, js=BLOCK_ENTER_WHILE_ANSWERING_JS)
+        app.load(fn=None, js=IMAGE_VIEWER_JS)
         # Exemple d'ouverture : Gradio descend en bas de la conversation, la question restait cachée au-dessus.
         app.load(fn=None, js=SHOW_LAST_QUESTION_JS)
 
