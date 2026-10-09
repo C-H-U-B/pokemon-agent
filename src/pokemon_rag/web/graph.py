@@ -46,6 +46,7 @@ def random_pikachu() -> str:
 
 QUEULORIOR, EXAGIDE, DRACOLOSSE = shuffle_icon(235), shuffle_icon(681), shuffle_icon(149)
 METALOSSE, CREHELF, MIAMIASME, RAMOLOSS = shuffle_icon(376), shuffle_icon(480), shuffle_icon(568), shuffle_icon(79)
+KABUTOPS = shuffle_icon(141)  # ses deux faux : le budget coupe ce que le modèle ne pourrait pas lire
 # Le liquide fonce à mesure qu'il est transformé, de la question à la réponse ; un rejet le ternit.
 PALE, ROSE, PINK, MAGENTA, DEEP, SPOILED = "#ffb3ec", "#ff7ddf", "#ff3fcf", "#e600b0", "#a3007d", "#6b7280"
 # Les deux branches forment un anneau entre le serveur d'outils et le budget : Métalosse au milieu de la sienne,
@@ -77,7 +78,7 @@ NODES = [
     {"id": "rrf", "label": "fusion", "x": 300, "y": 270, "tint": PINK, "sub": True, "role": "Réunit les deux listes en une seule."},
     {"id": "reranker", "label": "reclassement", "x": 284, "y": 291, "tint": PINK, "sub": True,
      "role": "Un second modèle relit les meilleurs passages et garde les plus pertinents."},
-    {"id": "budget", "label": "Budget de contexte", "x": 210, "y": 320, "tint": MAGENTA,
+    {"id": "budget", "label": "Budget de contexte", "x": 210, "y": 320, "tint": MAGENTA, "icon": KABUTOPS,
      "role": "Réduit le résultat à ce que le modèle peut lire sans dépasser sa mémoire de travail."},
     {"id": "redige", "label": "Modèle · rédige", "x": 210, "y": 360, "tint": MAGENTA, "icon": QUEULORIOR,
      "role": "Le modèle écrit la réponse en français à partir des résultats reçus."},
@@ -411,7 +412,8 @@ GRAPH_CSS = """
 .node .badge circle { fill: var(--ink); }
 .node .badge text { fill: var(--surface); stroke: none; font-size: 8.5px; font-weight: 700; }
 /* Hauteur fixe : un texte long défile dans l'encart, le panneau lui-même ne défile pas. */
-.detail { margin: 6px auto 0; max-width: 460px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 14px;
+.detail { margin: 6px auto 0; max-width: 460px; padding: 10px 14px; border-radius: 14px;
+          border: 1px solid color-mix(in srgb, var(--data, var(--line)) 40%, var(--line));
           background: var(--background-fill-secondary, #f8f9fb); height: 118px; box-sizing: border-box; overflow-y: auto; }
 .detail-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .detail-title { font-weight: 600; color: var(--ink); }
