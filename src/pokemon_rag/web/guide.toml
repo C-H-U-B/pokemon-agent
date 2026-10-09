@@ -1,0 +1,387 @@
+# Contenu de l'onglet « Guide » de l'interface Web. L'onglet ne fait qu'afficher ce fichier.
+#
+# [[famille]]      : ce qu'on peut demander. Le bouton d'exemple tire une question au hasard dans `questions`.
+#                    Une question n'y entre qu'avec une preuve de réussite enregistrée (commentaire au-dessus).
+#                    `modeles` : questions à trou, pour les familles servies par la base seule. Une fois sur deux,
+#                    le bouton en remplit un avec un nom d'espèce tiré au hasard dans la base : {pokemon}, ou
+#                    {de_pokemon} (« de Pikachu », « d'Arcanin »). Réservé aux questions dont la réponse ne dépend
+#                    pas de l'exemple ; `noms_exclus`, en tête de fichier, retire les noms qui ne passent pas.
+#                    `en_cours` : questions du tirage au défaut connu mais bénin, affichées « en cours d'amélioration ».
+# [[indisponible]] : ce que l'outil ne sait pas faire, rangé par raison, avec les questions connues qui échouent
+#                    (aucune pour une raison qui ne tient pas à la question : longueur, incident technique)
+#                    et, quand il y en a une, la question voisine qui marche.
+#                    `issues` (issues de la trace Web) et `messages` (débuts de message d'un refus du guard)
+#                    désignent la raison à signaler ; un message prime sur une issue, et signale la raison même
+#                    quand le modèle a fini par répondre.
+#
+# Ces questions sont distinctes des suggestions des boutons « Débutant », « Joueur », « Expert »
+# (questions_*.txt), qu'elles reprennent et complètent de variantes.
+
+# Noms que les modèles ne tirent pas. Sonde du 9 octobre 2026, sans modèle, 1 025 espèces × 3 modèles : le nom est
+# retrouvé par l'extraction des contraintes et l'outil rend une ligne pour 1 023 espèces ; ces deux noms sont lus
+# comme deux Pokémon (« Plusieurs Pokémon ou formes explicites »).
+noms_exclus = ["Nidoran♀", "Nidoran♂"]
+
+[[famille]]
+titre = "Records et classements"
+phrase = "Le plus lourd, le plus rapide, les cinq meilleurs en Défense : l'outil trie tous les Pokémon sur une mesure, parmi tous ou dans un groupe."
+questions = [
+  # Suggestions de vitrine
+  "Quels sont les 5 Pokémon les plus lourds ?",
+  "Quel est le Pokémon le plus rapide ?",
+  "Quel est le plus grand Pokémon ?",
+  "Quels sont les 5 Pokémon les plus légers ?",
+  "Quel est le plus petit Pokémon légendaire ?",
+  "Quelle Méga-Évolution a le meilleur total de statistiques ?",
+  "Quels sont les 3 pseudo-légendaires avec le plus d'Attaque ?",
+  "Quel Pokémon a le moins de PV ?",
+  "Quelles sont les 3 Ultra-Chimères avec la meilleure Défense ?",
+  "Quels sont les 5 Pokémon avec le meilleur total de statistiques ?",
+  "Quels sont les Pokémon Méga les plus lents ?",
+  "Quel Pokémon de type Glace pur a la meilleure Attaque Spéciale ?",
+  "Quels sont les 3 fossiles avec la meilleure Défense ?",
+  "Quel Pokémon a le plus faible total de statistiques ?",
+  # Campagne structurée, 5 réussites sur les 5 dernières exécutions (8 octobre 2026, Qwen)
+  "Quel est le Pokémon légendaire le plus rapide ?",
+  "Quel Pokémon Feu a le plus d'Attaque ?",
+  "Quel Pokémon Eau/Vol possède le meilleur total de statistiques ?",
+  "Quels sont les 5 Pokémon Spectre avec le plus d'Attaque Spéciale ?",
+  "Quel Pokémon légendaire de quatrième génération a la meilleure Défense ?",
+  "Quel Pokémon sans évolution a le plus d'Attaque ?",
+]
+
+[[famille]]
+titre = "Comptages"
+phrase = "Combien de Pokémon en tout, dans une génération, d'un type ou d'une catégorie : le total est compté dans la base, pas estimé par le modèle."
+questions = [
+  # Suggestions de vitrine
+  "Combien de Pokémon existe-t-il ?",
+  "Combien y a-t-il de Pokémon dans la première génération ?",
+  "Combien y a-t-il de Pokémon légendaires ?",
+  # Campagne structurée, 5 sur 5 (8 octobre 2026, Qwen)
+  "Combien de Pokémon sont de type Spectre ?",
+]
+
+[[famille]]
+titre = "Listes par type, génération, talent ou catégorie"
+phrase = "Tous les Pokémon qui partagent un critère : un type ou deux, une génération, un talent, une catégorie comme les légendaires, les Pokémon de départ ou les Méga-Évolutions."
+questions = [
+  # Suggestions de vitrine
+  "Quels sont les Pokémon de départ de la première génération ?",
+  "Quels sont les Pokémon légendaires de sixième génération ?",
+  "Quels Pokémon ont le talent Absentéisme ?",
+  "Quels Pokémon ont le talent Momie ?",
+  "Quelles évolutions finales de starters sont de type Ténèbres ?",
+  "Quel Pokémon est à la fois de type Feu et Eau ?",
+  "Quelles Méga-Évolutions ont le talent Coloforce ?",
+  # Campagne structurée, 5 sur 5, ou 4 sur 4 pour un cas plus récent (8 octobre 2026, Qwen)
+  "Quels sont les Pokémon fabuleux introduits en cinquième génération ?",
+  "Quels Pokémon sont de type Eau et Vol ?",
+  "Quels sont les pseudo-légendaires de la sixième génération ?",
+  "Quels sont les starters spéciaux ?",
+]
+
+[[famille]]
+titre = "Types et numéro de Pokédex"
+phrase = "La carte d'identité d'un Pokémon : ses types, son numéro, ou le Pokémon qui porte un numéro donné. Les formes régionales sont reconnues."
+questions = [
+  # Suggestions de vitrine
+  "Quel Pokémon porte le numéro 1 du Pokédex ?",
+  "Quel Pokémon porte le numéro 1000 du Pokédex ?",
+  "Quel Pokémon porte le numéro 666 du Pokédex ?",
+  "Quels sont les types d'Arcanin de Hisui ?",
+  # Campagne structurée, 5 sur 5, ou 4 sur 4 pour un cas plus récent (8 octobre 2026, Qwen)
+  "Quels sont les types de Hexagel ?",
+  "Quels sont les types de Nigirigon ?",
+  "Quels sont les types de Rugit-Lune ?",
+  "Quel est le numéro national de Sinistrail ?",
+  "Quel Pokémon porte le numéro 618 du Pokédex national ?",
+  # Lot du 9 octobre 2026 (Qwen, 1 exécution, réponse relue) ; classée « non disponible » avant lui
+  "Quels sont les types du fossile Kabuto ?",
+]
+modeles = ["Quels sont les types {de_pokemon} ?", "Quel est le numéro de Pokédex {de_pokemon} ?"]
+
+[[famille]]
+titre = "Statistiques d'un Pokémon"
+phrase = "Les six statistiques de combat d'un Pokémon nommé (PV, Attaque, Défense, Attaque Spéciale, Défense Spéciale, Vitesse), ou une seule d'entre elles."
+questions = [
+  # Suggestion de vitrine
+  "Quelles sont les statistiques de base de Leveinard ?",
+  # Campagne structurée, 5 sur 5 (8 octobre 2026, Qwen)
+  "Quelles sont les statistiques de base de Xerneas ?",
+  "Quelle est la Défense Spéciale de Méga-Dardargnan ?",
+]
+modeles = ["Quelles sont les statistiques de base {de_pokemon} ?"]
+
+[[famille]]
+titre = "Évolutions"
+phrase = "En quoi un Pokémon évolue et à quelle condition : un niveau, une pierre, un objet tenu, le bonheur, ou une condition plus rare."
+questions = [
+  # Suggestions de vitrine
+  "En quoi Pikachu évolue-t-il ?",
+  "Comment évolue Insécateur ?",
+  "Comment évolue Sepiatop ?",
+  "Comment évolue Léboulérou ?",
+  "Comment évolue Pandespiègle ?",
+  # Campagne structurée, 5 sur 5 (8 octobre 2026, Qwen)
+  "En quoi Capumain évolue-t-il ?",
+  "Lovdisc évolue-t-il en un autre Pokémon ?",
+  # Campagne structurée, 3 sur 3 (6 octobre 2026, Qwen)
+  "En quoi Pichu évolue-t-il ?",
+  "Comment Riolu évolue-t-il ?",
+  "Comment Ptiravi évolue-t-il ?",
+]
+# Sepiatop : condition (console tenue à l'envers) omise 1 fois sur 3 par Qwen.
+# Insécateur : phrase fausse ajoutée après les deux évolutions (lot du 9 octobre 2026).
+en_cours = ["Comment évolue Sepiatop ?", "Comment évolue Insécateur ?"]
+
+[[famille]]
+titre = "Attaques qu'un Pokémon peut apprendre"
+phrase = "Les attaques d'un Pokémon nommé, filtrées par type, par catégorie (physique ou spéciale) ou par puissance, et l'attaque qu'il est seul à connaître."
+questions = [
+  # Suggestions de vitrine
+  "Dracaufeu peut-il apprendre une attaque de type Dragon ?",
+  "Quelle est la capacité signature d'Amphinobi ?",
+  "Quelles capacités spéciales de type Fée d'au moins 80 de puissance Nymphali peut-il apprendre ?",
+  # Campagne structurée, 5 sur 5 (8 octobre 2026, Qwen)
+  "Quelles capacités de type Eau Krakos peut-il apprendre ?",
+  "Quelles capacités physiques Sovkipou peut-il apprendre ?",
+  "Quelles capacités spéciales de type Eau d'au moins 80 de puissance Nigirigon peut-il apprendre ?",
+]
+# Liste juste, sigle « CT/CS » développé de mémoire et à tort (lot du 9 octobre 2026).
+en_cours = ["Quelles capacités de type Eau Krakos peut-il apprendre ?"]
+
+[[famille]]
+titre = "Niveaux, CT et façons d'apprendre une attaque"
+phrase = "À quel niveau un Pokémon apprend ses attaques, lesquelles il reçoit par une CT (un objet qui enseigne une attaque), et par quels moyens il peut en apprendre une précise. Un jeu peut être nommé."
+questions = [
+  # Suggestions de vitrine
+  "Quelles capacités Lucario apprend-il entre les niveaux 20 et 40 dans Pokémon Épée et Bouclier ?",
+  "Quelles CT Anchwatt peut-il apprendre ?",
+  "Comment Bulbizarre apprend-il Lance-Soleil ?",
+  # Campagne structurée, 5 sur 5 (8 octobre 2026, Qwen)
+  "Quelles capacités Opermine apprend-il entre les niveaux 10 et 25 ?",
+  "Combien de CT Gouroutan peut-il apprendre dans Pokémon Soleil et Lune ?",
+  "Par quelles méthodes Concombaffe peut-il apprendre Toxik ?",
+]
+# Forme inventée par Qwen 1 fois sur 2 (abstention) ; réussie avec le modèle de la démo.
+en_cours = ["Quelles CT Anchwatt peut-il apprendre ?"]
+
+[[famille]]
+titre = "Faiblesses et résistances"
+phrase = "Les types d'attaque qu'un Pokémon nommé craint, ceux auxquels il résiste et ceux qui ne lui font rien, talents compris."
+questions = [
+  # Suggestions de vitrine
+  "Quelles sont les faiblesses de Cizayox ?",
+  "Quelles sont les faiblesses d'Ohmassacre ?",
+  # Campagne des particularités : 2 sur 2 (8 octobre 2026, Qwen) et 1 réponse du modèle de la démo
+  "Quelles sont les faiblesses de Dracaufeu ?",
+  # Campagne des particularités : 0 réponse fautive sur 10 relues (8 octobre 2026, Qwen)
+  "Smogogo est-il faible au Sol ?",
+]
+
+[[famille]]
+titre = "Particularités d'un Pokémon"
+phrase = "Ce qui distingue un Pokémon nommé : son poids, ses talents, sa difficulté de capture, la façon de l'obtenir à sa sortie, un ancien talent, les objets qu'il tient à l'état sauvage."
+questions = [
+  # Suggestions de vitrine
+  "Combien pèse Ronflex ?",
+  "Comment obtenait-on Mewtwo à sa sortie ?",
+  "Terhal est-il difficile à capturer ?",
+  "Éthernatos est-il difficile à capturer ?",
+  "Quels objets Leveinard peut-il tenir à l'état sauvage ?",
+  "Quel était l'ancien talent d'Ectoplasma ?",
+  # Campagne des particularités : 10 réponses justes sur 10 relues (8 octobre 2026, Qwen)
+  "Dracaufeu a-t-il une forme Gigamax ?",
+  # Campagne structurée, 5 sur 5 (8 octobre 2026, Qwen)
+  "Quels sont les talents de Concombaffe ?",
+  # Lot du 9 octobre 2026 (Qwen, 1 exécution, réponse relue) ; classées « non disponibles » avant lui
+  "Dans quels jeux Abo est-il absent ?",
+  "Chrysacier perd-il des statistiques en évoluant ?",
+]
+# Mewtwo : phrase fausse ajoutée après le fait juste (lot du 9 octobre 2026).
+# Abo : libellé mal repris 4 fois sur 10 le 8 octobre. Chrysacier : juste 1 fois, nombres inventés auparavant.
+en_cours = ["Comment obtenait-on Mewtwo à sa sortie ?", "Dans quels jeux Abo est-il absent ?",
+            "Chrysacier perd-il des statistiques en évoluant ?"]
+
+[[famille]]
+titre = "Origine des noms"
+phrase = "D'où vient le nom français d'un Pokémon : les mots et les références qu'il cache, d'après sa page Poképédia."
+questions = [
+  # Suggestions de vitrine
+  "D'où vient le nom de Lokhlass ?",
+  "D'où vient le nom de Tygnon ?",
+  "D'où vient le nom de Tutafeh ?",
+  "D'où vient le nom de Lewsor ?",
+  "D'où vient le nom de Bérasca ?",
+  "D'où vient le nom de Palarticho ?",
+  "D'où vient le nom d'Éthernatos ?",
+]
+
+[[famille]]
+titre = "Anecdotes et descriptions"
+phrase = "Ce que Poképédia raconte d'un Pokémon nommé : son apparence, son comportement, son histoire. La réponse cite des passages de sa page, elle est plus lente que les autres."
+questions = [
+  # Suggestions de vitrine
+  "Que fait Ronflex de ses journées ?",
+  "Où Pikachu stocke-t-il son électricité ?",
+  "Comment distinguer un Pikachu mâle d'une femelle ?",
+  "Pourquoi Osselait porte-t-il un crâne ?",
+  "Qu'y a-t-il sous le déguisement de Mimiqui ?",
+  "Quelle anecdote peux-tu me donner sur Miaouss ?",
+  "Pourquoi dit-on que Magicarpe est le Pokémon le plus faible ?",
+  "Pourquoi Psykokwak a-t-il toujours mal à la tête ?",
+  "Comment Genesect a-t-il été créé ?",
+  # Campagne des descriptions, 2 sur 2 et réponse relue (6 octobre 2026, Qwen ; posée en minuscules)
+  "À quoi ressemble Sovkipou ?",
+]
+# Pikachu : fait absent des passages reçus, ajouté de mémoire (lot du 9 octobre 2026).
+# Mimiqui : Qwen lit la fiche au lieu de la page Poképédia, 2 fois sur 2 ; réussie 1 fois avec le modèle de la démo.
+en_cours = ["Où Pikachu stocke-t-il son électricité ?", "Qu'y a-t-il sous le déguisement de Mimiqui ?"]
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Questions non disponibles
+# ---------------------------------------------------------------------------------------------------------
+
+[[indisponible]]
+titre = "Un avis, un conseil ou une stratégie"
+messages = ["Superlatif non reconnu"]
+raison = "L'outil ne rend que des faits tirés de ses données : il n'a pas d'avis sur un Pokémon et ne conseille pas d'équipe."
+questions = [
+  "Carapuce est-il fort ?",
+  "Qui est le Pokémon le plus moche ?",
+  "Quel est le meilleur Pokémon pour faire un blocus ?",
+]
+voisine = "Quels sont les 5 Pokémon avec le meilleur total de statistiques ?"
+
+[[indisponible]]
+titre = "Une question trop vague ou hors des données"
+raison = "Aucun outil n'a rien trouvé pour répondre, et l'outil ne répond pas de mémoire : la question est trop vague, ne porte pas sur un fait Pokémon, ou est tournée d'une façon qu'il ne sait pas lire. Nommez un Pokémon, vérifiez l'orthographe de son nom, et dites ce que vous voulez en savoir."
+issues = ["tool_failure_abstention"]
+questions = [
+  "Quel Pokémon est le meilleur danseur ?",
+  "Quel Pokémon sait faire le dab ?",
+]
+voisine = "Que fait Ronflex de ses journées ?"
+
+[[indisponible]]
+titre = "Une question trop longue"
+raison = "Une question est limitée à 300 caractères : au-delà, elle n'est pas envoyée au modèle."
+issues = ["question_too_long"]
+
+[[indisponible]]
+titre = "Un incident technique"
+raison = "Le modèle ou un outil n'a pas répondu : votre question n'est pas en cause. Réessayez dans un instant."
+issues = ["error", "no_final_response"]
+
+[[indisponible]]
+titre = "La suite d'une question précédente"
+raison = "Chaque question est lue seule, sans mémoire de la précédente : « il » ou « le » ne désigne personne, il faut renommer le Pokémon."
+questions = [
+  "Qu'est-ce qui le rend unique ?",
+]
+
+[[indisponible]]
+titre = "Deux demandes dans la même question"
+raison = "Une description et un fait chiffré ne se demandent pas ensemble : l'outil refuse plutôt que de ne répondre qu'à moitié. Posez deux questions."
+issues = ["double_request_refusal"]
+questions = [
+  "Décris Trépassable et donne ses types",
+  "Décris l'évolution de Pikachu",
+]
+voisine = "En quoi Pikachu évolue-t-il ?"
+
+[[indisponible]]
+titre = "Deux Pokémon dans la même question"
+messages = ["Plusieurs Pokémon ou formes explicites"]
+raison = "Une question porte sur un seul Pokémon nommé : avec deux noms, l'outil refuse plutôt que d'en choisir un."
+questions = [
+  "Comment Évoli évolue-t-il en Aquali ?",
+]
+voisine = "Comment évolue Insécateur ?"
+
+[[indisponible]]
+titre = "Une question de texte sans Pokémon nommé"
+raison = "Les descriptions viennent de la page Poképédia d'un Pokémon précis : sans nom, il n'y a pas de page où chercher et le modèle répond de mémoire."
+questions = [
+  "Comment distingue-t-on un mâle d'une femelle ?",
+  "Quelles sont les espèces convergentes ?",
+]
+voisine = "Comment distinguer un Pikachu mâle d'une femelle ?"
+
+[[indisponible]]
+titre = "Une réponse trop longue à rédiger"
+raison = "Quand les données à lire dépassent ce que le modèle peut recevoir en une fois, l'outil s'abstient au lieu de répondre sur une partie. Une question plus précise passe."
+issues = ["budget_abstention"]
+questions = [
+  "Comment obtenir chaque évolution d'Évoli ?",
+]
+voisine = "Quelles sont les statistiques de base de Leveinard ?"
+
+[[indisponible]]
+titre = "Un Pokémon au hasard"
+raison = "Aucun tirage n'est fait dans la base : le Pokémon serait choisi par le modèle, de mémoire."
+questions = [
+  "Donne-moi un Pokémon aléatoire",
+]
+voisine = "Quel Pokémon porte le numéro 666 du Pokédex ?"
+
+[[indisponible]]
+titre = "Où trouver un Pokémon, et dans quelle version"
+raison = "La base ne contient pas les lieux de rencontre, et la version exclusive n'est notée que pour le jeu de sortie d'un Pokémon : aucune liste des exclusifs d'un jeu."
+questions = [
+  "Abo est-il exclusif à une version ?",
+  "Abo est-il exclusif à Pokémon Rouge ?",
+]
+voisine = "Comment obtenait-on Mewtwo à sa sortie ?"
+
+[[indisponible]]
+titre = "Un critère que la recherche ne connaît pas encore"
+messages = ["Classification ambiguë ou négative", "Type demandé non reconnu"]
+raison = "La recherche filtre par type, génération, talent, catégorie et stade d'évolution. Une négation (« non légendaire »), un type gagné en cours de route ou le type d'une attaque dans un classement n'en font pas partie."
+questions = [
+  "Quel est le Pokémon non légendaire le plus rapide ?",
+  "Quels Pokémon ont gagné le type Fée en 6G ?",
+  "Quel Pokémon a la meilleure attaque de type Dragon ?",
+  "Quels Pokémon sont à la fois Feu et Spectre ?",
+  "Quelles CT de type Électrik Pikachu peut-il apprendre dans Pokémon Écarlate et Violet ?",
+]
+voisine = "Quel est le Pokémon légendaire le plus rapide ?"
+
+[[indisponible]]
+titre = "Une donnée présente, mais un mauvais chemin"
+raison = "La réponse est dans les données, mais le modèle ne prend pas l'outil qui la porte ou lui passe un argument inventé : la question finit en abstention ou à côté."
+questions = [
+  "Quelle était la statistique Spécial de Mewtwo en première génération ?",
+  "Quelles capacités Métamorph peut-il apprendre ?",
+  "Quel dresseur met Dracaufeu en avant ?",
+  "Quelle est la description du Pokédex de Psykokwak ?",
+]
+
+[[indisponible]]
+titre = "Une réponse donnée de mémoire"
+# « unverified » : réponse écrite sans aucun appel d'outil.
+issues = ["unverified"]
+raison = "Le modèle répond parfois sans consulter les données, ou conclut d'une absence quand elles ne disent rien du point demandé : aucun contrôle ne l'arrête encore."
+questions = [
+  "Quel paradoxe antique a le plus d'Attaque ?",
+  "Avec quels Pokémon Sylveroy peut-il fusionner ?",
+  "Quel est le talent signature de Métamorph ?",
+  "Magnéton a-t-il un équivalent Paradoxe ?",
+  "Depuis quelle génération Dracaufeu a-t-il une Méga-Évolution ?",
+  "Quel est l'habitat de Bacabouh ?",
+  "Décris Tutafeh",
+]
+
+[[indisponible]]
+titre = "Des questions qui dépendent du modèle"
+raison = "Réussies avec le modèle local, ces questions échouent avec celui de la démo : il lance plusieurs outils à la fois, et un refus, une erreur ou un retour trop volumineux transforme toute la réponse en abstention."
+questions = [
+  "Quels Pokémon Spectre de septième génération peuvent apprendre une attaque Combat physique ?",
+  "Dracaufeu est-il un dragon ?",
+  "Mélofée a-t-il toujours été de type Fée ?",
+  "Qu'a de particulier Malamandre ?",
+  "Quelles sont les caractéristiques de Carapuce ?",
+]
+voisine = "Quels sont les types d'Arcanin de Hisui ?"

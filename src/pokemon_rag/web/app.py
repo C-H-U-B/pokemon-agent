@@ -16,10 +16,13 @@ from pokemon_rag.agent.context_budget import BUDGET_ABSTENTION, DOUBLE_REQUEST_R
 from pokemon_rag.agent.list_fidelity import REPLACEMENT_PREFIX
 from pokemon_rag.config import LLM_BASE_URL, LLM_MODEL
 from pokemon_rag.constraints.query_constraints import normalize
-from pokemon_rag.structured.query_engine import ARTWORK_URL, pokemon_image_urls, pokemon_species_numbers
+from pokemon_rag.structured.query_engine import (ARTWORK_URL, pokemon_image_urls, pokemon_name_catalogue,
+                                                 pokemon_species_numbers)
 from pokemon_rag.observability.tracing import TRACE_DIR, save_trace
 from pokemon_rag.web.graph import (DEEP, GRAPH_CSS, GRAPH_JS, GRAPH_KEYFRAMES, MAGENTA, PALE, PINK, ROSE,
                                    graph_path, graph_template, graph_value, random_pikachu, shuffle_icon)
+from pokemon_rag.web.guide import (GUIDE_CSS, GUIDE_JS, GUIDE_TEMPLATE, drawable_names, guide_html, known_failure,
+                                   load_guide)
 from pokemon_rag.web.observability import (OBSERVABILITY_CSS, OBSERVABILITY_JS, OBSERVABILITY_TEMPLATE,
                                            observability_html)
 
@@ -93,6 +96,14 @@ APP_CSS = """
    Gradio masque l'onglet inactif par un display: none sur ce conteneur, pas par l'attribut hidden. */
 #agent-panel .tabs { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 #agent-panel .tabitem { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+/* Pastille de l'onglet « Guide » : la dernière question a échoué pour une raison qu'il explique. */
+#agent-panel [role=tab][data-notice]::after { content: '!'; display: inline-flex; align-items: center;
+    justify-content: center; width: 16px; height: 16px; margin-left: 6px; border-radius: 50%;
+    background: var(--visitor); color: #1f2933; font-size: 11px; font-weight: 700; line-height: 1;
+    vertical-align: middle; animation: guide-notice 1.4s ease-out infinite; }
+@keyframes guide-notice { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--visitor) 70%, transparent); }
+    to { box-shadow: 0 0 0 7px transparent; } }
+@media (prefers-reduced-motion: reduce) { #agent-panel [role=tab][data-notice]::after { animation: none; } }
 /* Thème sombre : sans cela, les barres de défilement de l'onglet et des retours dépliés restent claires. */
 .dark #agent-panel .tabitem, .dark #agent-panel pre { color-scheme: dark; }
 /* Onglet du graphe : le dessin et son encart tiennent dans la hauteur du panneau (ajustée dans le navigateur). */
@@ -102,7 +113,9 @@ APP_CSS = """
 #chat-history .pokemon-images > * { flex: 0 0 auto !important; width: auto !important; margin: 0 !important; }
 #chat-history .pokemon-images img, #chat-history img[title] { width: 80px !important; height: 80px !important;
     max-width: 80px !important; object-fit: contain; display: inline-block !important; margin: 0 !important; }
-#chat-history .pokemon-images img { cursor: zoom-in; }
+#chat-history .pokemon-images img { cursor: zoom-in; transition: transform 0.15s ease; }
+/* Au survol, l'illustration grossit un peu : elle s'ouvre en grand au clic. */
+#chat-history .pokemon-images img:hover { transform: scale(1.12); }
 /* Petite loupe au coin de chaque illustration : elle se clique pour s'ouvrir en grand. */
 #chat-history .pokemon-images .zoomable { position: relative; display: inline-block; line-height: 0; }
 #chat-history .pokemon-images .zoomable::after { content: ""; position: absolute; right: 0; bottom: 0;
@@ -306,6 +319,9 @@ def _load_questions(filename: str) -> list[str]:
 
 SUGGESTIONS = {audience: _load_questions(filename) for audience, filename in SUGGESTION_FILES.items()}
 FIRST_QUESTION = SUGGESTIONS["decouvrir"][0]
+# Onglet « Guide » : lu et contrôlé à l'import, un fichier mal formé empêche le chargement de l'interface.
+GUIDE = load_guide()
+GUIDE_HTML = guide_html(GUIDE)
 
 
 def _next_suggestion(audience: str, state: WebSession) -> tuple[str, WebSession]:
@@ -648,7 +664,7 @@ async def chat(
     message = message.strip()
 
     if not message:
-        yield history, gr.skip(), gr.skip(), gr.skip()
+        yield history, gr.skip(), gr.skip(), gr.skip(), gr.skip()
         return
 
     if len(message) > MAX_QUESTION_CHARS:
@@ -660,6 +676,7 @@ async def chat(
             gr.skip(),
             observability_html(refused),
             _graph(refused, uuid.uuid4().hex, random_pikachu()),
+            guide_html(GUIDE, known_failure(GUIDE, refused)),
         )
         return
 
@@ -706,8 +723,8 @@ async def chat(
 
     sent = running_views()
 
-    # Affichage immédiat.
-    yield pending_history, gr.skip(), *sent
+    # Affichage immédiat ; le guide revient à son état neutre, sans la raison signalée pour la question précédente.
+    yield pending_history, gr.skip(), *sent, GUIDE_HTML
 
     try:
         while not finished:
@@ -748,7 +765,7 @@ async def chat(
 
             # Conversation et état non renvoyés ici : dix mises à jour par seconde ramenaient le
             # défilement en bas et écrasaient une suggestion choisie pendant l'attente.
-            yield gr.skip(), gr.skip(), *updates
+            yield gr.skip(), gr.skip(), *updates, gr.skip()
 
         await task
 
@@ -794,6 +811,8 @@ async def chat(
         gr.skip(),
         observability_html(trace, question_id),
         _graph(trace, question_id, user_icon, answer_icon="" if error is not None else _answer_icon(response, timing)),
+        # Échec pour une raison connue : elle est signalée sur l'onglet « Guide » et dépliée.
+        guide_html(GUIDE, failure) if (failure := known_failure(GUIDE, trace)) else gr.skip(),
     )
 
 
@@ -807,7 +826,21 @@ def new_conversation():
         "",
         EMPTY_GRAPH,
         gr.update(value=SEND_LABEL, interactive=True),  # la question annulée ne rendra pas le bouton elle-même
+        GUIDE_HTML,
     )
+
+
+def _guide_with_names():
+    """Guide complété des noms d'espèces que ses modèles de question tirent au hasard.
+
+    Lu à l'ouverture de la page, pas à l'import : sans base, les exemples restent ceux du fichier.
+    """
+    try:
+        names = drawable_names(GUIDE, pokemon_name_catalogue())
+    except Exception:
+        logger.warning("guide_names_failed", exc_info=True)
+        return gr.skip()
+    return guide_html(GUIDE, names=names) if names else gr.skip()
 
 
 async def _warm_up() -> None:
@@ -897,7 +930,6 @@ def build_app() -> gr.Blocks:
 
                 # Activité
                 with gr.Column(scale=2, min_width=320, elem_id="agent-panel"):
-                    # Onglets : un troisième (guide des questions) s'ajoutera sans refaire la bascule.
                     with gr.Tabs():
                         with gr.Tab("Parcours"):
                             graph = gr.HTML(
@@ -915,6 +947,14 @@ def build_app() -> gr.Blocks:
                                 js_on_load=OBSERVABILITY_JS,
                                 elem_id="question-observability",
                             )
+                        with gr.Tab("Guide"):
+                            guide = gr.HTML(
+                                value=GUIDE_HTML,
+                                html_template=GUIDE_TEMPLATE,
+                                css_template=GUIDE_CSS,
+                                js_on_load=GUIDE_JS,
+                                elem_id="question-guide",
+                            )
 
             # La saisie est vidée dès l'envoi, pas à l'arrivée de la réponse : une question préparée
             # pendant l'attente (suggestion ou frappe) reste dans le champ. Bouton et touche Entrée.
@@ -929,7 +969,7 @@ def build_app() -> gr.Blocks:
                 ).then(
                     fn=chat,
                     inputs=[pending_question, chatbot, state],
-                    outputs=[chatbot, state, activity, graph],
+                    outputs=[chatbot, state, activity, graph, guide],
                 )
                 # Réponse arrivée : la conversation revient sur la dernière question, même si le lecteur
                 # était remonté lire une réponse précédente (Gradio ne redescend que s'il était déjà en bas).
@@ -956,11 +996,13 @@ def build_app() -> gr.Blocks:
                     message,
                     graph,
                     send,
+                    guide,
                 ],
                 cancels=chat_events,
             )
 
         app.load(fn=_warm_up)
+        app.load(fn=_guide_with_names, outputs=guide)
         app.load(fn=None, js=BLOCK_ENTER_WHILE_ANSWERING_JS)
         app.load(fn=None, js=IMAGE_VIEWER_JS)
         # Exemple d'ouverture : Gradio descend en bas de la conversation, la question restait cachée au-dessus.
