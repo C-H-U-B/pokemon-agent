@@ -1908,4 +1908,6 @@ or a rejection keeps the grey of the spoiled liquid, in the graph as in the
 "Observabilité" tab.
 
 The context budget, the only major node of the graph without a head, receives
-Kabutops: its two scythes cut what the model could not read.
+Kabutops: its two scythes cut what the model could not read. The rejection and
+the loading of the documentary base draw their head at random for each
+question, among three each.

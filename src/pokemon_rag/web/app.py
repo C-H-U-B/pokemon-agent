@@ -93,6 +93,8 @@ APP_CSS = """
    Gradio masque l'onglet inactif par un display: none sur ce conteneur, pas par l'attribut hidden. */
 #agent-panel .tabs { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 #agent-panel .tabitem { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+/* Thème sombre : sans cela, les barres de défilement de l'onglet et des retours dépliés restent claires. */
+.dark #agent-panel .tabitem, .dark #agent-panel pre { color-scheme: dark; }
 /* Onglet du graphe : le dessin et son encart tiennent dans la hauteur du panneau (ajustée dans le navigateur). */
 #agent-panel .tabitem:has(#question-graph) { overflow: hidden; }
 /* Illustrations en haut d'une réponse : une ligne de petites images, malgré le style des images de Gradio. */
