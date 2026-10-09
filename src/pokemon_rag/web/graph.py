@@ -45,7 +45,7 @@ def random_pikachu() -> str:
 
 
 QUEULORIOR, EXAGIDE, DRACOLOSSE = shuffle_icon(235), shuffle_icon(681), shuffle_icon(149)
-METALOSSE, CREHELF, MIAMIASME = shuffle_icon(376), shuffle_icon(480), shuffle_icon(568)
+METALOSSE, CREHELF, MIAMIASME, RAMOLOSS = shuffle_icon(376), shuffle_icon(480), shuffle_icon(568), shuffle_icon(79)
 # Le liquide fonce à mesure qu'il est transformé, de la question à la réponse ; un rejet le ternit.
 PALE, ROSE, PINK, MAGENTA, DEEP, SPOILED = "#ffb3ec", "#ff7ddf", "#ff3fcf", "#e600b0", "#a3007d", "#6b7280"
 # Les deux branches forment un anneau entre le serveur d'outils et le budget : Métalosse au milieu de la sienne,
@@ -59,8 +59,11 @@ NODES = [
      "role": "Le modèle de langage lit la question et décide quel outil appeler, avec quels réglages. Il ne calcule rien lui-même."},
     {"id": "guard", "label": "Guard · vérifie", "x": 210, "y": 98, "tint": ROSE, "icon": EXAGIDE,
      "role": "Un contrôle écrit en code compare l'appel du modèle à votre question : il remet une contrainte oubliée ou refuse l'appel."},
-    {"id": "rejet", "label": "Rejet", "x": 392, "y": 122, "tint": SPOILED, "icon": MIAMIASME, "label_below": True,
+    {"id": "rejet", "label": "Rejet", "x": 420, "y": 108, "tint": SPOILED, "icon": MIAMIASME, "transient": True,
      "role": "La question ne peut pas être traitée : l'outil le dit au lieu d'inventer une réponse."},
+    # En miroir du rejet. Transitoires tous les deux : dessinés seulement quand le parcours y passe, avec leurs tubes.
+    {"id": "chargement", "label": "Chargement", "x": 0, "y": 108, "tint": PINK, "icon": RAMOLOSS, "label_left": True,
+     "transient": True, "role": "La base documentaire se charge en mémoire : cela n'arrive qu'après un démarrage."},
     {"id": "mcp", "label": "Serveur d'outils", "x": 210, "y": 142, "tint": PINK, "icon": DRACOLOSSE,
      "role": "Le serveur qui exécute l'outil demandé (protocole MCP) et rapporte son résultat."},
     {"id": "base", "label": "Base de données", "x": 110, "y": 231, "tint": PINK, "icon": METALOSSE,
@@ -91,7 +94,8 @@ EDGES = [("question", "choix"), ("choix", "guard"), ("guard", "mcp"), ("mcp", "b
          ("guard", "rejet", "side", "hidden"), ("mcp", "rejet", "side", "hidden"),
          ("budget", "rejet", "side", "hidden"), ("redige", "rejet", "side", "hidden"),
          # Appel refusé ou outil en erreur : la question n'est pas rejetée, le modèle est relancé.
-         ("guard", "choix", "loop", "hidden"), ("mcp", "choix", "loop", "hidden")]
+         ("guard", "choix", "loop", "hidden"), ("mcp", "choix", "loop", "hidden"),
+         ("mcp", "chargement", "left", "hidden")]
 
 
 TOOL_LABELS = {
@@ -132,7 +136,8 @@ def _arguments(arguments: dict) -> str:
 def graph_path(trace: dict) -> list[tuple[str, str, str]]:
     """Parcours d'une trace Web : un triplet (nœud de départ, nœud atteint, phrase) par passage, dans l'ordre.
 
-    `trace` a la forme de `_web_trace` ; `outcome` vaut "running" tant que la question est en cours, et
+    `trace` a la forme de `_web_trace` ; `outcome` vaut "running" tant que la question est en cours (avec
+    `loading` quand l'outil en attente charge la base documentaire), et
     "question_too_long" pour une question refusée avant tout traitement. Le parcours ne suit que des faits
     de la trace : le guard est jugé sur le retour de l'outil, les sous-étapes de recherche sur leurs durées.
     """
@@ -152,6 +157,9 @@ def graph_path(trace: dict) -> list[tuple[str, str, str]]:
                 f"({_arguments(other.get('proposed_arguments', other['arguments']))})" for other in turn)))
         if tool.get("seconds") is None and not result:
             path += [("choix", "guard", ""), ("guard", "mcp", "Outil en cours d'exécution…")]
+            if trace.get("loading"):
+                path.append(("mcp", "chargement", "Première recherche depuis le démarrage : la base documentaire "
+                                                  "se charge (jusqu'à une minute et demie)."))
             pending = True
             break
         error = result.get("error")
@@ -222,13 +230,16 @@ def graph_path(trace: dict) -> list[tuple[str, str, str]]:
 
 
 def graph_value(path: list[tuple[str, str, str]], *, question_id: str = "", running: bool = False,
-                user_icon: str = "", answer_icon: str = "", pace: int = 700) -> str:
-    """Valeur envoyée au navigateur : le parcours, qu'il déroule un passage toutes les `pace` millisecondes.
+                user_icon: str = "", answer_icon: str = "", speed: float = 1.0) -> str:
+    """Valeur envoyée au navigateur : le parcours, qu'il déroule un passage après l'autre.
+
+    Chaque passage attend que le nœud précédent soit plein, puis que son tube soit traversé ; `speed` divise
+    ces durées (rejeu accéléré de l'exemple d'ouverture).
 
     `question_id` distingue deux questions : le navigateur reprend au début quand il change, et continue là où
     il en était quand le parcours de la même question s'allonge. `running` : le dernier passage est en cours.
     """
-    return json.dumps({"id": question_id, "path": path, "running": running, "pace": pace,
+    return json.dumps({"id": question_id, "path": path, "running": running, "speed": speed,
                        "user_icon": user_icon, "answer_icon": answer_icon}, ensure_ascii=False)
 
 
@@ -256,12 +267,14 @@ def _arrival_angle(curve, radius: float = 20) -> int:
 
 def graph_template() -> str:
     by_id = {node["id"]: node for node in NODES}
-    parts = ['<svg class="graph" viewBox="0 -12 460 442" role="img" aria-label="Parcours d\'une question">']
+    parts = ['<svg class="graph" viewBox="-110 -12 640 442" role="img" aria-label="Parcours d\'une question">']
     for source, target, *kind in EDGES:
         a, b = by_id[source], by_id[target]
         start, end = (a["x"], a["y"]), (b["x"], b["y"])
         if kind[:1] == ["side"]:  # sortie de côté, sous le libellé de la source
             curve = (start, (a["x"] + 30, b["y"]), (a["x"] + 90, b["y"]), end)
+        elif kind[:1] == ["left"]:  # même sortie, de l'autre côté
+            curve = (start, (a["x"] - 30, b["y"]), (a["x"] - 90, b["y"]), end)
         elif kind[:1] == ["over"]:  # source bien plus haute : passe entre deux libellés, puis descend sur la cible
             curve = (start, (a["x"] + 90, a["y"] + 16), (b["x"], a["y"] + 6), end)
         elif kind[:1] == ["ring"]:  # arc de l'anneau entre deux de ses points, approché par une courbe de Bézier
@@ -291,6 +304,7 @@ def graph_template() -> str:
         dynamic = icon in ("user_icon", "answer_icon")  # tête fournie avec l'état : Pikachu du visiteur, Pokémon de la réponse
         r = 18 if icon and not dynamic else 5.5 if node.get("sub") else 9
         kind = "dynamic plain" if dynamic else "icon" if icon else "sub" if node.get("sub") else "plain"
+        kind += " transient" if node.get("transient") else ""
         parts.append(
             f'<g class="node {kind}" data-id="{node["id"]}" data-source="{icon if dynamic else ""}" data-label="{escape(node["label"])}" '
             f'data-role="{escape(node["role"])}" transform="translate({node["x"]} {node["y"]})" '
@@ -316,13 +330,16 @@ def graph_template() -> str:
                 f'<image class="face" {image}/></g>')
         parts.append('</g>')
         r = 18 if icon else r
-        if node.get("label_below"):  # à droite, le libellé toucherait une branche voisine
+        if node.get("label_left"):
+            parts.append(f'<text x="{-r - 8}" y="4" text-anchor="end">{escape(node["label"])}</text>')
+        elif node.get("label_below"):  # à droite, le libellé toucherait une branche voisine
             parts.append(f'<text x="0" y="{r + 17}" text-anchor="middle">{escape(node["label"])}</text>')
         else:
             parts.append(f'<text x="{r + 8}" y="4">{escape(node["label"])}</text>')
         parts.append(f'<g class="badge" transform="translate({r - 2} {-r + 2})"><circle r="6"/>'
                      '<text y="3" text-anchor="middle"></text></g></g>')
-    parts.append('</svg><div class="detail"><div class="detail-title"></div><div class="detail-role"></div>'
+    parts.append('</svg><div class="detail"><div class="detail-head"><div class="detail-title"></div>'
+                 '<div class="detail-time"></div></div><div class="detail-role"></div>'
                  '<div class="detail-output"></div></div>')
     return "".join(parts)
 
@@ -330,13 +347,16 @@ def graph_template() -> str:
 GRAPH_CSS = """
 .graph, .detail { --ink: var(--body-text-color, #1f2933); --muted: var(--body-text-color-subdued, #8a94a3);
     --line: var(--border-color-primary, #e2e6ec); --surface: var(--background-fill-primary, #fff); }
-.graph { width: 100%; max-width: 460px; display: block; margin: 0 auto; }
+.graph { width: 100%; max-width: 640px; display: block; margin: 0 auto; }
+.node.transient { display: none; }
+.node.transient.active, .node.transient.done { display: block; }
 .edge { fill: none; }
 /* Un tube de verre (trait gris large) et le liquide qui avance dedans, de la source vers la cible. */
 .edge.track { stroke: var(--line); stroke-width: 7; stroke-linecap: round; }
 .edge.track.hidden { opacity: 0; }
 .edge.fill { stroke: var(--liquid); stroke-width: 4; stroke-dasharray: 100; stroke-dashoffset: 100; }
-.edge.fill.active { animation: graph-pour var(--dur) linear forwards; }
+/* Le liquide ne part dans un tube qu'une fois le nœud d'où il sort rempli (--wait, la durée de ce remplissage). */
+.edge.fill.active { animation: graph-pour var(--dur) linear var(--wait, 0s) forwards; }
 .edge.fill.done { stroke-dashoffset: 0; opacity: 0.8; }
 .node { cursor: pointer; outline: none; }
 .node .back { fill: var(--surface); }
@@ -349,11 +369,14 @@ GRAPH_CSS = """
 .node.active .liquid { transform: translateY(calc(var(--h) * -0.18));
                        transition: transform 6s cubic-bezier(0.1, 0.7, 0.2, 1) var(--delay, 1s); }
 .node.active .wave { animation: graph-slide 1.4s linear infinite; }
-.node.done .liquid, .node.again .liquid { transform: translateY(3px); transition: transform 0.7s ease-out; }
-/* Nœud à icône : même course, sur le contour coloré de la tête, à partir de l'arrivée du tube. */
+.node.done .liquid, .node.again .liquid { transform: translateY(3px); transition: transform var(--wait, 0.45s) ease-out; }
+/* Nœud à icône : sur le contour coloré de la tête, à partir de l'arrivée du tube. Le contour fait le tour complet
+   même si l'étape dure : arrêté en chemin, il donnait l'impression d'un blocage. */
 .node .sweep { stroke-dasharray: 100; stroke-dashoffset: 100; }
-.node.active .sweep { stroke-dashoffset: 58; transition: stroke-dashoffset 6s cubic-bezier(0.1, 0.7, 0.2, 1) var(--delay, 1s); }
-.node.done .sweep, .node.again .sweep { stroke-dashoffset: 49; transition: stroke-dashoffset 0.7s ease-out; }
+/* 49.5 et non 49 : à valeur d'arrivée égale, « terminé » ne relancerait aucune transition et le contour finirait
+   sur cette course lente, pendant que le tube suivant se remplit déjà (mesuré le 9 octobre 2026). */
+.node.active .sweep { stroke-dashoffset: 49.5; transition: stroke-dashoffset 6s cubic-bezier(0.1, 0.7, 0.2, 1) var(--delay, 1s); }
+.node.done .sweep, .node.again .sweep { stroke-dashoffset: 49; transition: stroke-dashoffset var(--wait, 0.45s) ease-out; }
 /* Au repos, le masque laisse un filet au point d'entrée : le contour n'est affiché qu'une fois le nœud atteint. */
 .node .head .shimmer { opacity: 0; }
 .node.active .head .shimmer, .node.done .head .shimmer { opacity: 1; }
@@ -382,7 +405,10 @@ GRAPH_CSS = """
 /* Hauteur fixe : un texte long défile dans l'encart, le panneau lui-même ne défile pas. */
 .detail { margin: 6px auto 0; max-width: 460px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 14px;
           background: var(--background-fill-secondary, #f8f9fb); height: 118px; box-sizing: border-box; overflow-y: auto; }
+.detail-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .detail-title { font-weight: 600; color: var(--ink); }
+/* Temps écoulé sur l'étape en cours ; chiffres de largeur fixe pour que le texte ne tremble pas. */
+.detail-time { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .detail-role { color: var(--muted); font-size: 13px; margin: 2px 0 8px; }
 .detail-output { color: var(--ink); font-size: 13.5px; white-space: pre-wrap; }
 """
@@ -397,23 +423,35 @@ GRAPH_KEYFRAMES = """
 
 # Le navigateur déroule le parcours reçu et garde le survol et l'épinglage ; Python n'envoie que le parcours.
 GRAPH_JS = """
-let pinned = null, hovered = null, sent = {}, shown = 0, timer = null;
+let pinned = null, hovered = null, sent = {}, shown = 0, timer = null, waiting = null, since = 0, pouring = false;
+// Secondes pour finir de remplir un nœud quitté, et pour traverser un tube, à la vitesse demandée.
+const finish = () => 0.45 / (sent.speed || 1);
+const crossing = edge => edge.dataset.dur / (sent.speed || 1);
 // Nouveau parcours reçu : reprendre au premier passage qui diffère, puis avancer d'un passage à la fois.
 function receive() {
     const next = JSON.parse(props.value || '{}'), path = next.path || [], old = sent.path || [];
     let same = 0;
     while (next.id === sent.id && same < path.length && same < old.length
            && path[same][0] === old[same][0] && path[same][1] === old[same][1]) same++;
+    const rewound = same < shown;
     shown = Math.min(shown, same);
     sent = next;
-    advance();
+    // Un tube est en train de se remplir et rien n'est à reprendre : la suite attendra son tour.
+    if (pouring && !rewound) apply(); else advance();
 }
 function advance() {
     clearTimeout(timer);
-    const total = (sent.path || []).length;
-    if (shown < total) shown++;
+    const path = sent.path || [];
+    element.style.setProperty('--wait', finish() + 's');
+    pouring = shown < path.length;
+    if (pouring) shown++;
     apply();
-    if (shown < total) timer = setTimeout(advance, sent.pace || 700);
+    if (!pouring) return;
+    // Le passage suivant attend que le nœud quitté soit plein, puis que le tube de celui-ci soit traversé.
+    // Le dernier passage aussi : il ne passe à « terminé » qu'une fois son tube traversé.
+    const [from, to] = path[shown - 1];
+    const edge = element.querySelector(`.edge.fill[data-from="${from}"][data-to="${to}"]`);
+    timer = setTimeout(advance, (finish() + (edge ? crossing(edge) : 0)) * 1000);
 }
 // Le dessin prend la hauteur qui reste dans la fenêtre au-dessus de l'encart : ni l'un ni l'autre ne défile.
 function fit() {
@@ -432,7 +470,7 @@ function apply() {
         edges[from + '>' + id] = 'done';
     });
     const last = path[path.length - 1];
-    if (last && (sent.running || shown < (sent.path || []).length)) {
+    if (last && (sent.running || pouring)) {
         state[last[1]].status = 'active';
         edges[last[0] + '>' + last[1]] = 'active';
     }
@@ -466,7 +504,8 @@ function apply() {
         if (reached === 'active')  // le rond d'arrivée attend que le liquide ait traversé le tube
         {
             const target = element.querySelector(`.node[data-id="${edge.dataset.to}"]`), entry = target.querySelector('.entry');
-            target.style.setProperty('--delay', edge.dataset.dur + 's');
+            edge.style.setProperty('--dur', crossing(edge) + 's');
+            target.style.setProperty('--delay', finish() + crossing(edge) + 's');
             if (entry && !target.classList.contains('again')) entry.setAttribute('transform', `rotate(${edge.dataset.angle})`);
         }
         edge.classList.toggle('done', reached === 'done');
@@ -479,6 +518,16 @@ function apply() {
     element.querySelector('.detail-output').textContent = passes.length > 1
         ? passes.map((text, i) => `Passage ${passes.length - i} — ${text}`).join('\\n') : (passes[0] || '');
 }
+// Temps passé sur l'étape réellement en cours (pas pendant un rejeu), tant que l'encart la montre.
+function clock() {
+    const path = sent.path || [], last = path[path.length - 1];
+    const key = sent.running && last && shown === path.length ? sent.id + ':' + path.length : null;
+    if (key !== waiting) { waiting = key; since = performance.now(); }
+    const chosen = pinned || hovered;
+    element.querySelector('.detail-time').textContent = key && (!chosen || chosen === last[1])
+        ? ((performance.now() - since) / 1000).toFixed(1).replace('.', ',') + ' s' : '';
+}
+setInterval(clock, 100);
 watch('value', receive);
 window.addEventListener('resize', fit);
 const panel = element.closest('#agent-panel');

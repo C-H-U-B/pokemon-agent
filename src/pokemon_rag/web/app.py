@@ -16,10 +16,10 @@ from pokemon_rag.agent.context_budget import BUDGET_ABSTENTION, DOUBLE_REQUEST_R
 from pokemon_rag.agent.list_fidelity import REPLACEMENT_PREFIX
 from pokemon_rag.config import LLM_BASE_URL, LLM_MODEL
 from pokemon_rag.constraints.query_constraints import normalize
-from pokemon_rag.structured.query_engine import ARTWORK_URL, pokemon_image_urls
+from pokemon_rag.structured.query_engine import ARTWORK_URL, pokemon_image_urls, pokemon_species_numbers
 from pokemon_rag.observability.tracing import TRACE_DIR, save_trace
 from pokemon_rag.web.graph import (GRAPH_CSS, GRAPH_JS, GRAPH_KEYFRAMES, TOOL_LABELS, graph_path, graph_template,
-                                   graph_value, random_pikachu)
+                                   graph_value, random_pikachu, shuffle_icon)
 
 logger = logging.getLogger(__name__)
 
@@ -105,8 +105,6 @@ class WebSession:
     user_id: str = field(default_factory=lambda: f"web_{uuid.uuid4().hex}")
     # Prochaine question de chaque liste. La première « découvrir » est déjà dans la saisie au lancement.
     next_suggestion: dict[str, int] = field(default_factory=lambda: {"decouvrir": 1, "connaisseurs": 0, "experts": 0})
-    # Tête du visiteur sur le graphe : un Pikachu tiré au hasard par conversation.
-    icon: str = field(default_factory=random_pikachu)
 
 
 runner = InMemoryRunner(agent=root_agent)
@@ -251,18 +249,36 @@ def _image_html(answer: str, timing: "ActivityTiming") -> str:
     image. Du HTML dans le texte plutôt qu'un composant galerie : dans une bulle de conversation,
     la galerie était écrasée et l'image ne s'affichait pas.
     """
+    return _images_block(_cited_pokemon(answer, timing))
+
+
+def _cited_pokemon(answer: str, timing: "ActivityTiming") -> list[tuple[str, str]]:
+    """(URL, nom) des Pokémon cités dans la réponse et présents dans les données reçues ; liste vide sinon."""
     if answer in (BUDGET_ABSTENTION, DOUBLE_REQUEST_REFUSAL, TOOL_FAILURE_ABSTENTION):
-        return ""
+        return []
     data = list(timing.results.values()) + [measure.get("executed_arguments") or {}
                                              for measure in timing.measures.values()]
     if not _data_names(data):
-        return ""  # aucun nom reçu : inutile de lire le catalogue
+        return []  # aucun nom reçu : inutile de lire le catalogue
     try:
-        images = _answer_images(answer, data, pokemon_image_urls())
+        return _answer_images(answer, data, pokemon_image_urls())
     except Exception:
         logger.warning("answer_images_failed", exc_info=True)
+        return []
+
+
+def _answer_icon(answer: str, timing: "ActivityTiming") -> str:
+    """Icône Shuffle du premier Pokémon de la réponse, pour le nœud « Réponse » du graphe ; chaîne vide sinon.
+
+    Une forme porte l'icône de son espèce. Poképédia n'a pas d'icône pour tous les Pokémon (aucune après la
+    septième génération) : l'adresse ne charge alors rien et le nœud reste un rond.
+    """
+    cited = _cited_pokemon(answer, timing)
+    try:
+        return shuffle_icon(pokemon_species_numbers()[normalize(cited[0][1])]) if cited else ""
+    except Exception:
+        logger.warning("answer_icon_failed", exc_info=True)
         return ""
-    return _images_block(images)
 
 
 def _images_block(images: list[tuple[str, str]]) -> str:
@@ -294,10 +310,15 @@ def _opening_example() -> list[dict]:
         return []
 
 
-def _graph(trace: dict, question_id: str, state: WebSession, pace: int = 700) -> str:
+def _graph(trace: dict, question_id: str, user_icon: str, speed: float = 1.3, answer_icon: str = "") -> str:
     """Parcours d'une trace, complète ou en cours, tel que le graphe le reçoit."""
     return graph_value(graph_path(trace), question_id=question_id, running=trace["outcome"] == "running",
-                       user_icon=state.icon, pace=pace)
+                       user_icon=user_icon, answer_icon=answer_icon, speed=speed)
+
+
+# Une recherche documentaire dure 2 s environ ; au-delà, après un démarrage, c'est la base qui se charge.
+# ponytail: indice tiré de l'attente, pas l'état réel du serveur d'outils (voir _documentary_base_ready).
+LOADING_HINT_SECONDS = 3.0
 
 
 EMPTY_GRAPH = graph_value([])
@@ -313,7 +334,8 @@ def _opening_graph() -> str:
         example = json.loads(Path(__file__).with_name("exemple_ouverture.json").read_text(encoding="utf-8"))
         if example["question"] != FIRST_QUESTION:
             return EMPTY_GRAPH
-        return _graph({"question": example["question"], **example["trace"]}, "ouverture", WebSession(), pace=550)
+        return _graph({"question": example["question"], **example["trace"]}, "ouverture", random_pikachu(), speed=2.0,
+                      answer_icon=shuffle_icon(example["images"][0][1]) if example["images"] else "")
     except Exception:
         logger.warning("opening_graph_failed", exc_info=True)
         return EMPTY_GRAPH
@@ -572,6 +594,7 @@ def _save_web_trace(trace: dict) -> None:
 # Affiché à la place de l'exception : son texte (adresse du serveur, nom du modèle, pile) reste
 # dans le journal et dans la trace, pas sur une page publique.
 TECHNICAL_ERROR_MESSAGE = "Une erreur technique est survenue. Réessayez dans un instant."
+SEND_LABEL, WAITING_LABEL = "Envoyer", "Réponse en cours…"
 
 
 async def _run_agent_into_queue(
@@ -636,7 +659,7 @@ async def chat(
             gr.skip(),
             _format_activity([], [], 0.0, "Aucune requête envoyée."),
             _graph({"question": message[:MAX_QUESTION_CHARS] + "…", "outcome": "question_too_long"},
-                   uuid.uuid4().hex, state),
+                   uuid.uuid4().hex, random_pikachu()),
         )
         return
 
@@ -671,11 +694,16 @@ async def chat(
     status = f"🧠 **{MODEL_LABEL} analyse la question et choisit les outils adaptés…**"
     finished = False
     error: Exception | None = None
-    question_id = uuid.uuid4().hex
+    # Tête du visiteur sur le graphe : un Pikachu tiré au hasard à chaque question.
+    question_id, user_icon = uuid.uuid4().hex, random_pikachu()
 
     def running_graph() -> str:
-        return _graph(_web_trace(message, "", "running", None, tool_calls, timing, time.perf_counter() - start),
-                      question_id, state)
+        now = time.perf_counter() - start
+        trace = _web_trace(message, "", "running", None, tool_calls, timing, now)
+        trace["loading"] = not _documentary_base_ready and any(
+            name == "pokemon_rag_search" and end is None and now - begin > LOADING_HINT_SECONDS
+            for name, begin, end in timing.calls)
+        return _graph(trace, question_id, user_icon)
 
     sent_graph = running_graph()
 
@@ -818,7 +846,7 @@ async def chat(
             status,
             timing,
         ),
-        _graph(trace, question_id, state),
+        _graph(trace, question_id, user_icon, answer_icon="" if error is not None else _answer_icon(response, timing)),
     )
 
 
@@ -831,6 +859,7 @@ def new_conversation():
         _format_activity([], [], 0.0, "En attente d'une question."),
         "",
         EMPTY_GRAPH,
+        gr.update(value=SEND_LABEL, interactive=True),  # la question annulée ne rendra pas le bouton elle-même
     )
 
 
@@ -900,7 +929,7 @@ def build_app() -> gr.Blocks:
                         )
 
                         send = gr.Button(
-                            "Envoyer",
+                            SEND_LABEL,
                             variant="primary",
                             scale=1,
                         )
@@ -940,9 +969,10 @@ def build_app() -> gr.Blocks:
             chat_events = []
             for trigger in (send.click, message.submit):
                 chat_event = trigger(
-                    fn=lambda text: ("", text),
+                    # Le bouton est rendu inactif jusqu'à la réponse, avec un libellé qui dit pourquoi.
+                    fn=lambda text: ("", text, gr.update(value=WAITING_LABEL, interactive=False)),
                     inputs=message,
-                    outputs=[message, pending_question],
+                    outputs=[message, pending_question, send],
                 ).then(
                     fn=chat,
                     inputs=[pending_question, chatbot, state],
@@ -951,6 +981,8 @@ def build_app() -> gr.Blocks:
                 # Réponse arrivée : la conversation revient sur la dernière question, même si le lecteur
                 # était remonté lire une réponse précédente (Gradio ne redescend que s'il était déjà en bas).
                 chat_event.then(fn=None, js=SHOW_LAST_QUESTION_JS)
+                # Après la réponse, même si elle a échoué (then, pas success).
+                chat_event.then(fn=lambda: gr.update(value=SEND_LABEL, interactive=True), outputs=send)
                 chat_events.append(chat_event)
 
             # Question suivante de la liste de chaque public.
@@ -970,6 +1002,7 @@ def build_app() -> gr.Blocks:
                     activity,
                     message,
                     graph,
+                    send,
                 ],
                 cancels=chat_events,
             )

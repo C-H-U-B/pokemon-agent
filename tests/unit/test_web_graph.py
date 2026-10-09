@@ -133,3 +133,14 @@ def test_the_value_sent_to_the_browser_is_the_ordered_path_with_its_question():
     sent = json.loads(graph.graph_value(path, question_id="q1", running=True, user_icon="pikachu"))
     assert [tuple(step) for step in sent["path"]] == path and sent["id"] == "q1" and sent["running"] is True
     assert sent["user_icon"] == "pikachu" and _nodes(path).count("guard") == 2
+
+
+def test_the_loading_node_is_on_the_path_only_while_the_pending_search_loads_the_base():
+    waiting = {"question": "Décris Ronflex", "outcome": "running",
+               "tools": [_tool("pokemon_rag_search", seconds=None, result=None)]}
+    assert "chargement" not in _nodes(graph.graph_path(waiting))
+    loading = graph.graph_path({**waiting, "loading": True})
+    assert loading[-1][:2] == ("mcp", "chargement") and ("mcp", "chargement") in {edge[:2] for edge in graph.EDGES}
+    # Résultat reçu : le parcours repart du serveur d'outils, sans le chargement.
+    assert "chargement" not in _nodes(_path("answered", _search()))
+    assert 'class="node icon transient" data-id="chargement"' in graph.graph_template()

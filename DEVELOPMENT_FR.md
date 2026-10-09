@@ -1867,3 +1867,38 @@ transforme la réponse en abstention.
 illustrations, sans appel au modèle : c'est une réponse enregistrée, que le
 visiteur lit pendant que sa propre question charge. Un test sur la base réelle
 échoue si cet exemple cesse de correspondre aux données.
+
+
+## 93. [Feature] Le parcours d'une question dessiné en direct
+
+Le panneau de droite listait les outils appelés et leurs durées. Un visiteur
+qui n'a jamais vu d'agent n'y lisait pas où passait sa question, ni pourquoi
+certaines n'obtenaient pas de réponse.
+
+Un graphe occupe maintenant le premier onglet de ce panneau ; l'ancien panneau
+reste dans le second. Il ne montre que des modules réellement exécutés : la
+question, le modèle qui choisit l'outil, le guard, le serveur d'outils, la base
+de données ou Poképédia avec ses quatre étapes de recherche, le budget de
+contexte, le modèle qui rédige, la réponse. Un liquide parcourt les tubes et
+remplit les nœuds ; un tube ne se remplit qu'une fois plein le nœud d'où il
+sort. Un encart dit en langage courant ce que chaque nœud a produit, par exemple
+l'argument que le guard a ajouté, et le temps passé sur l'étape en cours.
+
+Chaque issue sans réponse a été relevée dans le code et sur les traces
+enregistrées, avec l'étape qui la décide : le rejet part de cette étape. Un
+appel refusé par le guard ou un outil en erreur n'arrête pas la question, le
+liquide revient au modèle. Une réponse écrite sans aucun appel d'outil va au
+rejet : c'était le seul point commun exact des réponses du type « ce n'est pas
+un concept officiel », qu'une recherche par mots confondait avec des réponses
+justes.
+
+Le serveur envoie le parcours, tiré de la même trace que celle qui est
+enregistrée, et le navigateur le déroule lui-même. La réponse n'attend pas
+l'animation et rien n'est renvoyé au rythme du chrono. L'exemple d'ouverture
+rejoue ainsi son parcours réel, sans appel au modèle. Le visiteur est un
+Pikachu tiré au hasard, et la réponse porte la tête de son premier Pokémon.
+
+Le dessin et son encart tiennent dans la fenêtre sans défilement. La mesure a
+montré au passage que la page entière dépassait déjà de quelques pixels, graphe
+ou pas ; la marge en cause est corrigée. Le bouton d'envoi est inactif tant
+qu'une réponse est en cours.

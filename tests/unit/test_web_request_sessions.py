@@ -145,11 +145,11 @@ def test_the_graph_receives_the_path_at_the_start_and_at_the_end_not_at_every_re
     sent = asyncio.run(run("Pikachu ?"))
     first, last = json.loads(sent[0]), json.loads(sent[-1])
     assert [step[1] for step in first["path"]] == ["question", "choix"] and first["running"] is True
-    assert first["user_icon"] == state.icon
+    assert first["user_icon"].startswith("https://www.pokepedia.fr/images/")
     assert len(sent) > 3 and all(value == web.gr.skip() for value in sent[1:-1])
     # Réponse du modèle simulé sans aucun outil : non vérifiée, donc vers le rejet ; même question, même identifiant.
     assert [step[1] for step in last["path"]] == ["question", "choix", "rejet"] and last["running"] is False
-    assert last["id"] == first["id"]
+    assert last["id"] == first["id"] and last["user_icon"] == first["user_icon"]
     too_long = json.loads(asyncio.run(run("x" * (web.MAX_QUESTION_CHARS + 1)))[-1])
     assert [step[:2] for step in too_long["path"]][-1] == ["question", "rejet"] and too_long["id"] != first["id"]
 

@@ -1407,11 +1407,17 @@ def pokemon_image_urls() -> dict[str, str]:
     Vrombotor sans lien PokéAPI n'en ont pas). Lu une fois par état de la base.
     """
     modified = DB_PATH.stat().st_mtime_ns if DB_PATH.exists() else None
-    return dict(_image_urls(str(DB_PATH), modified))
+    return {name: url for name, url, _ in _image_urls(str(DB_PATH), modified)}
+
+
+def pokemon_species_numbers() -> dict[str, int]:
+    """Nom normalisé d'une entrée du catalogue → numéro national de son espèce (celui de Raichu pour « Raichu d'Alola »)."""
+    modified = DB_PATH.stat().st_mtime_ns if DB_PATH.exists() else None
+    return {name: species for name, _, species in _image_urls(str(DB_PATH), modified)}
 
 
 @lru_cache(maxsize=2)
-def _image_urls(path: str, modified: int | None) -> tuple[tuple[str, str], ...]:
+def _image_urls(path: str, modified: int | None) -> tuple[tuple[str, str, int], ...]:
     """path et modified ne servent que de clé : une base reconstruite est relue."""
     with closing(_connect()) as conn:
         fr_id, _ = _language_ids(conn)
@@ -1422,14 +1428,14 @@ def _image_urls(path: str, modified: int | None) -> tuple[tuple[str, str], ...]:
             JOIN pokemon_forms pf ON pf.id = cp.pokemon_form_id
             LEFT JOIN pokemon_species_names names ON names.pokemon_species_id = p.species_id
                 AND names.local_language_id = ?""", (fr_id,)).fetchall()
-    urls: dict[str, str] = {}
+    urls: dict[str, tuple[str, int]] = {}
     for row in rows:
         cosmetic = row["sharing"] > 1 and row["form_identifier"] and not row["default_form"]
         url = ARTWORK_URL.format(f"{row['species_id']}-{row['form_identifier']}" if cosmetic else row["pokemon_id"])
-        urls.setdefault(_normalize(row["name_fr"]), url)
+        urls.setdefault(_normalize(row["name_fr"]), (url, row["species_id"]))
         if row["default_form"] and row["default_pokemon"] and row["species_name"]:
-            urls.setdefault(_normalize(row["species_name"]), url)
-    return tuple(urls.items())
+            urls.setdefault(_normalize(row["species_name"]), (url, row["species_id"]))
+    return tuple((name, url, species) for name, (url, species) in urls.items())
 
 
 def talent_names() -> frozenset[str]:

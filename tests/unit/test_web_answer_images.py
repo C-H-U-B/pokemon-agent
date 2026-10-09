@@ -59,3 +59,19 @@ def test_a_missing_database_gives_an_answer_without_images(monkeypatch):
     timing = app.ActivityTiming()
     timing.results[0] = {"results": [{"name_fr": "Bulbizarre"}]}
     assert app._image_html("Bulbizarre.", timing) == ""
+
+
+def test_the_answer_node_gets_the_species_icon_of_the_first_pokemon_cited(monkeypatch):
+    from pokemon_rag.web import app, graph
+    monkeypatch.setattr(app, "pokemon_image_urls", lambda: URLS)
+    # Une forme porte le numéro de son espèce : Raichu d'Alola a l'icône de Raichu.
+    monkeypatch.setattr(app, "pokemon_species_numbers", lambda: {"raichu-d-alola": 26, "mewtwo": 150})
+    timing = app.ActivityTiming()
+    timing.results[0] = {"results": [{"name_fr": "Mewtwo"}, {"name_fr": "Raichu d'Alola"}]}
+    assert app._answer_icon("Raichu d'Alola, puis Mewtwo.", timing) == graph.shuffle_icon(26)
+    assert app._answer_icon("Aucun Pokémon ici.", timing) == ""
+
+    def missing():
+        raise FileNotFoundError("Base introuvable")
+    monkeypatch.setattr(app, "pokemon_species_numbers", missing)
+    assert app._answer_icon("Mewtwo.", timing) == ""
