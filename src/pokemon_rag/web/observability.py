@@ -9,8 +9,8 @@ change : son rendu ne varie qu'à l'arrivée d'un appel ou d'un retour, et n'est
 import json
 from html import escape
 
-from pokemon_rag.web.graph import (LOADING_NOTICE, REJECTIONS, TOOL_ERRORS, TOOL_LABELS, WRITTEN, _arguments,
-                                   guard_correction)
+from pokemon_rag.web.graph import (DEEP, LOADING_NOTICE, MAGENTA, PALE, PINK, REJECTIONS, ROSE, SPOILED,
+                                   TOOL_ERRORS, TOOL_LABELS, WRITTEN, _arguments, guard_correction)
 
 EMPTY = '<p class="obs-empty">Posez une question : chaque étape montrera ici ce qu\'elle a reçu et renvoyé.</p>'
 STARTUP_STEPS = (("embedding", "modèle d'embedding"), ("reranker", "modèle de reclassement"),
@@ -18,6 +18,9 @@ STARTUP_STEPS = (("embedding", "modèle d'embedding"), ("reranker", "modèle de 
 SEARCH_STEPS = (("vector", "par le sens"), ("bm25", "par les mots"), ("rrf", "fusion"), ("reranker", "reclassement"))
 # Le message d'une erreur d'outil se termine par le texte de l'exception, que le modèle lit pour se corriger.
 ERROR_DETAIL = " Détail : "
+# Chaque étape porte la teinte de son nœud dans le graphe : le liquide fonce de la question à la réponse.
+STAGES = {"Modèle": "model", "Guard": "guard", "Guard, outil": "guard", "Outil": "tool",
+          "Budget de contexte": "budget"}
 
 
 def _seconds(value: float) -> str:
@@ -59,7 +62,7 @@ def _measures(tool: dict) -> list[str]:
 def _step(title: str, verdict: str, kind: str, *lines: str, extra: str = "") -> str:
     """Une étape de la chaîne : son nom, son verdict, puis ses données, une ligne par élément."""
     body = "".join(f"<div>{escape(line)}</div>" for line in lines if line)
-    return (f'<div class="obs-step {kind}"><div class="obs-step-title">{escape(title)}'
+    return (f'<div class="obs-step {STAGES[title]} {kind}"><div class="obs-step-title">{escape(title)}'
             f'<span class="obs-verdict">{escape(verdict)}</span></div>{body}{extra}</div>')
 
 
@@ -139,42 +142,57 @@ def observability_html(trace: dict | None, key: str = "") -> str:
         return EMPTY
     outcome, tools = trace["outcome"], trace.get("tools") or []
     blocks = [f'<div class="obs-summary">{escape(_summary(trace))}</div>',
-              f'<section class="obs-block"><h4>Question</h4><div>{escape(trace["question"])}</div></section>']
+              f'<section class="obs-block question"><h4>Question</h4><div>{escape(trace["question"])}</div></section>']
     blocks += [_call(tool, index, key, bool(trace.get("loading"))) for index, tool in enumerate(tools)]
     if outcome != "running":
         answered = outcome in WRITTEN and (tools or outcome != "answered")
         verdict = WRITTEN[outcome] if answered else REJECTIONS.get(
             "unverified" if outcome == "answered" else outcome, REJECTIONS["error"])
-        blocks.append(f'<section class="obs-block{"" if answered else " refused"}"><h4>Réponse</h4>'
+        blocks.append(f'<section class="obs-block {"answer" if answered else "refused"}"><h4>Réponse</h4>'
                       f'<div>{escape(verdict)}</div></section>')
     return "".join(blocks)
 
 
 OBSERVABILITY_TEMPLATE = '<div class="obs"></div>'
-OBSERVABILITY_CSS = """
+OBSERVABILITY_CSS = f"""
+.obs {{ --pale: {PALE}; --rose: {ROSE}; --pink: {PINK}; --magenta: {MAGENTA}; --deep: {DEEP}; --spoiled: {SPOILED};
+}}
+""" + """
 .obs { --ink: var(--body-text-color, #1f2933); --muted: var(--body-text-color-subdued, #8a94a3);
     --line: var(--border-color-primary, #e2e6ec); --surface: var(--background-fill-primary, #fff);
     color: var(--ink); font-size: 13.5px; overflow-wrap: anywhere; }
 .obs-empty, .obs-summary { color: var(--muted); margin: 4px 0 10px; }
-.obs-block { border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
-    padding: 10px 12px; margin: 0 0 10px; }
+.obs-block { border: 1px solid var(--line); border-radius: 12px;
+    background: var(--surface); padding: 10px 12px; margin: 0 0 10px; }
+/* La question et la réponse portent les deux bouts du dégradé du graphe ; un rejet a le gris du liquide terni. */
+.obs-block.question { border-left: 3px solid var(--visitor, var(--pale)); }
+.obs-block.answer { border-left: 3px solid var(--deep); }
 .obs-block h4 { margin: 0 0 6px; font-size: 14px; font-weight: 600; display: flex; flex-wrap: wrap;
     align-items: baseline; gap: 6px; }
 /* Identifiant de l'outil appelé : en pastille, lisible d'un coup d'œil dans le titre du bloc. */
 .obs-block h4 code { font-size: 12.5px; font-weight: 600; color: var(--ink); padding: 1px 6px; border-radius: 6px;
-    background: var(--background-fill-secondary, #f0f2f5); border: 1px solid var(--line); }
+    background: color-mix(in srgb, var(--data) 10%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--data) 45%, var(--line)); }
 .obs-time { margin-left: auto; color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
 /* Une étape : un filet à gauche, dont la couleur dit si l'étape a laissé passer, modifié ou arrêté l'appel. */
 .obs-step { border-left: 3px solid var(--line); padding: 2px 0 2px 10px; margin: 6px 0 0; }
-.obs-step.changed { border-left-color: #d97706; }
-.obs-step.refused, .obs-block.refused { border-left: 3px solid #dc2626; }
+.obs-step.model, .obs-step.guard { border-left-color: var(--rose); }
+.obs-step.tool { border-left-color: var(--pink); }
+.obs-step.budget { border-left-color: var(--magenta); }
+/* Verdict en pastille : turquoise quand l'étape a modifié l'appel ou le retour, gris quand elle l'a arrêté. */
+.obs-step.changed .obs-verdict { color: var(--data); background: color-mix(in srgb, var(--data) 12%, transparent);
+    padding: 0 6px; border-radius: 999px; }
+.obs-step.refused, .obs-block.refused { border-left: 3px solid var(--spoiled); }
+.obs-step.refused .obs-verdict { color: var(--surface); background: var(--spoiled); padding: 0 6px; border-radius: 999px; }
 .obs-step.pending { border-left-style: dashed; }
 .obs-step-title { font-weight: 600; }
 .obs-verdict { font-weight: 400; color: var(--muted); margin-left: 6px; }
 .obs summary { cursor: pointer; color: var(--muted); margin-top: 2px; }
+.obs summary:hover, .obs details[open] > summary { color: var(--data); }
 /* Hauteur bornée : un long retour défile dans son bloc, sans allonger ni élargir le panneau. */
 .obs pre { margin: 4px 0 0; padding: 8px; max-height: 240px; overflow: auto; border-radius: 8px;
-    background: var(--background-fill-secondary, #f8f9fb); font-size: 12px; white-space: pre-wrap; }
+    background: color-mix(in srgb, var(--data) 6%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--data) 30%, var(--line)); font-size: 12px; white-space: pre-wrap; }
 """
 # Le navigateur remplace les blocs à chaque valeur reçue ; les retours dépliés par le lecteur le restent,
 # et l'onglet garde sa position de défilement.

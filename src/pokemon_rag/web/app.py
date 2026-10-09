@@ -18,8 +18,8 @@ from pokemon_rag.config import LLM_BASE_URL, LLM_MODEL
 from pokemon_rag.constraints.query_constraints import normalize
 from pokemon_rag.structured.query_engine import ARTWORK_URL, pokemon_image_urls, pokemon_species_numbers
 from pokemon_rag.observability.tracing import TRACE_DIR, save_trace
-from pokemon_rag.web.graph import (GRAPH_CSS, GRAPH_JS, GRAPH_KEYFRAMES, graph_path, graph_template,
-                                   graph_value, random_pikachu, shuffle_icon)
+from pokemon_rag.web.graph import (DEEP, GRAPH_CSS, GRAPH_JS, GRAPH_KEYFRAMES, MAGENTA, PALE, PINK, ROSE,
+                                   graph_path, graph_template, graph_value, random_pikachu, shuffle_icon)
 from pokemon_rag.web.observability import (OBSERVABILITY_CSS, OBSERVABILITY_JS, OBSERVABILITY_TEMPLATE,
                                            observability_html)
 
@@ -27,6 +27,17 @@ logger = logging.getLogger(__name__)
 
 
 REFRESH_INTERVAL = 0.1
+# Thème de l'interface : le magenta du liquide du graphe, de sa teinte la plus claire à la plus foncée, et le
+# turquoise pour ce que le thème appelle couleur secondaire. Les nuances intermédiaires relient ces cinq teintes.
+APP_THEME = gr.themes.Soft(
+    primary_hue=gr.themes.Color(name="liquide", c50="#fff0fb", c100="#ffe0f7", c200=PALE, c300=ROSE, c400=PINK,
+                                c500="#f51fc4", c600=MAGENTA, c700="#bd0091", c800=DEEP, c900="#7a0060",
+                                c950="#4a003a"),
+    secondary_hue="teal", neutral_hue="slate",
+).set(button_primary_background_fill="linear-gradient(180deg, *primary_400, *primary_600)",
+      button_primary_background_fill_hover="linear-gradient(180deg, *primary_500, *primary_700)",
+      button_primary_border_color="*primary_600", link_text_color="*primary_800",
+      input_border_color_focus="*primary_400")
 # Nom du modèle affiché dans le panneau : celui qui est réellement servi (Qwen local, modèle distant de la démo).
 MODEL_LABEL = LLM_MODEL.rsplit("/", 1)[-1]
 REPOSITORY_URL = "https://github.com/C-H-U-B/pokemon-agent"
@@ -149,6 +160,52 @@ APP_CSS = """
         grid-template-rows: minmax(0, 3fr) minmax(0, 2fr); }
     #agent-panel { padding: 12px; }
 }
+
+/* Charte du laboratoire : celle du graphe du parcours, en trois couleurs qui ont chacune un sens partout.
+   Jaune de Pikachu (--visitor) : ce qui vient du visiteur, sa question, sa saisie, les exemples proposés.
+   Magenta du liquide : l'agent qui agit, titre, envoi, onglet choisi, liquide du graphe.
+   Turquoise (--data) : les données rendues, réponse, retours d'outils, encart du graphe, correction d'un appel.
+   Le reste est neutre (paillasse en papier millimétré, panneaux en verre) ; le gris est un liquide terni, un rejet. */
+:root { --visitor: #eab308; --visitor-soft: #facc15; --data: #0d9488; }
+body { background-color: #f8fafc; background-size: 24px 24px;
+    background-image: linear-gradient(color-mix(in srgb, var(--neutral-500) 9%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in srgb, var(--neutral-500) 9%, transparent) 1px, transparent 1px); }
+body.dark { background-color: #0f141c; }
+gradio-app, .gradio-container { background: transparent !important; }
+/* Titre : une fiole à moitié pleine, dans la teinte la plus foncée du liquide. */
+#app-heading h1 { display: flex; align-items: center; gap: 8px; color: var(--primary-800); }
+.dark #app-heading h1 { color: var(--primary-300) !important; }
+#app-heading h1::before { content: ""; width: 26px; height: 26px; flex: 0 0 auto;
+    background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7.3 15h9.4l2.3 4.6a1 1 0 0 1-.9 1.4H5.9a1 1 0 0 1-.9-1.4z' fill='%23ff3fcf'/%3E%3Cpath d='M9 2.5h6M10 2.5v6L4.4 19.6A1.6 1.6 0 0 0 5.8 22h12.4a1.6 1.6 0 0 0 1.4-2.4L14 8.5v-6' fill='none' stroke='%23a3007d' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='10.3' cy='17.6' r='1.1' fill='%23facc15'/%3E%3Ccircle cx='13.8' cy='18.4' r='.9' fill='%232dd4bf'/%3E%3C/svg%3E"); }
+#app-heading a { color: var(--primary-800); }
+body.dark #app-heading a { color: var(--primary-300); }
+/* Verre : panneaux translucides sur la paillasse, reflet en haut. */
+#agent-panel, #chat-history { border: 1px solid var(--border-color-primary) !important;
+    border-radius: 18px !important; background: color-mix(in srgb, var(--background-fill-primary) 85%, transparent) !important;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 70%, transparent),
+        0 10px 28px -18px color-mix(in srgb, var(--neutral-900) 45%, transparent); }
+/* Bulles : la question a le jaune de Pikachu, la réponse est une lame de verre. */
+#chat-history .user { background: color-mix(in srgb, var(--visitor-soft) 24%, var(--background-fill-primary)) !important;
+    border-color: color-mix(in srgb, var(--visitor) 60%, transparent) !important; }
+#chat-history .bot { background: color-mix(in srgb, var(--data) 5%, var(--background-fill-primary)) !important;
+    border-color: color-mix(in srgb, var(--data) 40%, var(--border-color-primary)) !important; }
+/* Saisie et boutons : le bouton d'envoi est plein de liquide, les exemples sont des pastilles de verre. */
+#question-box textarea { border: 1px solid var(--border-color-primary) !important;
+    border-radius: 12px !important; background: var(--background-fill-primary) !important; }
+#question-box textarea:focus { border-color: var(--visitor) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--visitor-soft) 30%, transparent) !important; }
+#send-button { border-radius: 12px; }
+#send-button:disabled { background: #6b7280 !important; border-color: #6b7280 !important; opacity: 0.75; }
+#question-examples button, #question-actions > button { border-radius: 999px !important;
+    border: 1px solid var(--border-color-primary) !important;
+    background: var(--background-fill-primary) !important; transition: background 0.15s, border-color 0.15s; }
+/* Les exemples sont des questions du visiteur : son jaune, en liseré, plein au survol. */
+#question-examples button { border-color: color-mix(in srgb, var(--visitor) 55%, var(--border-color-primary)) !important; }
+#question-examples button:hover { border-color: var(--visitor) !important;
+    background: color-mix(in srgb, var(--visitor-soft) 24%, var(--background-fill-primary)) !important; }
+#question-actions > button:hover { border-color: var(--neutral-400) !important; }
+/* Crédit des illustrations et loupe : des données affichées. */
+#chat-history .pokemon-images .zoomable::after { box-shadow: 0 0 0 1px color-mix(in srgb, var(--data) 55%, transparent); }
 """ + GRAPH_KEYFRAMES  # hors du style du composant, où Gradio les ignore
 # Questions suggérées par public, une par ligne : les boutons passent à la suivante de leur liste.
 SUGGESTION_FILES = {"decouvrir": "questions_decouvrir.txt", "connaisseurs": "questions_connaisseurs.txt",
@@ -916,6 +973,6 @@ demo = build_app()
 if __name__ == "__main__":
     demo.launch(
         inbrowser=True,
-        theme=gr.themes.Soft(primary_hue="red", secondary_hue="slate"),
+        theme=APP_THEME,
         css=APP_CSS,
     )

@@ -76,6 +76,24 @@ un message fixe (`TECHNICAL_ERROR_MESSAGE`), sans le type ni le texte de
 l'exception, qui peuvent contenir l'adresse du serveur de modèle : le détail va
 au journal (`web_request_failed`) et au champ `error` de la trace.
 
+## Charte graphique
+
+L'interface reprend la charte du graphe : un laboratoire d'expériences Pokémon. `APP_THEME` (thème Soft de
+Gradio) tire sa couleur principale des cinq teintes du liquide du graphe (`PALE` à `DEEP` dans `graph.py`),
+du rose pâle de la question au magenta foncé de la réponse. Trois couleurs ont chacune un sens, tenu partout
+(`APP_CSS`, variables `--visitor` et `--data`) :
+
+| Couleur | Sens | Où |
+| --- | --- | --- |
+| Jaune de Pikachu, tête du visiteur sur le graphe | ce qui vient du visiteur | bulle de la question, champ de saisie actif, boutons d'exemples, bloc « Question » de l'onglet « Observabilité » |
+| Magenta du liquide | l'agent qui agit | titre et sa fiole, bouton d'envoi, onglet choisi, liquide du graphe, étapes de l'onglet « Observabilité » |
+| Turquoise | les données rendues | bulle de la réponse, encart du graphe, identifiant d'outil, retours dépliés, étape qui a modifié l'appel ou le retour |
+
+Le reste est neutre : paillasse en papier millimétré gris-bleu, panneaux en verre. Le gris d'un liquide terni
+marque un rejet ou un refus, dans le graphe comme dans l'onglet. Dans cet onglet, chaque étape porte la teinte de son nœud dans le
+graphe. Thème et styles sont appliqués par le point d'entrée au lancement (`demo.launch`) : une modification
+ne se voit qu'après relance.
+
 ## Graphe du parcours
 
 Le panneau de droite a deux onglets. « Parcours », affiché à l'ouverture, dessine le chemin de la question ;
@@ -113,7 +131,9 @@ une première recherche documentaire depuis le démarrage attend depuis plus de 
 (`LOADING_HINT_SECONDS`). C'est un indice tiré de l'attente, pas l'état réel du serveur d'outils : sur une
 machine lente, il peut s'allumer alors que la base est déjà chargée.
 
-Les têtes sont des icônes de Pokémon Shuffle **liées** depuis Poképédia (`shuffle_icon`), non redistribuées :
+Les têtes sont des icônes de Pokémon Shuffle **liées** depuis Poképédia (`shuffle_icon`), non redistribuées.
+Chaque nœud majeur a la sienne ; celle du budget de contexte est Kabutops, dont les faux coupent ce que le
+modèle ne pourrait pas lire. Deux têtes changent :
 un Pikachu tiré au hasard à chaque question pour le visiteur, et sur « Réponse » l'espèce du premier Pokémon
 cité dans la réponse et présent dans les données. Poképédia n'a pas d'icône après la septième génération ; le
 nœud reste alors un rond. À l'ouverture, le graphe rejoue une fois, en accéléré, le parcours de l'exemple

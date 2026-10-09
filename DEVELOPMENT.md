@@ -1888,3 +1888,24 @@ longer ten times per second: a return unfolded by the reader stays unfolded.
 At opening, the tab shows the chain of the recorded example. The rendering was
 replayed on all the recorded traces, then looked at in the browser on a
 replayed answer, without a model.
+
+## 96. [Feature] A laboratory visual identity for the whole interface
+
+The path graph had its own identity, a laboratory where a magenta liquid runs
+through tubes, but the rest of the page kept the default red theme.
+
+The interface now follows that identity. The main colour of the theme is taken
+from the tints of the graph's liquid, the background is a bench of graph paper,
+the conversation and the right panel are glass panels, and a flask precedes the
+title.
+
+A first attempt put magenta everywhere. Three colours instead carry a meaning
+kept across the page: Pikachu yellow, the visitor's head on the graph, for what
+comes from the visitor (the question, the input, the examples); magenta for the
+agent acting (send, selected tab, liquid, steps); turquoise for the data
+returned (answer, tool returns, the graph's inset, a corrected call). A refusal
+or a rejection keeps the grey of the spoiled liquid, in the graph as in the
+"Observabilité" tab.
+
+The context budget, the only major node of the graph without a head, receives
+Kabutops: its two scythes cut what the model could not read.

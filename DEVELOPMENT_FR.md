@@ -1961,3 +1961,25 @@ retour, et non plus dix fois par seconde : un retour déplié par le lecteur
 reste déplié. À l'ouverture, l'onglet montre la chaîne de l'exemple enregistré.
 Le rendu a été rejoué sur toutes les traces enregistrées, puis regardé dans le
 navigateur sur une réponse rejouée, sans modèle.
+
+## 96. [Feature] Une charte graphique de laboratoire pour toute l'interface
+
+Le graphe du parcours avait sa propre identité, un laboratoire où un liquide
+magenta traverse des tubes, mais le reste de la page gardait le thème rouge par
+défaut.
+
+L'interface reprend maintenant cette charte. La couleur principale du thème est
+tirée des teintes du liquide du graphe, le fond est une paillasse en papier
+millimétré, la conversation et le panneau de droite sont des panneaux de verre,
+et une fiole précède le titre.
+
+Un premier essai mettait du magenta partout. Trois couleurs ont à la place un
+sens tenu sur toute la page : le jaune de Pikachu, tête du visiteur sur le
+graphe, pour ce qui vient de lui (sa question, sa saisie, les exemples) ; le
+magenta pour l'agent qui agit (envoi, onglet choisi, liquide, étapes) ; le
+turquoise pour les données rendues (réponse, retours d'outils, encart du
+graphe, correction d'un appel). Un refus ou un rejet garde le gris du liquide
+terni, dans le graphe comme dans l'onglet « Observabilité ».
+
+Le budget de contexte, seul nœud majeur du graphe sans tête, reçoit Kabutops :
+ses deux faux coupent ce que le modèle ne pourrait pas lire.
