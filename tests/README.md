@@ -65,6 +65,7 @@ décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 | Fidélité des listes | `unit/test_list_fidelity.py`, puis `integration/test_adk_stat_rankings.py` (réponse simulée qui omet des lignes, remplacée) |
 | Guard ADK | `unit/test_adk_tool_guard.py` : callback et vrais extracteurs, contexte et outils ADK simulés, sans LLM ni serveur MCP |
 | Extracteur de contraintes (jeux, formes) | `unit/test_structured_constraint_guard.py`, puis `integration/test_constraint_vocabulary.py` : tous les noms français de la base, aucun ne doit produire de jeu ni de forme |
+| Onglet « Observabilité » | `unit/test_web_observability.py` : rendu d'une trace Web sans interface ; quatre étapes par appel, arrêt au guard ou à l'outil, texte d'exception masqué, balises échappées, rendu stable pendant une question en cours |
 | Sessions Web | `unit/test_web_request_sessions.py` : runner ADK simulé ; questions indépendantes, historique affiché conservé, suppression des sessions après succès ou erreur ; temps d'outil et tokens du panneau, démarrage anticipé du serveur d'outils |
 | Serveur MCP | `integration/test_mcp_server.py` : vrai transport stdio et outil structuré, sans Qwen |
 | API HTTP | `unit/test_api.py` : vraie application FastAPI et vraies fonctions d'outils, moteur simulé ; les onze routes structurées, 404 ou 400 sur refus du moteur, 422 hors schéma, 503 pour une base absente |

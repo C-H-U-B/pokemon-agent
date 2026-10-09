@@ -127,10 +127,26 @@ REJECTIONS = {
     "error": "Erreur technique pendant cette étape.",
     "unverified": "Réponse écrite sans consulter les données : elle n'est pas vérifiée.",
 }
+WRITTEN = {
+    "answered": "Réponse rédigée à partir des résultats reçus.",
+    "list_fidelity_replacement": "La réponse du modèle omettait ou niait une ligne de la liste : elle est remplacée "
+                                 "par la liste tirée des données.",
+}
+LOADING_NOTICE = ("Première recherche depuis le démarrage : la base documentaire se charge (jusqu'à une minute "
+                  "et demie).")
 
 
 def _arguments(arguments: dict) -> str:
     return ", ".join(f"{key} = {value}" for key, value in arguments.items()) or "aucun réglage"
+
+
+def guard_correction(tool: dict) -> str:
+    """Ce que le guard a changé à la proposition du modèle ; chaîne vide s'il n'a rien ajouté ni retiré."""
+    proposed = tool["proposed_arguments"]
+    changed = {key: value for key, value in tool["arguments"].items() if proposed.get(key) != value}
+    dropped = [key for key in proposed if key not in tool["arguments"]]
+    return ((f" — ajouté ou modifié : {_arguments(changed)}" if changed else "")
+            + (f" — retiré : {', '.join(dropped)}" if dropped else ""))
 
 
 def graph_path(trace: dict) -> list[tuple[str, str, str]]:
@@ -158,8 +174,7 @@ def graph_path(trace: dict) -> list[tuple[str, str, str]]:
         if tool.get("seconds") is None and not result:
             path += [("choix", "guard", ""), ("guard", "mcp", "Outil en cours d'exécution…")]
             if trace.get("loading"):
-                path.append(("mcp", "chargement", "Première recherche depuis le démarrage : la base documentaire "
-                                                  "se charge (jusqu'à une minute et demie)."))
+                path.append(("mcp", "chargement", LOADING_NOTICE))
             pending = True
             break
         error = result.get("error")
@@ -167,15 +182,10 @@ def graph_path(trace: dict) -> list[tuple[str, str, str]]:
             path.append(("choix", "guard", f"Appel refusé : {result.get('message', error)}"))
             at = "guard"
             continue
-        proposed = tool.get("proposed_arguments")
-        if proposed is None:
+        if tool.get("proposed_arguments") is None:
             path.append(("choix", "guard", "Appel conforme à la question : exécuté sans changement."))
         else:
-            changed = {key: value for key, value in tool["arguments"].items() if proposed.get(key) != value}
-            dropped = [key for key in proposed if key not in tool["arguments"]]
-            path.append(("choix", "guard", "Appel corrigé avant exécution"
-                         + (f" — ajouté ou modifié : {_arguments(changed)}" if changed else "")
-                         + (f" — retiré : {', '.join(dropped)}" if dropped else "") + "."))
+            path.append(("choix", "guard", f"Appel corrigé avant exécution{guard_correction(tool)}."))
         if error == "mcp_tool_error":
             path.append(("guard", "mcp", result.get("message", error)))
             at = "mcp"
@@ -216,9 +226,7 @@ def graph_path(trace: dict) -> list[tuple[str, str, str]]:
     if not tools:
         path[-1] = (source, last, "Aucun outil demandé.")
         return path + [(last, "rejet", REJECTIONS["unverified"])]
-    written = ("La réponse du modèle omettait ou niait une ligne de la liste : elle est remplacée par la liste "
-               "tirée des données." if outcome == "list_fidelity_replacement"
-               else "Réponse rédigée à partir des résultats reçus.")
+    written = WRITTEN[outcome]
     if last == "choix":
         # ponytail: réponse écrite après un dernier appel en échec (0 cas sur 153 réponses tracées) : « rédige »
         # s'allume sans tube ; ajouter un tube choix → rédige si le cas se présente.

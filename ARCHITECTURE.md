@@ -104,7 +104,8 @@ ni par `query_structured_data` ni par `run_graph`. Voir les
 | Comportement | Emplacement principal | Frontière à préserver |
 | --- | --- | --- |
 | Graphe du parcours d'une question (nœuds, liens, issues vers le rejet) | `web/graph.py` | Le serveur envoie le parcours tiré d'une trace Web, le navigateur le déroule ; ne dessiner que des modules réellement exécutés |
-| Conversation Web, activité et questions suggérées | `web/app.py`, `web/questions_*.txt`, `web/exemple_ouverture.json` | Présentation et état de conversation ; réutiliser root_agent et MCP, sans dupliquer la logique métier |
+| Chaîne d'une question en blocs (proposition, guard, outil, budget) | `web/observability.py` | Rendu d'une trace Web, comme le graphe ; page publique : tout texte reçu est échappé, le texte d'exception d'un outil n'est pas affiché |
+| Conversation Web et questions suggérées | `web/app.py`, `web/questions_*.txt`, `web/exemple_ouverture.json` | Présentation et état de conversation ; réutiliser root_agent et MCP, sans dupliquer la logique métier |
 | Configurer l'agent ADK et son modèle local | `agent/agent.py` | Couche indépendante, douze outils MCP structurés et documentaires ; voir le [guide ADK](src/pokemon_rag/agent/README.md) pour le contexte local et les limites |
 | Adapter les retours d'outils au modèle, budget de contexte, abstentions | `agent/context_budget.py` | Ne jamais modifier la réponse MCP ; projeter les faits utiles, mesurer la requête, s'abstenir plutôt que répondre de mémoire |
 | Confronter la réponse finale à une liste transmise | `agent/list_fidelity.py` | Détection partagée avec la campagne ; remplacer par les données, jamais compléter de mémoire |

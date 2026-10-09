@@ -400,6 +400,6 @@ capacité la plus faible » parle de puissance.
 Les événements de function call portent la proposition du modèle : ADK en donne
 une copie aux callbacks, que le guard corrige. `after_tool_budget`, appelé même
 après un refus du guard, consigne donc les arguments réellement exécutés dans
-l'état de session (`tool_timings`, champ `executed_arguments`) ; l'interface Web
-les affiche et les écrit dans sa trace. La campagne structurée instrumente les
+l'état de session (`tool_timings`, champ `executed_arguments`), avec la taille de ce qu'il a reçu
+avant réduction (`raw_bytes`) ; l'interface Web les affiche et les écrit dans sa trace. La campagne structurée instrumente les
 callbacks pour séparer proposition, arguments exécutés, MCP brut et adaptation ADK.

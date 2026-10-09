@@ -39,6 +39,7 @@
         },
         "seconds": 0.08815619999950286,
         "execution_time": 0.020255200000974583,
+        "raw_bytes": 1735,
         "proposed_arguments": {
           "limit": 5,
           "sort_by": "weight",

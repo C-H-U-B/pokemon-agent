@@ -1932,3 +1932,32 @@ bouton de copie est à côté de sa bulle et non dessous, ce qui raccourcit la
 conversation à faire défiler. La bulle d'attente montre trois points animés
 jusqu'à la réponse : Gradio n'affichait les siens qu'un instant à l'envoi, ils
 sont redessinés à l'identique.
+
+## 95. [Feature] Onglet « Observabilité » : ce que chaque étape reçoit et renvoie
+
+L'onglet « Temps » donnait des durées et les arguments exécutés, mais ni la
+proposition du modèle, ni le message d'un refus du guard, ni le retour de
+l'outil : la chaîne ne pouvait pas se suivre sur ses données.
+
+Il est remplacé par l'onglet « Observabilité ». La question, chaque appel
+d'outil et la réponse y sont des blocs. Un appel se lit en quatre étapes : ce
+que le modèle propose, ce que le guard en fait (conforme, corrigé avec ce qui
+change, ou refusé avec son message), ce que l'outil reçoit et mesure, ce que le
+budget de contexte transmet au modèle. La chaîne s'arrête à l'étape qui a
+arrêté l'appel.
+
+Le relevé des traces enregistrées a montré que le retour gardé dans la trace
+est celui que le modèle a lu, après réduction, et qu'il reste court ; le retour
+brut de l'outil n'était que journalisé. Le retour transmis est donc affiché en
+entier, dans un bloc repliable, et la trace porte désormais la taille du retour
+brut, affichée à côté : l'écart entre les deux montre le travail du budget.
+
+La page étant publique, tout texte venu de la question, du modèle ou d'un outil
+est échappé, et le texte d'exception d'une erreur d'outil n'est pas affiché ;
+il reste dans la trace.
+
+Les blocs ne sont renvoyés au navigateur qu'à l'arrivée d'un appel ou d'un
+retour, et non plus dix fois par seconde : un retour déplié par le lecteur
+reste déplié. À l'ouverture, l'onglet montre la chaîne de l'exemple enregistré.
+Le rendu a été rejoué sur toutes les traces enregistrées, puis regardé dans le
+navigateur sur une réponse rejouée, sans modèle.
