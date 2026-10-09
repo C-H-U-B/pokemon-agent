@@ -40,7 +40,8 @@ Lu depuis un dossier Windows partagé, son chargement prenait 44 secondes au lie
 de 12 sur la machine de développement. Le parcours avec Ollama a été validé le
 6 octobre : campagne structurée complète et clone neuf monté en suivant le README.
 
-Le panneau de droite (onglets « Parcours » et « Temps », voir [Graphe du parcours](#graphe-du-parcours))
+Le panneau de droite (onglets « Parcours » et « Observabilité », voir [Graphe du parcours](#graphe-du-parcours)
+et [Onglet « Observabilité »](#onglet--observabilité-))
 conserve deux parts sur cinq de la
 disposition sur grand écran, à droite de la conversation qui occupe les trois
 autres parts. Sur petit écran, la conversation est au-dessus de l'agent.
@@ -48,35 +49,6 @@ Les bulles utilisateur sont alignées à gauche, celles de l'assistant à droite
 Les boutons de copie restent sous le texte, alignés avec leur bulle.
 La hauteur est adaptée à la fenêtre et les contenus longs défilent à
 l'intérieur des panneaux, plutôt que d'allonger la page.
-Il distingue l'agent ADK et son modèle, nommé d'après `LLM_MODEL`, des outils MCP et présente leur parcours
-progressivement : analyse, consultation SQLite ou recherche de passages
-Poképédia via le RAG / Chroma, retour d'outil puis préparation du texte par le modèle.
-Le schéma statique et la note explicative en bas du panneau ont été retirés.
-Les outils ont un libellé français avec leur identifiant technique visible.
-Le thème Soft et les styles sont appliqués par le point d'entrée au lancement.
-
-Le panneau d'activité affiche le nom de chaque outil appelé et ses arguments
-exécutés, après correction par le guard (lus dans l'état de session), et signale
-la réception des `function_response`. Ses phases sont déduites de
-ces événements : analyse, exécution d'outil, résultat reçu et génération finale.
-Un résultat reçu ne prouve pas la réussite métier de l'outil. Tant que l'outil
-n'a pas répondu, le panneau affiche la proposition du modèle.
-Le chrono est rafraîchi toutes les 0,1 seconde pendant l'attente ; il démarre
-avant la création de la session ADK de la requête.
-Les durées par étape cumulent l'analyse avant le premier appel, l'attente
-d'outils et la préparation entre retours et nouveaux appels ou fin de requête.
-Chaque appel dispose aussi de son chrono, figé à son retour ou à la fin.
-Les appels simultanés ne sont pas additionnés dans le total d'attente.
-Ces mesures incluent les délais de transport et de session, pas seulement le
-calcul du modèle ou du moteur. Sans outil, le temps reste dans analyse / choix.
-Les appels homonymes sont associés aux retours dans l'ordre d'arrivée (FIFO).
-Le panneau affiche aussi les temps mesurés par l'outil lui-même : chargement
-de la base documentaire au premier appel (modèles, corpus, index lexical),
-étapes de chaque recherche avec le nombre de passages, et durée de la requête
-SQL. Ces mesures passent par l'état de session ADK (`tool_timings`), jamais par
-le retour d'outil envoyé au modèle. Les tokens lus et générés viennent de
-l'usage déclaré par le serveur de modèle ; le débit affiché les rapporte au
-temps d'analyse et de préparation mesuré par l'interface, transport compris.
 La conversation reçoit le texte
 final à la fin de l'exécution, sans affichage token par token de la réponse.
 La question apparaît dès l'envoi, et la saisie se trouve sous l'historique.
@@ -84,11 +56,12 @@ En tête de page, trois lignes disent ce que fait l'outil, nomment le modèle se
 et préviennent que les questions sont enregistrées. Une question est limitée à 300 caractères
 (`MAX_QUESTION_CHARS`), dans le champ de saisie et de nouveau dans `chat`, qu'un appel direct de l'API
 atteint sans passer par le champ : au-delà, aucun appel au modèle n'est fait. Tant qu'aucune recherche
-documentaire n'a abouti depuis le démarrage, le panneau prévient pendant la recherche que la base peut
-encore se charger ; c'est un indice tenu par l'interface, pas l'état réel du serveur d'outils.
+documentaire n'a abouti depuis le démarrage, le graphe et l'onglet « Observabilité » préviennent, après
+trois secondes d'attente, que la base se charge ; c'est un indice tenu par l'interface, pas l'état réel du
+serveur d'outils.
 
 Le champ de saisie est vidé à l'envoi, pas à l'arrivée de la réponse : une question préparée pendant
-l'attente y reste. Pendant l'exécution, seul le panneau d'activité est rafraîchi, la conversation se
+l'attente y reste. Pendant l'exécution, seul le panneau de droite est mis à jour, la conversation se
 lit donc librement ; à l'arrivée de la réponse, elle revient sur la dernière question.
 
 L'historique n'a pas de bandeau de titre. Les lignes de saisie et d'actions
@@ -97,8 +70,8 @@ Une grille réserve au chat toute la hauteur restante, sans hauteur fixe.
 Une bulle « … » reste visible pendant
 l'exécution puis est remplacée par la réponse ou le message d'erreur. Elle
 indique l'attente, y compris pendant les outils, sans exposer de raisonnement.
-Une exécution sans texte final affiche « Aucune réponse finale », distinct de
-« Réponse disponible » et des erreurs techniques. Une erreur technique affiche
+Une exécution sans texte final est dite dans le bloc « Réponse » de l'onglet « Observabilité », distincte
+d'une réponse rédigée et d'une erreur technique. Une erreur technique affiche
 un message fixe (`TECHNICAL_ERROR_MESSAGE`), sans le type ni le texte de
 l'exception, qui peuvent contenir l'adresse du serveur de modèle : le détail va
 au journal (`web_request_failed`) et au champ `error` de la trace.
@@ -106,7 +79,7 @@ au journal (`web_request_failed`) et au champ `error` de la trace.
 ## Graphe du parcours
 
 Le panneau de droite a deux onglets. « Parcours », affiché à l'ouverture, dessine le chemin de la question ;
-« Temps » garde le panneau d'activité décrit plus haut, inchangé.
+« Observabilité » en montre les données, étape par étape.
 
 Le graphe montre les modules réellement exécutés : la question, le modèle qui choisit l'outil, le guard, le
 serveur d'outils, puis un anneau à deux branches (la base de données d'un côté, Poképédia et ses quatre étapes
@@ -153,6 +126,43 @@ d'un composant `gr.HTML` sous un sélecteur, où ils sont ignorés.
 
 Le bouton d'envoi est inactif et libellé « Réponse en cours… » de l'envoi à la réponse ; « Nouvelle
 conversation », qui annule la question, le rétablit.
+
+## Onglet « Observabilité »
+
+Le second onglet montre la chaîne de la question en blocs, pour suivre ce que chaque étape a reçu et renvoyé.
+Une ligne de synthèse (durée totale, choix des outils, attente des outils, rédaction, tokens lus et générés),
+puis un bloc « Question », un bloc par appel d'outil et un bloc « Réponse » qui dit l'issue en clair. Un bloc
+d'appel porte le libellé français de l'outil, son identifiant, sa durée, et jusqu'à quatre étapes :
+
+| Étape | Ce qu'elle montre |
+| --- | --- |
+| Modèle · choisit l'outil | l'outil appelé et les arguments proposés ; l'appel émis, en JSON dans un bloc repliable |
+| Guard | « conforme », « corrige » avec ce qui est ajouté, modifié ou retiré, ou « refuse l'appel » avec son message et les arguments exigés ; en bloc repliable, l'appel transmis à l'outil ou le refus rendu au modèle |
+| Outil | les arguments exécutés, la durée de la requête SQL ou des étapes de la recherche, le chargement de la base documentaire au premier appel, la taille du retour de l'outil |
+| Budget de contexte | « transmet en entier », « réduit aux champs utiles », « tronque » ou « ne transmet rien », la taille transmise, et le retour tel que le modèle l'a reçu, en JSON dans un bloc repliable |
+
+La chaîne s'arrête à l'étape qui a arrêté l'appel : au guard pour un refus, à l'outil pour une erreur. Le
+retour brut de l'outil n'est pas affiché, seulement sa taille ; le retour transmis l'est en entier (3 211
+octets au plus sur les 204 appels tracés au 9 octobre 2026) et défile dans son bloc.
+
+`observability.py` porte ce rendu : `observability_html(trace)` lit une trace de la forme de `_web_trace`,
+complète ou en cours, comme `graph_path`. La page est publique : tout texte venu de la question, du modèle ou
+d'un outil est échappé, et le texte d'exception qui suit « Détail : » dans une erreur d'outil n'est pas
+affiché (la trace le garde). Une question en cours n'affiche aucune durée qui change : `chat` ne renvoie les
+blocs qu'à l'arrivée d'un appel ou d'un retour, jamais au rythme du chrono, et le navigateur garde dépliés les
+blocs que le lecteur a ouverts, ainsi que la position de l'onglet. Le temps de l'étape en cours se lit dans
+l'encart du graphe. À l'ouverture, l'onglet montre la chaîne de l'exemple enregistré.
+
+Le panneau lui-même ne défile pas : la barre d'onglets reste en place et c'est le contenu de l'onglet qui
+défile (`#agent-panel .tabitem`). Gradio masque l'onglet inactif par un `display: none` sur ce conteneur,
+pas par l'attribut `hidden` : une règle CSS qui teste `hidden` sur un composant s'applique à tous les onglets.
+
+Les durées par étape de la synthèse sont mesurées par l'interface : analyse avant le premier appel, attente
+des outils (les appels simultanés ne sont pas additionnés), préparation entre retours et nouveaux appels ou
+fin de requête ; elles incluent le transport et la session. Les appels homonymes sont associés aux retours
+dans l'ordre d'arrivée (FIFO). Les mesures de l'outil et la taille de son retour passent par l'état de session
+ADK (`tool_timings`), jamais par le retour envoyé au modèle. Un résultat reçu ne prouve pas la réussite métier
+de l'outil.
 
 ## Illustrations
 
@@ -205,15 +215,14 @@ utilisés, question, issue (`answered`, `budget_abstention`,
 modèle s'est arrêté sur la limite de sortie), et pour chaque appel d'outil ses arguments exécutés après le
 guard (`arguments`), la proposition du modèle lorsqu'elle diffère
 (`proposed_arguments`), son instant de départ (`start` : deux appels partis au même instant ont été
-demandés dans le même tour), sa durée, ses mesures et le résultat tel que le modèle
-l'a reçu. `scripts/observability/analyze_traces.py` ne lit que les traces du
+demandés dans le même tour), sa durée, ses mesures, la taille de ce que le budget de contexte a reçu
+(`raw_bytes` : le retour de l'outil avant réduction, ou le refus du guard ; absent des traces antérieures au
+9 octobre 2026) et le résultat tel que le modèle l'a reçu. `scripts/observability/analyze_traces.py` ne lit que les traces du
 graphe et refuse ce format. Le service `web` de `compose.yaml`
 monte ce dossier. Une écriture impossible est journalisée (`web_trace_failed`)
 sans affecter la réponse. Avec `WEB_TRACE_STDOUT=1` (image `demo`), la même trace part aussi sur la
 sortie standard en une ligne JSON, sous la clé `web_trace` : sur un hébergeur sans disque persistant, c'est
-le journal de la plateforme qui la conserve. Le débit affiché dans le panneau rapporte les tokens
-générés à tout le temps passé chez le modèle, lecture des requêtes comprise :
-le serveur de modèle ne sépare pas les deux.
+le journal de la plateforme qui la conserve.
 
 ## Conversations et exemples
 
@@ -406,8 +415,9 @@ zéro instance n'est pas mesuré.
 
 Le graphe en direct n'a été vu que sur des parcours rejoués et sur l'exemple d'ouverture, dans un Chrome sans
 fenêtre. Restent à voir : le thème sombre, un écran tactile (pas de survol), une fenêtre de moins de 760 px de
-large, où le dessin garde une hauteur minimale et où le panneau peut défiler. La touche Entrée reste active
-pendant qu'une réponse est en cours.
+large, où le dessin garde une hauteur minimale et où le panneau peut défiler. L'onglet « Observabilité » et
+l'arrêt de la touche Entrée pendant une réponse ont été vus sur une réponse rejouée par un agent simulé
+(Chrome sans fenêtre, 1534 × 693 et 1920 × 950, 9 octobre 2026), pas sur une réponse d'un vrai modèle.
 
 L'annulation d'une question abandonnée est testée à la fermeture du générateur
 `chat`, avec un agent simulé. Que Gradio ferme bien ce générateur à la fermeture

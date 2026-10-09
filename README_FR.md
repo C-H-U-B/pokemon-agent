@@ -29,7 +29,7 @@ Le déploiement et ses réglages sont décrits dans le [guide de l'interface Web
 | Base relationnelle | 35 tables, 56 index, 8 vues ; 638 000 lignes d'apprentissage de capacités sur 26 groupes de jeux |
 | Référentiel | 1 025 espèces, 1 351 Pokémon, 1 579 formes, 937 capacités |
 | Index documentaire | 36 280 fragments vectorisés |
-| Tests | 1 619 tests, dont 1 480 sans aucun modèle |
+| Tests | 1 622 tests, dont 1 483 sans aucun modèle |
 | Campagne de bout en bout | 41 questions sur 42 réussies avec un modèle local de 8 milliards de paramètres ; l'échec, corrigé depuis, a ensuite réussi 2 fois sur 2 |
 
 ## Flux de données
@@ -80,7 +80,7 @@ Chaque fragment garde le Pokémon, le fichier source et le chemin de section don
 - **Tests sur les données réelles.** Le rapprochement, les formes par défaut, les évolutions et les capacités sont vérifiés sur la base construite.
 - **Tests sur catalogue contrôlé.** La logique SQL est testée sur de petites bases SQLite créées pour chaque test, avec des cas adverses : identifiants dans le désordre, valeurs nulles, égalités, formes manquantes.
 - **Isolation.** Les tests légers échouent s'ils ouvrent les bases du projet ou chargent un modèle. Le moteur SQL n'importe aucun client de modèle, ce qu'un test vérifie.
-- **Intégration continue.** À chaque push, GitHub Actions installe le projet sur une machine vierge, lance le contrôle statique et les 1 248 tests qui ne dépendent ni des données locales ni d'un modèle.
+- **Intégration continue.** À chaque push, GitHub Actions installe le projet sur une machine vierge, lance le contrôle statique et les 1 251 tests qui ne dépendent ni des données locales ni d'un modèle.
 
 Une anomalie de données rencontrée en cours de route illustre l'intérêt de ces contrôles : le jeu le plus récent n'utilise qu'une seule méthode d'apprentissage, si bien qu'une recherche de capacités par niveau y renvoyait une liste vide pour plus de 300 Pokémon. La sélection du jeu tient désormais compte de la méthode demandée.
 

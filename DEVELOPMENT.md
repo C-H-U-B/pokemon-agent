@@ -1858,3 +1858,33 @@ so. The copy button sits beside its bubble instead of under it, which shortens
 the conversation to scroll. The waiting bubble shows three animated dots until
 the answer: Gradio only displayed its own for a moment on sending, they are
 redrawn identically.
+
+## 95. [Feature] "Observabilité" tab: what each step receives and returns
+
+The "Temps" (Timings) tab gave durations and the executed arguments, but
+neither the model's proposal, nor the message of a guard refusal, nor the
+tool's return: the chain could not be followed on its data.
+
+It is replaced by the "Observabilité" (Observability) tab. The question, each
+tool call and the answer are blocks. A call reads in four steps: what the model
+proposes, what the guard does with it (compliant, corrected with what changes,
+or refused with its message), what the tool receives and measures, what the
+context budget passes on to the model. The chain stops at the step that stopped
+the call.
+
+A survey of the recorded traces showed that the return kept in the trace is
+the one the model read, after reduction, and that it stays short; the tool's
+raw return was only logged. The passed-on return is therefore displayed in
+full, in a collapsible block, and the trace now carries the size of the raw
+return, displayed next to it: the gap between the two shows the work of the
+budget.
+
+Since the page is public, any text coming from the question, the model or a
+tool is escaped, and the exception text of a tool error is not displayed; it
+stays in the trace.
+
+The blocks are sent to the browser only when a call or a return arrives, no
+longer ten times per second: a return unfolded by the reader stays unfolded.
+At opening, the tab shows the chain of the recorded example. The rendering was
+replayed on all the recorded traces, then looked at in the browser on a
+replayed answer, without a model.

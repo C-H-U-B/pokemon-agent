@@ -18,8 +18,10 @@ from pokemon_rag.config import LLM_BASE_URL, LLM_MODEL
 from pokemon_rag.constraints.query_constraints import normalize
 from pokemon_rag.structured.query_engine import ARTWORK_URL, pokemon_image_urls, pokemon_species_numbers
 from pokemon_rag.observability.tracing import TRACE_DIR, save_trace
-from pokemon_rag.web.graph import (GRAPH_CSS, GRAPH_JS, GRAPH_KEYFRAMES, TOOL_LABELS, graph_path, graph_template,
+from pokemon_rag.web.graph import (GRAPH_CSS, GRAPH_JS, GRAPH_KEYFRAMES, graph_path, graph_template,
                                    graph_value, random_pikachu, shuffle_icon)
+from pokemon_rag.web.observability import (OBSERVABILITY_CSS, OBSERVABILITY_JS, OBSERVABILITY_TEMPLATE,
+                                           observability_html)
 
 logger = logging.getLogger(__name__)
 
@@ -75,10 +77,13 @@ APP_CSS = """
     gap: 16px; flex: 1 1 0; height: 0; min-height: 0; }
 #workspace > div { min-width: 0 !important; min-height: 0; }
 #agent-panel { border: 1px solid var(--border-color-primary); border-radius: 18px;
-    padding: 18px; background: var(--background-fill-secondary); overflow-y: auto; }
-#agent-panel h3 { margin-top: 20px; }
+    padding: 8px 18px 18px; background: var(--background-fill-secondary); overflow: hidden; }
+/* Le panneau ne défile pas : la barre d'onglets reste en place, et c'est le contenu de l'onglet qui défile.
+   Gradio masque l'onglet inactif par un display: none sur ce conteneur, pas par l'attribut hidden. */
+#agent-panel .tabs { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+#agent-panel .tabitem { flex: 1 1 0; min-height: 0; overflow-y: auto; }
 /* Onglet du graphe : le dessin et son encart tiennent dans la hauteur du panneau (ajustée dans le navigateur). */
-#agent-panel:has(#question-graph:not([hidden])) { overflow: hidden; padding-top: 8px; }
+#agent-panel .tabitem:has(#question-graph) { overflow: hidden; }
 /* Illustrations en haut d'une réponse : une ligne de petites images, malgré le style des images de Gradio. */
 #chat-history .pokemon-images { display: flex !important; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 #chat-history .pokemon-images > * { flex: 0 0 auto !important; width: auto !important; margin: 0 !important; }
@@ -106,7 +111,6 @@ APP_CSS = """
 #image-viewer p { margin: 4px 0 0; text-align: center; font-weight: 600; }
 #image-viewer button { position: absolute; top: 4px; right: 10px; border: none; background: none;
     font-size: 30px; line-height: 1; cursor: pointer; color: inherit; }
-#agent-panel code { overflow-wrap: anywhere; white-space: pre-wrap; }
 #conversation-panel { display: grid; grid-template-rows: minmax(0, 1fr) auto auto auto;
     gap: 4px; overflow-y: auto; }
 #chat-history { height: 100% !important; min-height: 0; overflow: hidden; }
@@ -381,21 +385,36 @@ LOADING_HINT_SECONDS = 3.0
 EMPTY_GRAPH = graph_value([])
 
 
-def _opening_graph() -> str:
-    """Parcours de l'exemple d'ouverture, rejoué une fois en accéléré au chargement, sans appel au modèle.
-
-    Trace réelle de la réponse affichée, gardée dans `exemple_ouverture.json`. Sans elle, ou si la première
-    question a changé, le graphe reste vide.
-    """
+def _opening_trace() -> tuple[dict, dict] | None:
+    """Exemple d'ouverture et sa trace réelle, gardés dans `exemple_ouverture.json` ; rien si la première
+    question a changé sans que l'exemple suive."""
     try:
         example = json.loads(Path(__file__).with_name("exemple_ouverture.json").read_text(encoding="utf-8"))
         if example["question"] != FIRST_QUESTION:
-            return EMPTY_GRAPH
-        return _graph({"question": example["question"], **example["trace"]}, "ouverture", random_pikachu(), speed=2.0,
-                      answer_icon=shuffle_icon(example["images"][0][1]) if example["images"] else "")
+            return None
+        return example, {"question": example["question"], **example["trace"]}
     except Exception:
-        logger.warning("opening_graph_failed", exc_info=True)
+        logger.warning("opening_trace_failed", exc_info=True)
+        return None
+
+
+def _opening_graph() -> str:
+    """Parcours de l'exemple d'ouverture, rejoué une fois en accéléré au chargement, sans appel au modèle.
+
+    Sans sa trace, ou si la première question a changé, le graphe reste vide.
+    """
+    opening = _opening_trace()
+    if opening is None:
         return EMPTY_GRAPH
+    example, trace = opening
+    return _graph(trace, "ouverture", random_pikachu(), speed=2.0,
+                  answer_icon=shuffle_icon(example["images"][0][1]) if example["images"] else "")
+
+
+def _opening_observability() -> str:
+    """Chaîne de l'exemple d'ouverture, tirée de la même trace que son parcours."""
+    opening = _opening_trace()
+    return observability_html(opening and opening[1], "ouverture")
 
 
 def _final_response_text(events) -> str:
@@ -453,151 +472,6 @@ def _extract_function_responses(event) -> list[str]:
             responses.append(name)
 
     return responses
-
-
-STARTUP_STEPS = (("embedding", "modèle d'embedding"), ("reranker", "modèle de reclassement"),
-                 ("corpus", "corpus"), ("bm25", "index lexical"))
-SEARCH_STEPS = (("vector", "vectorielle"), ("bm25", "lexicale"), ("rrf", "fusion"), ("reranker", "reclassement"))
-
-
-def _steps(values: dict, labels: tuple) -> str:
-    return " · ".join(f"{label} {values[key]:.2f} s" for key, label in labels if key in values)
-
-
-def _measure_lines(measure: dict | None) -> list[str]:
-    """Temps mesurés par l'outil lui-même : chargement et étapes de la recherche, ou requête SQL."""
-    if not measure:
-        return []
-    lines = []
-    timings = measure.get("timings") or {}
-    startup = timings.get("startup")
-    if startup:
-        lines.append(f"- Chargement de la base (premier appel) : {startup.get('total', 0.0):.1f} s"
-                     f" ({_steps(startup, STARTUP_STEPS)})")
-    if "total" in timings:
-        steps = _steps(timings, SEARCH_STEPS)
-        lines.append(f"- Recherche : {timings['total']:.2f} s" + (f" ({steps})" if steps else "")
-                     + f" · {measure.get('passages', 0)} passage(s)")
-    if measure.get("execution_time") is not None:
-        lines.append(f"- Requête SQL : {measure['execution_time'] * 1000:.0f} ms")
-    return lines
-
-
-def _format_activity(
-    tool_calls: list[tuple[str, dict]],
-    completed_tools: list[str],
-    elapsed_seconds: float,
-    status: str,
-    timing: ActivityTiming | None = None,
-) -> str:
-    """Construit le panneau d'activité temps réel."""
-
-    lines = [
-        "## Agent et outils en action",
-        "",
-        f"**Agent Pokémon — ADK + {MODEL_LABEL}**",
-        f"ADK orchestre les échanges ; {MODEL_LABEL} interprète la question et rédige la réponse.",
-        "",
-        f"**⏱ {elapsed_seconds:.1f} s · {len(tool_calls)} appel(s) d'outil**",
-        "",
-        status,
-        "",
-    ]
-
-    if timing is not None:
-        lines.extend([
-            "**Temps par étape**",
-            f"- Analyse / choix des outils : {timing.duration('analysis', elapsed_seconds):.1f} s",
-            f"- Attente des outils : {timing.duration('tools', elapsed_seconds):.1f} s",
-            f"- Préparation de la réponse : {timing.duration('generation', elapsed_seconds):.1f} s",
-        ])
-        startup = next((measure["timings"]["startup"] for measure in timing.measures.values()
-                        if (measure.get("timings") or {}).get("startup")), None)
-        if startup:
-            lines.append(f"- Chargement de la base documentaire (premier appel) : {startup.get('total', 0.0):.1f} s")
-        if timing.prompt_tokens or timing.output_tokens:
-            model_time = timing.duration("analysis", elapsed_seconds) + timing.duration("generation", elapsed_seconds)
-            # Le serveur de modèle ne sépare pas lecture et génération : ce débit couvre les deux.
-            rate = (f" · ≈ {timing.output_tokens / model_time:.0f} tokens/s, lecture des requêtes comprise"
-                    if timing.output_tokens and model_time > 0 else "")
-            lines.append(f"- {MODEL_LABEL} : {timing.prompt_tokens} tokens lus, {timing.output_tokens} générés{rate}")
-        lines.append("")
-
-    if not tool_calls:
-        lines.append("**Outils sollicités :** aucun pour le moment.")
-        return "\n".join(lines)
-
-    completed_counts: dict[str, int] = {}
-
-    for name in completed_tools:
-        completed_counts[name] = completed_counts.get(name, 0) + 1
-
-    displayed_counts: dict[str, int] = {}
-
-    lines.extend([
-        f"### 1. Analyse de la question · {MODEL_LABEL}",
-        "L'agent a demandé les outils ci-dessous pour traiter la question.",
-        "",
-    ])
-
-    for index, (name, arguments) in enumerate(tool_calls, start=1):
-        displayed_counts[name] = displayed_counts.get(name, 0) + 1
-
-        is_completed = displayed_counts[name] <= completed_counts.get(name, 0)
-
-        label = TOOL_LABELS.get(name, name)
-        lines.append(f"### 1.{index} {label} · outil MCP")
-        lines.append(f"`{name}` · " + (
-            "Réponse reçue" if is_completed else "Appel observé · réponse en attente"
-        ))
-        lines.append("")
-        if timing is not None and index <= len(timing.calls):
-            _, call_start, call_end = timing.calls[index - 1]
-            end = call_end if call_end is not None else (
-                timing.phase_start if timing.phase == "finished" else elapsed_seconds
-            )
-            lines.append(f"**⏱ {end - call_start:.1f} s**" + (" · en attente" if call_end is None else ""))
-        if name == "pokemon_rag_search":
-            lines.append(
-                "**Recherche RAG — Poképédia / index Chroma.** "
-                + ("La recherche a retourné son résultat à l'agent."
-                   if is_completed else
-                   "Recherche de passages textuels pertinents pour documenter la réponse.")
-            )
-        elif name in TOOL_LABELS:
-            lines.append(
-                "**Requête structurée — base SQLite.** "
-                + ("L'outil a retourné le résultat de la consultation à l'agent."
-                   if is_completed else
-                   "Consultation des données Pokémon dans la base locale.")
-            )
-        else:
-            lines.append("L'agent échange avec cet outil via le protocole MCP.")
-
-        measured = _measure_lines(timing.measures.get(index - 1)) if timing is not None else []
-        if measured:
-            lines.extend(["", *measured])
-
-        executed = (timing.measures.get(index - 1) or {}).get("executed_arguments") if timing is not None else None
-        shown = arguments if executed is None else executed
-        if shown:
-            lines.append("")
-            if executed is not None and executed != arguments:
-                lines.append("Arguments exécutés après correction par le guard :")
-
-            for key, value in shown.items():
-                lines.append(f"- `{key}` : `{value}`")
-
-        lines.append("")
-
-    if completed_tools:
-        lines.extend([
-            f"### 2. Préparation de la réponse · {MODEL_LABEL}",
-            f"{MODEL_LABEL} dispose des retours d'outils pour préparer une réponse textuelle en français.",
-            "",
-        ])
-
-    return "\n".join(lines)
 
 
 def _web_trace(question: str, answer: str, outcome: str, error: Exception | None,
@@ -715,23 +589,18 @@ async def chat(
     message = message.strip()
 
     if not message:
-        yield (
-            history,
-            gr.skip(),
-            _format_activity([], [], 0.0, "Aucune requête envoyée."),
-            gr.skip(),
-        )
+        yield history, gr.skip(), gr.skip(), gr.skip()
         return
 
     if len(message) > MAX_QUESTION_CHARS:
         # Refusée ici aussi : la limite du champ de saisie ne s'applique pas à un appel direct de l'API.
+        refused = {"question": message[:MAX_QUESTION_CHARS] + "…", "outcome": "question_too_long"}
         yield (
-            history + [{"role": "user", "content": message[:MAX_QUESTION_CHARS] + "…"},
+            history + [{"role": "user", "content": refused["question"]},
                        {"role": "assistant", "content": QUESTION_TOO_LONG}],
             gr.skip(),
-            _format_activity([], [], 0.0, "Aucune requête envoyée."),
-            _graph({"question": message[:MAX_QUESTION_CHARS] + "…", "outcome": "question_too_long"},
-                   uuid.uuid4().hex, random_pikachu()),
+            observability_html(refused),
+            _graph(refused, uuid.uuid4().hex, random_pikachu()),
         )
         return
 
@@ -750,7 +619,6 @@ async def chat(
 
     events = []
     tool_calls: list[tuple[str, dict]] = []
-    completed_tools: list[str] = []
     timing = ActivityTiming()
 
     queue: asyncio.Queue = asyncio.Queue()
@@ -763,35 +631,24 @@ async def chat(
         )
     )
 
-    status = f"🧠 **{MODEL_LABEL} analyse la question et choisit les outils adaptés…**"
     finished = False
     error: Exception | None = None
     # Tête du visiteur sur le graphe : un Pikachu tiré au hasard à chaque question.
     question_id, user_icon = uuid.uuid4().hex, random_pikachu()
 
-    def running_graph() -> str:
+    def running_views() -> tuple[str, str]:
+        """Blocs d'observabilité et parcours du graphe, tirés de la même trace en cours."""
         now = time.perf_counter() - start
         trace = _web_trace(message, "", "running", None, tool_calls, timing, now)
         trace["loading"] = not _documentary_base_ready and any(
             name == "pokemon_rag_search" and end is None and now - begin > LOADING_HINT_SECONDS
             for name, begin, end in timing.calls)
-        return _graph(trace, question_id, user_icon)
+        return observability_html(trace, question_id), _graph(trace, question_id, user_icon)
 
-    sent_graph = running_graph()
+    sent = running_views()
 
     # Affichage immédiat.
-    yield (
-        pending_history,
-        gr.skip(),
-        _format_activity(
-            tool_calls,
-            completed_tools,
-            0.0,
-            status,
-            timing,
-        ),
-        sent_graph,
-    )
+    yield pending_history, gr.skip(), *sent
 
     try:
         while not finished:
@@ -809,61 +666,30 @@ async def chat(
                     new_responses = _extract_function_responses(event)
                     timing.observe(new_calls, new_responses, time.perf_counter() - start, event)
 
-                    if new_calls:
-                        tool_calls.extend(new_calls)
-                        sources = []
-                        for name, _ in new_calls:
-                            source = ("recherche de passages textuels dans Poképédia"
-                                      if name == "pokemon_rag_search" else
-                                      "consultation de la base SQLite" if name in TOOL_LABELS else
-                                      "appel d'un outil MCP")
-                            if source not in sources:
-                                sources.append(source)
-                        status = "🔎 **En cours : " + " ; ".join(sources) + ".**"
-                        if not _documentary_base_ready and any(name == "pokemon_rag_search" for name, _ in new_calls):
-                            status += ("\n\nPremière recherche depuis le démarrage : la base documentaire peut "
-                                       "encore se charger (jusqu'à une minute et demie). Les questions sur les "
-                                       "données, elles, répondent tout de suite.")
-
-                    if new_responses:
-                        if "pokemon_rag_search" in new_responses:
-                            _documentary_base_ready = True
-                        completed_tools.extend(new_responses)
-                        status = f"🧠 **Retour d'outil reçu — {MODEL_LABEL} prépare la réponse textuelle…**"
+                    tool_calls.extend(new_calls)
+                    if "pokemon_rag_search" in new_responses:
+                        _documentary_base_ready = True
 
                 elif item_type == "error":
                     error = payload
-                    status = "❌ **Erreur pendant l'exécution.**"
 
                 elif item_type == "done":
                     finished = True
                     timing.transition("finished", time.perf_counter() - start)
 
             except asyncio.TimeoutError:
-                # Aucun nouvel événement ADK :
-                # on rafraîchit quand même le chrono.
+                # Aucun nouvel événement ADK : seul l'indice de chargement de la base peut avoir changé.
                 pass
 
-            elapsed = time.perf_counter() - start
-            # Le graphe n'est renvoyé que lorsque le parcours a changé : le navigateur le déroule seul.
-            current_graph = sent_graph if finished else running_graph()
-            graph_update = gr.skip() if current_graph == sent_graph else current_graph
-            sent_graph = current_graph
+            # Blocs et graphe ne sont renvoyés que lorsqu'ils ont changé : le navigateur déroule seul le
+            # parcours, et un retour déplié par le lecteur n'est pas redessiné dix fois par seconde.
+            current = sent if finished else running_views()
+            updates = [gr.skip() if new == old else new for new, old in zip(current, sent)]
+            sent = current
 
             # Conversation et état non renvoyés ici : dix mises à jour par seconde ramenaient le
             # défilement en bas et écrasaient une suggestion choisie pendant l'attente.
-            yield (
-                gr.skip(),
-                gr.skip(),
-                _format_activity(
-                    tool_calls,
-                    completed_tools,
-                    elapsed,
-                    status,
-                    timing,
-                ),
-                graph_update,
-            )
+            yield gr.skip(), gr.skip(), *updates
 
         await task
 
@@ -878,8 +704,6 @@ async def chat(
     if error is not None:
         logger.warning("web_request_failed", exc_info=error)
         response = TECHNICAL_ERROR_MESSAGE
-
-        status = "❌ **Erreur**"
         outcome = "error"
 
     else:
@@ -887,10 +711,8 @@ async def chat(
 
         if not response:
             response = "L'agent n'a produit aucune réponse finale."
-            status = "⚠️ **Aucune réponse finale**"
             outcome = "no_final_response"
         else:
-            status = "✅ **Réponse disponible**"
             outcome = "answered"
 
     trace = _web_trace(message, response, outcome, error, tool_calls, timing, elapsed)
@@ -911,13 +733,7 @@ async def chat(
     yield (
         updated_history,
         gr.skip(),
-        _format_activity(
-            tool_calls,
-            completed_tools,
-            elapsed,
-            status,
-            timing,
-        ),
+        observability_html(trace, question_id),
         _graph(trace, question_id, user_icon, answer_icon="" if error is not None else _answer_icon(response, timing)),
     )
 
@@ -928,7 +744,7 @@ def new_conversation():
     return (
         [],
         WebSession(),
-        _format_activity([], [], 0.0, "En attente d'une question."),
+        observability_html(None),
         "",
         EMPTY_GRAPH,
         gr.update(value=SEND_LABEL, interactive=True),  # la question annulée ne rendra pas le bouton elle-même
@@ -1032,9 +848,13 @@ def build_app() -> gr.Blocks:
                                 js_on_load=GRAPH_JS,
                                 elem_id="question-graph",
                             )
-                        with gr.Tab("Temps"):
-                            activity = gr.Markdown(
-                                _format_activity([], [], 0.0, "En attente d'une question."),
+                        with gr.Tab("Observabilité"):
+                            activity = gr.HTML(
+                                value=_opening_observability() if opening else observability_html(None),
+                                html_template=OBSERVABILITY_TEMPLATE,
+                                css_template=OBSERVABILITY_CSS,
+                                js_on_load=OBSERVABILITY_JS,
+                                elem_id="question-observability",
                             )
 
             # La saisie est vidée dès l'envoi, pas à l'arrivée de la réponse : une question préparée

@@ -376,8 +376,10 @@ def after_tool_budget(tool: Any, args: dict, tool_context: Any, tool_response: d
         # args : arguments réellement exécutés, après le guard (l'événement du modèle garde sa proposition).
         # Dernière liste transmise au modèle dans cette question : la réponse finale lui sera confrontée.
         state["temp:fidelity_list"] = complete_list(getattr(tool, "name", ""), result)
+        # raw_bytes : taille du retour de l'outil avant la réduction ci-dessus, pour l'onglet d'observabilité.
         state["tool_timings"] = [*state.get("tool_timings", []), {"tool": getattr(tool, "name", None),
-                                                                  "executed_arguments": deepcopy(args), **measure}]
+                                                                  "executed_arguments": deepcopy(args),
+                                                                  "raw_bytes": _size(raw or tool_response), **measure}]
     if logger.isEnabledFor(logging.INFO):
         logger.info("tool_result tool=%s mcp_bytes=%d projected_bytes=%d limit=%d truncated=%s error=%s",
                     getattr(tool, "name", None), _size(tool_response), _size(result), MAX_TOOL_RESULT_BYTES,

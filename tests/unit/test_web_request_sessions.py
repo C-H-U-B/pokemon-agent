@@ -1,9 +1,12 @@
 """Isolation des questions Web : ADK simulé, aucun appel au modèle."""
 
 import asyncio
+from html import escape
 from types import SimpleNamespace
 
 import pytest
+
+from pokemon_rag.web.graph import LOADING_NOTICE, REJECTIONS, WRITTEN
 
 
 @pytest.fixture
@@ -139,10 +142,17 @@ def test_the_graph_receives_the_path_at_the_start_and_at_the_end_not_at_every_re
     monkeypatch.setattr(web, "REFRESH_INTERVAL", 0.01)
     state = web.WebSession()
 
+    blocks = []
+
     async def run(message):
-        return [output[3] async for output in web.chat(message, [], state)]
+        outputs = [output async for output in web.chat(message, [], state)]
+        blocks[:] = [output[2] for output in outputs]
+        return [output[3] for output in outputs]
 
     sent = asyncio.run(run("Pikachu ?"))
+    # Les blocs d'observabilité suivent la même règle : un retour déplié ne doit pas être redessiné sans raison.
+    assert "Réponse en cours" in blocks[0] and all(value == web.gr.skip() for value in blocks[1:-1])
+    assert escape(REJECTIONS["unverified"]) in blocks[-1]
     first, last = json.loads(sent[0]), json.loads(sent[-1])
     assert [step[1] for step in first["path"]] == ["question", "choix"] and first["running"] is True
     assert first["user_icon"].startswith("https://www.pokepedia.fr/images/")
@@ -160,6 +170,10 @@ def test_the_opening_graph_replays_the_recorded_example_without_any_model_call(w
     assert [step[1] for step in opening["path"]] == [
         "question", "choix", "guard", "mcp", "base", "budget", "redige", "reponse"]
     assert opening["path"][0][2] == web.FIRST_QUESTION and opening["running"] is False
+    # L'onglet d'observabilité montre la chaîne de la même trace, retour transmis compris.
+    blocks = web._opening_observability()
+    assert "Appel 1 · Recherche de Pokémon" in blocks and "Retour transmis au modèle" in blocks
+    assert escape(WRITTEN["answered"]) in blocks
 
 
 def test_overlong_question_is_refused_before_any_model_call(web, monkeypatch):
@@ -190,13 +204,15 @@ def test_first_documentary_search_warns_that_the_base_may_still_be_loading(web, 
     monkeypatch.setattr(web, "runner", SearchRunner())
     monkeypatch.setattr(web, "REFRESH_INTERVAL", 0.01)
     monkeypatch.setattr(web, "_documentary_base_ready", False)
+    monkeypatch.setattr(web, "LOADING_HINT_SECONDS", 0.0)
+    notice = escape(LOADING_NOTICE)
 
     async def run():
         return [output[2] async for output in web.chat("Décris Ronflex", [], web.WebSession())]
 
-    assert any("peut encore se charger" in panel for panel in asyncio.run(run()))
+    assert any(notice in panel for panel in asyncio.run(run()))
     assert web._documentary_base_ready
-    assert not any("peut encore se charger" in panel for panel in asyncio.run(run()))
+    assert not any(notice in panel for panel in asyncio.run(run()))
 
 
 def test_missing_final_response_is_not_reported_as_success(web, monkeypatch):
@@ -211,8 +227,8 @@ def test_missing_final_response_is_not_reported_as_success(web, monkeypatch):
         return [output async for output in web.chat("Pikachu ?", [], web.WebSession())]
 
     outputs = asyncio.run(run())
-    assert "Aucune réponse finale" in outputs[-1][2]
-    assert "Réponse disponible" not in outputs[-1][2]
+    assert escape(REJECTIONS["no_final_response"]) in outputs[-1][2]
+    assert escape(WRITTEN["answered"]) not in outputs[-1][2]
 
 
 def test_model_sees_the_wiki_page_instead_of_the_local_file_name():
@@ -222,16 +238,6 @@ def test_model_sees_the_wiki_page_instead_of_the_local_file_name():
     row = bounded_tool_result(passages, question="Que fait Ronflex ?")["results"][0]
     assert row["source"] == "Poképédia, page Ronflex" and "source_file" not in row
     assert passages["results"][0]["source_file"] == "0143_ronflex.md"   # la réponse MCP n'est pas modifiée
-
-
-def test_repeated_tool_calls_distinguish_received_and_pending(web):
-    activity = web._format_activity(
-        [("pokemon_types", {"pokemon": "Pikachu"}), ("pokemon_types", {"pokemon": "Raichu"})],
-        ["pokemon_types"], 2.0, "Exécution",
-    )
-    assert activity.count("Réponse reçue") == 1
-    assert activity.count("réponse en attente") == 1
-    assert "2 appel(s) d'outil" in activity
 
 
 def test_timing_counts_parallel_tools_once_and_accumulates_retries(web):
@@ -252,29 +258,6 @@ def test_timing_counts_parallel_tools_once_and_accumulates_retries(web):
     ]
 
 
-def test_pending_tool_timer_is_frozen_when_request_finishes(web):
-    timing = web.ActivityTiming()
-    timing.observe([("pokemon_types", {})], [], 1.0)
-    timing.transition("finished", 4.0)
-    panel = web._format_activity([("pokemon_types", {})], [], 9.0, "Erreur", timing)
-    assert "**⏱ 3.0 s** · en attente" in panel
-
-
-@pytest.mark.parametrize("tool, technology, description", [
-    ("pokemon_types", "base SQLite", "Consultation des données Pokémon"),
-    ("pokemon_rag_search", "Poképédia / index Chroma", "Recherche de passages textuels"),
-])
-def test_activity_explains_requested_backend_and_response_preparation(web, tool, technology, description):
-    waiting = web._format_activity([(tool, {})], [], 1.0, "Recherche en cours")
-    received = web._format_activity([(tool, {})], [tool], 2.0, "Retour reçu")
-    assert technology in waiting
-    assert description in waiting
-    assert f"Préparation de la réponse · {web.MODEL_LABEL}" not in waiting
-    assert "Réponse reçue" in received
-    assert f"Préparation de la réponse · {web.MODEL_LABEL}" in received
-    assert "passages textuels" not in waiting if tool == "pokemon_types" else "base SQLite" not in waiting
-
-
 STARTUP = {"embedding": 18.2, "reranker": 17.5, "corpus": 17.7, "bm25": 0.8, "total": 54.3}
 SEARCH = {"vector": 0.05, "bm25": 0.02, "rrf": 0.001, "reranker": 1.1, "total": 1.23}
 
@@ -283,6 +266,11 @@ def tool_event(*names, measures=(), usage=None):
     """Événement ADK réduit à ce que lit le panneau : retours d'outils, état et usage."""
     return SimpleNamespace(actions=SimpleNamespace(state_delta={"tool_timings": list(measures)} if measures else {}),
                            usage_metadata=usage)
+
+
+def blocks_of(web, calls, timing, elapsed):
+    """Blocs d'observabilité de la trace qu'écrirait une question terminée."""
+    return web.observability_html(web._web_trace("Question", "Réponse", "answered", None, calls, timing, elapsed))
 
 
 def test_panel_shows_database_loading_search_steps_sql_time_and_tokens(web):
@@ -295,19 +283,15 @@ def test_panel_shows_database_loading_search_steps_sql_time_and_tokens(web):
     usage = SimpleNamespace(prompt_token_count=2000, candidates_token_count=160)
     timing.observe([], [], 70.0, tool_event(measures=measures, usage=usage))
     timing.transition("finished", 70.0)
-    panel = web._format_activity([("pokemon_rag_search", {}), ("pokemon_types", {})],
-                                 ["pokemon_rag_search", "pokemon_types"], 70.0, "Réponse disponible", timing)
-    # Le chargement est explicite dans le résumé et détaillé sous l'appel.
-    assert "- Chargement de la base documentaire (premier appel) : 54.3 s" in panel
-    assert ("- Chargement de la base (premier appel) : 54.3 s (modèle d'embedding 18.20 s · "
-            "modèle de reclassement 17.50 s · corpus 17.70 s · index lexical 0.80 s)") in panel
-    assert ("- Recherche : 1.23 s (vectorielle 0.05 s · lexicale 0.02 s · fusion 0.00 s · "
-            "reclassement 1.10 s) · 5 passage(s)") in panel
-    assert "- Requête SQL : 48 ms" in panel
-    # Analyse 4 s + préparation 10 s = 14 s de modèle pour 200 tokens générés.
-    assert f"- {web.MODEL_LABEL} : 3200 tokens lus, 200 générés · ≈ 14 tokens/s, lecture des requêtes comprise" in panel
+    panel = blocks_of(web, [("pokemon_rag_search", {}), ("pokemon_types", {})], timing, 70.0)
+    assert escape("Chargement de la base documentaire (premier appel) : 54,30 s (modèle d'embedding 18,20 s · "
+                      "modèle de reclassement 17,50 s · corpus 17,70 s · index lexical 0,80 s)") in panel
+    assert ("Recherche : 1,23 s (par le sens 0,05 s · par les mots 0,02 s · fusion 0,00 s · "
+            "reclassement 1,10 s) · 5 passage(s)") in panel
+    assert "Requête SQL : 48 ms" in panel
+    assert "choix des outils 4,00 s · outils 56,00 s · rédaction 10,00 s · 3200 tokens lus, 200 générés" in panel
     # Chaque mesure reste sous son propre appel.
-    rag, sql = panel.split("### 1.2")
+    rag, sql = panel.split("Appel 2")
     assert "Recherche :" in rag and "Requête SQL" not in rag and "Requête SQL" in sql and "Recherche :" not in sql
 
 
@@ -329,9 +313,9 @@ def test_warm_search_shows_no_loading_and_an_empty_search_shows_zero_passages(we
     timing.observe([("pokemon_rag_search", {})], [], 1.0)
     timing.observe([], ["pokemon_rag_search"], 1.2, tool_event(
         measures=[{"tool": "pokemon_rag_search", "timings": {"total": 0.2}, "passages": 0}]))
-    panel = web._format_activity([("pokemon_rag_search", {})], ["pokemon_rag_search"], 2.0, "Retour reçu", timing)
+    panel = blocks_of(web, [("pokemon_rag_search", {})], timing, 2.0)
     assert "Chargement de la base" not in panel
-    assert "- Recherche : 0.20 s · 0 passage(s)" in panel
+    assert "Recherche : 0,20 s · 0 passage(s)" in panel
 
 
 def test_measure_follows_its_own_call_when_an_earlier_same_named_call_has_none(web):
@@ -342,16 +326,16 @@ def test_measure_follows_its_own_call_when_an_earlier_same_named_call_has_none(w
     timing.observe([("pokemon_types", {})], [], 2.0)
     timing.observe([], ["pokemon_types"], 2.1, tool_event(measures=[{"tool": "pokemon_types", "execution_time": 0.01}]))
     assert timing.measures == {1: {"tool": "pokemon_types", "execution_time": 0.01}}
-    panel = web._format_activity([("pokemon_types", {}), ("pokemon_types", {})], ["pokemon_types"] * 2, 3.0, "ok", timing)
-    refused, executed = panel.split("### 1.2")
-    assert "Requête SQL" not in refused and "- Requête SQL : 10 ms" in executed
+    panel = blocks_of(web, [("pokemon_types", {}), ("pokemon_types", {})], timing, 3.0)
+    refused, executed = panel.split("Appel 2")
+    assert "Requête SQL" not in refused and "Requête SQL : 10 ms" in executed
 
 
 def test_panel_without_measures_or_usage_is_unchanged(web):
     timing = web.ActivityTiming()
     timing.observe([("pokemon_types", {})], [], 1.0)
     timing.observe([], ["pokemon_types"], 2.0)
-    panel = web._format_activity([("pokemon_types", {})], ["pokemon_types"], 3.0, "ok", timing)
+    panel = blocks_of(web, [("pokemon_types", {})], timing, 3.0)
     assert "Requête SQL" not in panel and "tokens" not in panel and "Chargement" not in panel
 
 
