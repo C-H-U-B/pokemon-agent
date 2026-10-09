@@ -40,7 +40,8 @@ Lu depuis un dossier Windows partagé, son chargement prenait 44 secondes au lie
 de 12 sur la machine de développement. Le parcours avec Ollama a été validé le
 6 octobre : campagne structurée complète et clone neuf monté en suivant le README.
 
-Le panneau « Agent et outils en action » conserve deux parts sur cinq de la
+Le panneau de droite (onglets « Parcours » et « Temps », voir [Graphe du parcours](#graphe-du-parcours))
+conserve deux parts sur cinq de la
 disposition sur grand écran, à droite de la conversation qui occupe les trois
 autres parts. Sur petit écran, la conversation est au-dessus de l'agent.
 Les bulles utilisateur sont alignées à gauche, celles de l'assistant à droite.
@@ -102,6 +103,57 @@ un message fixe (`TECHNICAL_ERROR_MESSAGE`), sans le type ni le texte de
 l'exception, qui peuvent contenir l'adresse du serveur de modèle : le détail va
 au journal (`web_request_failed`) et au champ `error` de la trace.
 
+## Graphe du parcours
+
+Le panneau de droite a deux onglets. « Parcours », affiché à l'ouverture, dessine le chemin de la question ;
+« Temps » garde le panneau d'activité décrit plus haut, inchangé.
+
+Le graphe montre les modules réellement exécutés : la question, le modèle qui choisit l'outil, le guard, le
+serveur d'outils, puis un anneau à deux branches (la base de données d'un côté, Poképédia et ses quatre étapes
+de recherche de l'autre) qui se referme sur le budget de contexte, le modèle qui rédige et la réponse. Un
+liquide parcourt les tubes et remplit les nœuds ; un tube ne se remplit qu'une fois plein le nœud d'où il sort.
+Sous le dessin, un encart donne le rôle du nœud survolé et ce qu'il a produit, un passage par ligne, le plus
+récent en premier ; un clic épingle le nœud. Sans survol ni épinglage, l'encart suit l'étape en cours et
+affiche le temps passé dessus.
+
+`graph.py` porte le dessin (`NODES`, `EDGES`, `graph_template`), ses styles et son comportement dans le
+navigateur. Ajouter un module revient à ajouter une entrée dans `NODES` et ses liens dans `EDGES`.
+`graph_path(trace)` traduit une trace de la forme de `_web_trace`, complète ou en cours, en passages ordonnés
+(nœud de départ, nœud atteint, phrase). `chat` envoie ce parcours à l'envoi, à chaque événement de l'agent et à
+la fin, jamais au rythme du chrono ; le navigateur le déroule lui-même, un passage après l'autre. La réponse
+n'attend donc pas l'animation, qui peut finir une ou deux secondes après elle.
+
+| Issue | Parcours |
+| --- | --- |
+| Réponse rédigée d'après un résultat d'outil | jusqu'à « Réponse » |
+| Appel refusé par le guard, ou outil en erreur | retour au modèle par un tube de retour ; la question continue |
+| Question trop longue, double demande | « Votre question » → « Rejet » |
+| Abstention de budget | « Rejet » depuis le budget, ou depuis le guard ou le serveur d'outils si le dernier appel a échoué |
+| Abstention d'échec d'outil, aucune réponse finale, erreur technique | « Rejet » depuis le nœud du modèle alors sollicité |
+| Réponse écrite sans aucun appel d'outil | « Rejet » : elle n'est pas vérifiée, même si son texte est affiché |
+
+Le remplacement d'une liste infidèle par les données reste une réponse ; il est dit sur « Modèle · rédige ».
+Plusieurs outils demandés dans le même tour comptent pour un seul passage du modèle.
+
+Deux nœuds ne sont dessinés que lorsque le parcours y passe : « Rejet », et « Chargement », qui s'allume quand
+une première recherche documentaire depuis le démarrage attend depuis plus de trois secondes
+(`LOADING_HINT_SECONDS`). C'est un indice tiré de l'attente, pas l'état réel du serveur d'outils : sur une
+machine lente, il peut s'allumer alors que la base est déjà chargée.
+
+Les têtes sont des icônes de Pokémon Shuffle **liées** depuis Poképédia (`shuffle_icon`), non redistribuées :
+un Pikachu tiré au hasard à chaque question pour le visiteur, et sur « Réponse » l'espèce du premier Pokémon
+cité dans la réponse et présent dans les données. Poképédia n'a pas d'icône après la septième génération ; le
+nœud reste alors un rond. À l'ouverture, le graphe rejoue une fois, en accéléré, le parcours de l'exemple
+enregistré (`exemple_ouverture.json`, clé `trace`), sans appel au modèle.
+
+Le dessin et l'encart tiennent dans le panneau sans défilement : la hauteur du dessin est calculée dans le
+navigateur d'après le panneau, et l'encart a une hauteur fixe, où un texte long défile. Mesuré le 9 octobre
+2026 de 1920 × 950 à 1280 × 600. Les `@keyframes` du graphe sont dans `APP_CSS` : Gradio emboîte le style
+d'un composant `gr.HTML` sous un sélecteur, où ils sont ignorés.
+
+Le bouton d'envoi est inactif et libellé « Réponse en cours… » de l'envoi à la réponse ; « Nouvelle
+conversation », qui annule la question, le rétablit.
+
 ## Illustrations
 
 En haut d'une réponse, jusqu'à cinq illustrations officielles, sur une ligne
@@ -144,7 +196,8 @@ utilisés, question, issue (`answered`, `budget_abstention`,
 étape, tokens (lus, générés, de réflexion, et `output_limit_reached` quand le
 modèle s'est arrêté sur la limite de sortie), et pour chaque appel d'outil ses arguments exécutés après le
 guard (`arguments`), la proposition du modèle lorsqu'elle diffère
-(`proposed_arguments`), sa durée, ses mesures et le résultat tel que le modèle
+(`proposed_arguments`), son instant de départ (`start` : deux appels partis au même instant ont été
+demandés dans le même tour), sa durée, ses mesures et le résultat tel que le modèle
 l'a reçu. `scripts/observability/analyze_traces.py` ne lit que les traces du
 graphe et refuse ce format. Le service `web` de `compose.yaml`
 monte ce dossier. Une écriture impossible est journalisée (`web_trace_failed`)
@@ -335,6 +388,11 @@ prête 86 s après l'ouverture de la page ; question structurée en 8 à 18 s. L
 zéro instance n'est pas mesuré.
 
 ## Points non vérifiés
+
+Le graphe en direct n'a été vu que sur des parcours rejoués et sur l'exemple d'ouverture, dans un Chrome sans
+fenêtre. Restent à voir : le thème sombre, un écran tactile (pas de survol), une fenêtre de moins de 760 px de
+large, où le dessin garde une hauteur minimale et où le panneau peut défiler. La touche Entrée reste active
+pendant qu'une réponse est en cours.
 
 L'annulation d'une question abandonnée est testée à la fermeture du générateur
 `chat`, avec un agent simulé. Que Gradio ferme bien ce générateur à la fermeture

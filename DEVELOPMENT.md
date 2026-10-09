@@ -1793,3 +1793,38 @@ On opening, the first question is displayed with its answer and its artwork,
 without any model call: it is a recorded answer, which the visitor reads while
 their own question loads. A test on the real database fails if this example
 stops matching the data.
+
+
+## 93. [Feature] The path of a question drawn live
+
+The right-hand panel listed the tools called and their durations. A visitor
+who had never seen an agent could not read where their question went, nor why
+some questions got no answer.
+
+A graph now fills the first tab of that panel; the former panel stays in the
+second one. It only shows modules that really run: the question, the model
+choosing the tool, the guard, the tool server, the database or Poképédia with
+its four search steps, the context budget, the model writing, the answer. A
+liquid flows through the tubes and fills the nodes; a tube only fills once the
+node it leaves is full. A card says in plain language what each node produced,
+for instance the argument the guard added, and the time spent on the current
+step.
+
+Every outcome without an answer was listed from the code and the recorded
+traces, with the step that decides it: the rejection starts from that step. A
+call refused by the guard or a failing tool does not stop the question, the
+liquid returns to the model. An answer written without any tool call goes to
+the rejection: that was the only exact common point of answers such as "this
+is not an official concept", which a word search confused with correct
+answers.
+
+The server sends the path, built from the same trace as the one that is
+recorded, and the browser plays it by itself. The answer does not wait for the
+animation and nothing is sent at the pace of the timer. The opening example
+replays its real path this way, without any model call. The visitor is a
+randomly drawn Pikachu, and the answer bears the head of its first Pokémon.
+
+The drawing and its card fit in the window without scrolling. The measurement
+also showed that the whole page already overflowed by a few pixels, graph or
+not; the margin at fault is fixed. The send button is inactive while an answer
+is in progress.
