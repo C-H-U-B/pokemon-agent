@@ -45,7 +45,13 @@ def random_pikachu() -> str:
 
 
 QUEULORIOR, EXAGIDE, DRACOLOSSE = shuffle_icon(235), shuffle_icon(681), shuffle_icon(149)
-METALOSSE, CREHELF, MIAMIASME, RAMOLOSS = shuffle_icon(376), shuffle_icon(480), shuffle_icon(568), shuffle_icon(79)
+METALOSSE, CREHELF = shuffle_icon(376), shuffle_icon(480)
+# Tirées au sort à chaque question, une chance sur trois chacune : Miamiasme, Miasmax ou Avaltout pour un rejet ;
+# Ramoloss, Axoloto ou Psykokwak pour le chargement de la base documentaire.
+REJECT_ICONS = (shuffle_icon(568), shuffle_icon(569), shuffle_icon(316))
+LOADING_ICONS = (shuffle_icon(79), shuffle_icon(194), shuffle_icon(54))
+# Têtes fournies avec le parcours, et non dessinées une fois pour toutes dans le gabarit.
+DYNAMIC_ICONS = ("user_icon", "answer_icon", "reject_icon", "loading_icon")
 KABUTOPS = shuffle_icon(141)  # ses deux faux : le budget coupe ce que le modèle ne pourrait pas lire
 # Le liquide fonce à mesure qu'il est transformé, de la question à la réponse ; un rejet le ternit.
 PALE, ROSE, PINK, MAGENTA, DEEP, SPOILED = "#ffb3ec", "#ff7ddf", "#ff3fcf", "#e600b0", "#a3007d", "#6b7280"
@@ -60,10 +66,10 @@ NODES = [
      "role": "Le modèle de langage lit la question et décide quel outil appeler, avec quels réglages. Il ne calcule rien lui-même."},
     {"id": "guard", "label": "Guard · vérifie", "x": 210, "y": 98, "tint": ROSE, "icon": EXAGIDE,
      "role": "Un contrôle écrit en code compare l'appel du modèle à votre question : il remet une contrainte oubliée ou refuse l'appel."},
-    {"id": "rejet", "label": "Rejet", "x": 420, "y": 108, "tint": SPOILED, "icon": MIAMIASME, "transient": True,
+    {"id": "rejet", "label": "Rejet", "x": 420, "y": 108, "tint": SPOILED, "icon": "reject_icon", "transient": True,
      "role": "La question ne peut pas être traitée : l'outil le dit au lieu d'inventer une réponse."},
     # En miroir du rejet. Transitoires tous les deux : dessinés seulement quand le parcours y passe, avec leurs tubes.
-    {"id": "chargement", "label": "Chargement", "x": 0, "y": 108, "tint": PINK, "icon": RAMOLOSS, "label_left": True,
+    {"id": "chargement", "label": "Chargement", "x": 0, "y": 108, "tint": PINK, "icon": "loading_icon", "label_left": True,
      "transient": True, "role": "La base documentaire se charge en mémoire : cela n'arrive qu'après un démarrage."},
     {"id": "mcp", "label": "Serveur d'outils", "x": 210, "y": 142, "tint": PINK, "icon": DRACOLOSSE,
      "role": "Le serveur qui exécute l'outil demandé (protocole MCP) et rapporte son résultat."},
@@ -247,9 +253,14 @@ def graph_value(path: list[tuple[str, str, str]], *, question_id: str = "", runn
 
     `question_id` distingue deux questions : le navigateur reprend au début quand il change, et continue là où
     il en était quand le parcours de la même question s'allonge. `running` : le dernier passage est en cours.
+    Les têtes du rejet et du chargement sont tirées d'après `question_id` : une question garde les siennes
+    d'un envoi à l'autre, la suivante en tire de nouvelles.
     """
+    draw = random.Random(question_id)
     return json.dumps({"id": question_id, "path": path, "running": running, "speed": speed,
-                       "user_icon": user_icon, "answer_icon": answer_icon}, ensure_ascii=False)
+                       "user_icon": user_icon, "answer_icon": answer_icon,
+                       "reject_icon": draw.choice(REJECT_ICONS), "loading_icon": draw.choice(LOADING_ICONS)},
+                      ensure_ascii=False)
 
 
 def _wave(r: float) -> str:
@@ -310,7 +321,7 @@ def graph_template() -> str:
                      f'<path class="edge fill" pathLength="100" style="--liquid:{b["tint"]};--dur:{duration}s" {ends}/>')
     for node in NODES:
         icon = node.get("icon")
-        dynamic = icon in ("user_icon", "answer_icon")  # tête fournie avec l'état : Pikachu du visiteur, Pokémon de la réponse
+        dynamic = icon in DYNAMIC_ICONS  # Pikachu du visiteur, Pokémon de la réponse, têtes tirées au sort
         r = 18 if icon and not dynamic else 5.5 if node.get("sub") else 9
         kind = "dynamic plain" if dynamic else "icon" if icon else "sub" if node.get("sub") else "plain"
         kind += " transient" if node.get("transient") else ""

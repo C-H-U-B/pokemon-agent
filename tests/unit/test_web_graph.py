@@ -133,6 +133,13 @@ def test_the_value_sent_to_the_browser_is_the_ordered_path_with_its_question():
     sent = json.loads(graph.graph_value(path, question_id="q1", running=True, user_icon="pikachu"))
     assert [tuple(step) for step in sent["path"]] == path and sent["id"] == "q1" and sent["running"] is True
     assert sent["user_icon"] == "pikachu" and _nodes(path).count("guard") == 2
+    # Têtes du rejet et du chargement : les mêmes tout au long d'une question, tirées de nouveau à la suivante.
+    again = json.loads(graph.graph_value(path[:2], question_id="q1"))
+    assert (again["reject_icon"], again["loading_icon"]) == (sent["reject_icon"], sent["loading_icon"])
+    draws = [json.loads(graph.graph_value([], question_id=f"q{number}")) for number in range(300)]
+    for key, icons in (("reject_icon", graph.REJECT_ICONS), ("loading_icon", graph.LOADING_ICONS)):
+        counts = [sum(draw[key] == icon for draw in draws) for icon in icons]
+        assert sum(counts) == 300 and min(counts) > 60, counts   # une chance sur trois chacune
 
 
 def test_the_loading_node_is_on_the_path_only_while_the_pending_search_loads_the_base():
@@ -143,4 +150,4 @@ def test_the_loading_node_is_on_the_path_only_while_the_pending_search_loads_the
     assert loading[-1][:2] == ("mcp", "chargement") and ("mcp", "chargement") in {edge[:2] for edge in graph.EDGES}
     # Résultat reçu : le parcours repart du serveur d'outils, sans le chargement.
     assert "chargement" not in _nodes(_path("answered", _search()))
-    assert 'class="node icon transient" data-id="chargement"' in graph.graph_template()
+    assert 'class="node dynamic plain transient" data-id="chargement"' in graph.graph_template()

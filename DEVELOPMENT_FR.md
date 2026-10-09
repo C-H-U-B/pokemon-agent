@@ -1982,4 +1982,6 @@ graphe, correction d'un appel). Un refus ou un rejet garde le gris du liquide
 terni, dans le graphe comme dans l'onglet « Observabilité ».
 
 Le budget de contexte, seul nœud majeur du graphe sans tête, reçoit Kabutops :
-ses deux faux coupent ce que le modèle ne pourrait pas lire.
+ses deux faux coupent ce que le modèle ne pourrait pas lire. Le rejet et le
+chargement de la base documentaire tirent leur tête au sort à chaque question,
+parmi trois chacun.

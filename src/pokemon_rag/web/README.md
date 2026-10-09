@@ -46,7 +46,7 @@ conserve deux parts sur cinq de la
 disposition sur grand écran, à droite de la conversation qui occupe les trois
 autres parts. Sur petit écran, la conversation est au-dessus de l'agent.
 Les bulles utilisateur sont alignées à gauche, celles de l'assistant à droite.
-Les boutons de copie restent sous le texte, alignés avec leur bulle.
+Le bouton de copie est à côté de sa bulle, dans la marge.
 La hauteur est adaptée à la fenêtre et les contenus longs défilent à
 l'intérieur des panneaux, plutôt que d'allonger la page.
 La conversation reçoit le texte
@@ -67,7 +67,7 @@ lit donc librement ; à l'arrivée de la réponse, elle revient sur la dernière
 L'historique n'a pas de bandeau de titre. Les lignes de saisie et d'actions
 gardent une hauteur limitée à leur contenu pour laisser l'espace à la conversation.
 Une grille réserve au chat toute la hauteur restante, sans hauteur fixe.
-Une bulle « … » reste visible pendant
+Une bulle d'attente à trois points animés reste visible pendant
 l'exécution puis est remplacée par la réponse ou le message d'erreur. Elle
 indique l'attente, y compris pendant les outils, sans exposer de raisonnement.
 Une exécution sans texte final est dite dans le bloc « Réponse » de l'onglet « Observabilité », distincte
@@ -90,9 +90,11 @@ du rose pâle de la question au magenta foncé de la réponse. Trois couleurs on
 | Turquoise | les données rendues | bulle de la réponse, encart du graphe, identifiant d'outil, retours dépliés, étape qui a modifié l'appel ou le retour |
 
 Le reste est neutre : paillasse en papier millimétré gris-bleu, panneaux en verre. Le gris d'un liquide terni
-marque un rejet ou un refus, dans le graphe comme dans l'onglet. Dans cet onglet, chaque étape porte la teinte de son nœud dans le
-graphe. Thème et styles sont appliqués par le point d'entrée au lancement (`demo.launch`) : une modification
-ne se voit qu'après relance.
+marque un rejet ou un refus, dans le graphe comme dans l'onglet. Dans cet onglet, chaque étape porte la
+teinte de son nœud dans le graphe. Thème et styles sont appliqués par le point d'entrée au lancement
+(`demo.launch`) : une modification ne se voit qu'après relance. Le thème sombre suit les mêmes règles
+(`?__theme=dark`) : titre éclairci, barres de défilement du panneau assombries ; celle de la conversation
+reste claire.
 
 ## Graphe du parcours
 
@@ -133,9 +135,11 @@ machine lente, il peut s'allumer alors que la base est déjà chargée.
 
 Les têtes sont des icônes de Pokémon Shuffle **liées** depuis Poképédia (`shuffle_icon`), non redistribuées.
 Chaque nœud majeur a la sienne ; celle du budget de contexte est Kabutops, dont les faux coupent ce que le
-modèle ne pourrait pas lire. Deux têtes changent :
-un Pikachu tiré au hasard à chaque question pour le visiteur, et sur « Réponse » l'espèce du premier Pokémon
-cité dans la réponse et présent dans les données. Poképédia n'a pas d'icône après la septième génération ; le
+modèle ne pourrait pas lire. Quatre têtes changent d'une question à l'autre :
+un Pikachu tiré au hasard pour le visiteur ; sur « Réponse », l'espèce du premier Pokémon
+cité dans la réponse et présent dans les données ; sur « Rejet », Miamiasme, Miasmax ou Avaltout ; sur
+« Chargement », Ramoloss, Axoloto ou Psykokwak, une chance sur trois chacun (`REJECT_ICONS`, `LOADING_ICONS`,
+tirage fixé par l'identifiant de la question). Poképédia n'a pas d'icône après la septième génération ; le
 nœud reste alors un rond. À l'ouverture, le graphe rejoue une fois, en accéléré, le parcours de l'exemple
 enregistré (`exemple_ouverture.json`, clé `trace`), sans appel au modèle.
 
@@ -433,11 +437,14 @@ zéro instance n'est pas mesuré.
 
 ## Points non vérifiés
 
-Le graphe en direct n'a été vu que sur des parcours rejoués et sur l'exemple d'ouverture, dans un Chrome sans
-fenêtre. Restent à voir : le thème sombre, un écran tactile (pas de survol), une fenêtre de moins de 760 px de
-large, où le dessin garde une hauteur minimale et où le panneau peut défiler. L'onglet « Observabilité » et
-l'arrêt de la touche Entrée pendant une réponse ont été vus sur une réponse rejouée par un agent simulé
-(Chrome sans fenêtre, 1534 × 693 et 1920 × 950, 9 octobre 2026), pas sur une réponse d'un vrai modèle.
+Le graphe, l'onglet « Observabilité » et la charte graphique ont été essayés par l'utilisateur avec Qwen en
+local le 9 octobre 2026 (dix questions tracées, dont trois descriptions). Les mesures de mise en page
+(page sans défilement, défilement de l'onglet à la molette, bloc déplié conservé, thème sombre) viennent
+d'un Chrome sans fenêtre à 1534 × 693 et 1920 × 950, sur l'exemple d'ouverture et sur des réponses rejouées
+par un agent simulé. L'arrêt de la touche Entrée pendant une réponse n'a été vu que sur une réponse rejouée.
+Restent à voir : un écran tactile (pas de survol), une fenêtre de moins de 760 px de large, où le dessin
+garde une hauteur minimale, la position de la question après une réponse longue, et tout cela sur la démo
+hébergée, où rien de ce qui suit l'entrée 94 de l'historique n'est déployé.
 
 L'annulation d'une question abandonnée est testée à la fermeture du générateur
 `chat`, avec un agent simulé. Que Gradio ferme bien ce générateur à la fermeture
