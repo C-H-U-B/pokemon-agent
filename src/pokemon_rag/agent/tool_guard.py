@@ -208,6 +208,27 @@ def before_tool_guard(
                 if entity.get("form"):
                     required["form"] = entity["form"]
             else:
+                # Le nom proposé est remplacé s'il désigne la même espèce (casse, forme, faute de frappe du
+                # modèle) ou s'il est une mauvaise traduction (« Gourgeist » pour Gouroutan). Le nom français
+                # d'une autre espèce, ou un nom inconnu repris de la question, était exécuté sur le Pokémon
+                # nommé sans que rien le signale : le modèle redemandait la même fiche jusqu'à l'abstention,
+                # ou attribuait le résultat au Pokémon qu'il avait demandé (traces du 9 au 12 octobre :
+                # 9 cas, 7 abstentions, 2 réponses fausses).
+                proposed = corrected.get("pokemon")
+                if isinstance(proposed, str) and proposed.strip():
+                    try:
+                        other = extract_named_pokemon(proposed, pokemon_name_catalogue())
+                    except ValueError:
+                        other = None
+                    text = f"-{normalize(proposed)}-"
+                    french_name_of_another = bool(other) and other["pokemon"] != entity["pokemon"] and (
+                        f"-{normalize(other['pokemon'])}-" in text)
+                    unknown_from_question = other is None and text in f"-{normalize(question)}-"
+                    if french_name_of_another or unknown_from_question:
+                        return {"error": "other_pokemon_than_question", "selected_tool": tool_name,
+                                "required_arguments": entity,
+                                "message": f"Appel non exécuté : il visait {proposed}, alors que la question ne "
+                                           f"désigne que {entity['pokemon']}. Aucun fait sur {proposed} n'a été lu."}
                 corrected.update(entity)
         if tool_name == "pokemon_search":
             corrected = reconcile_search_args(question, corrected)
