@@ -1,0 +1,10 @@
+# Appels visant un autre Pokémon que celui que le guard reconnaît dans la question (traces Qwen du 9 octobre :
+# 2 réponses fausses sur Mimigale, nom inconnu de la base, et 1 abstention). Attendu : aucun fait attribué à Mimigale ou Écoli.
+en quoi évoluent carmache et mimigale ?
+est ce que mimigale évolue en migalos ?
+donne moi l'attaque de écoli et gouroutan
+# Après la reprise du moteur structuré (12 octobre) : règle d'évolution en vigueur, jeu par défaut d'une capacité, forme « default ».
+Comment obtenir chaque évolution d'Évoli ?
+Comment évolue Pikachu dans Pokémon Écarlate et Violet ?
+Pikachu peut-il apprendre Éclair ?
+Quelles CT Anchwatt peut-il apprendre ?

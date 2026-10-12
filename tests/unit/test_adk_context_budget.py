@@ -711,3 +711,24 @@ def test_a_sheet_without_the_requested_rubric_stays_whole():
     result = bounded_tool_result({"structuredContent": {"operation": "get_particularities", "rows": [dict(sheet)]}},
                                  question="Dans quels jeux Tropius est-il absent ?")
     assert result["rows"][0] == sheet
+
+
+def test_evolution_rows_reach_the_model_without_internal_identifiers_and_all_fit():
+    # Régression : avec les identifiants internes, 6 des 8 évolutions d'Évoli tenaient sous le plafond.
+    def side(name, form=None):
+        return {"species_id": 133, "identifier": name.lower(), "name_fr": name, "name_en": name + " (en)",
+                "form": form and {"form_id": 10202, "identifier": f"{name.lower()}-{form}", "form_identifier": form,
+                                  "pokemon_id": 10100, "species_id": 26, "is_default": 0}}
+    default_form = {"form_id": 133, "identifier": "eevee", "form_identifier": None, "pokemon_id": 133,
+                    "species_id": 133, "is_default": 1}
+    raw = {"operation": "get_evolutions", "pokemon": "Évoli", "count": 8, "evolutions": [
+        {"evolution_id": index, "from": {**side("Évoli"), "form": default_form}, "to": side(f"Cible{index}"),
+         "trigger": "use-item", "trigger_fr": "utilisation d'un objet", "version_group": "sword-shield",
+         "conditions": {"trigger_item": {"fr": "Pierre Plante", "en": "Leaf Stone"}}} for index in range(8)]}
+    raw["evolutions"][-1]["to"] = side("Raichu", "alola")
+    seen = bounded_tool_result(raw, question="Comment obtenir chaque évolution d'Évoli ?")
+    assert len(seen["evolutions"]) == 8 and not seen.get("context_truncated")
+    assert seen["evolutions"][0]["from"] == {"name_fr": "Évoli"} and seen["evolutions"][0]["to"] == {"name_fr": "Cible0"}
+    # Une forme non par défaut reste lisible : sans elle, Raichu d'Alola passait pour Raichu.
+    assert seen["evolutions"][-1]["to"] == {"name_fr": "Raichu", "form": "alola"}
+    assert "evolution_id" not in seen["evolutions"][0]

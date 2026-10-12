@@ -2076,3 +2076,50 @@ L'agent transmet désormais les passages sous cette forme ; la réponse du serve
 d'outils ne change pas. Le modèle ne sait plus de quel jeu vient une
 description. Gemini répond à la question après une seule recherche, et la
 campagne des descriptions reste entièrement réussie avec Qwen.
+
+## 101. [Bug fix] Un autre Pokémon que celui de la question n'est plus remplacé en silence
+
+Sur la démo, Gemini semblait redemander trois fois la fiche de Dracaufeu avant
+de s'abstenir. Les traces ont montré autre chose : pour composer une sélection
+autour de Dracaufeu, il demandait la fiche de Noacier ou les capacités de
+Tortank, et le guard exécutait chaque appel sur Dracaufeu, seul Pokémon nommé
+dans la question, sans le signaler. Le modèle recevait donc une fiche qu'il
+n'avait pas demandée et recommençait.
+
+Le même remplacement avait produit deux réponses fausses avec Qwen : une
+évolution de Carmache attribuée à un autre Pokémon, mal orthographié dans la
+question. Dans les traces, remplacer une espèce par une autre n'avait jamais
+donné une réponse juste.
+
+Le guard continue de rétablir le nom quand le modèle écrit le même Pokémon
+autrement : casse, forme, faute de frappe, mauvaise traduction. Quand l'appel
+porte le nom français d'une autre espèce, ou un nom inconnu repris de la
+question, il le refuse et dit lequel n'a pas été consulté. Qwen ne prête plus de
+fait au Pokémon mal orthographié, et la campagne structurée ne rencontre pas ce
+refus. Les questions qui demandent réellement un second Pokémon restent sans
+réponse.
+
+## 102. [Bug fix] Une liste vide seulement quand la demande a été comprise
+
+Un audit des onze outils structurés, appelés directement avec des entrées
+limites, a montré que plusieurs renvoyaient une liste vide pour une demande
+qu'ils n'avaient pas reconnue. Le modèle lit une liste vide comme un fait :
+« n'évolue pas », « n'apprend pas cette capacité ».
+
+Le cas le plus large touchait les évolutions. Avec un jeu, l'outil ne gardait que
+les règles introduites dans ce jeu : Pikachu n'évoluait plus dans Écarlate et
+Violet, et la liste était vide pour la plupart des espèces. Il renvoie désormais
+la règle en vigueur dans le jeu demandé, c'est-à-dire la plus récente introduite
+au plus tard dans ce jeu, et une seule règle par évolution quand aucun jeu n'est
+donné. L'agent ne transmet plus au modèle les identifiants internes de chaque
+évolution : avec eux, six des huit évolutions d'Évoli seulement tenaient dans le
+budget de contexte, et la réponse omettait les deux autres sans le dire.
+
+Les autres corrections suivent la même règle. Un jeu inconnu est refusé par tous
+les outils de capacités et d'évolutions. Une forme inconnue est refusée par la
+recherche, et « mega » y couvre toutes les Méga-Évolutions. « default » ou
+« base » désignent la forme par défaut au lieu de faire échouer l'appel. Pour
+savoir comment un Pokémon apprend une capacité, le jeu retenu par défaut est le
+dernier où il l'apprend : le jeu le plus récent de la base n'a qu'un movepool
+réduit, et Éclair y passait pour non apprise par Pikachu. Entre deux homonymes,
+le nom français l'emporte. Un nom de Pokémon inconnu est signalé comme tel.

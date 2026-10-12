@@ -269,6 +269,17 @@ def _presentation_data(data: dict, question: str, args: dict) -> dict:
         data["context_compacted"] = True
     if operation == "get_evolutions":
         for evolution in data.get("evolutions", []):
+            if isinstance(evolution, dict):
+                # Identifiants internes retirés : à 430 octets par ligne, les 8 évolutions d'Évoli
+                # dépassaient le plafond et le modèle n'en recevait que 6, sans signaler la coupe.
+                evolution.pop("evolution_id", None)
+                for side in ("from", "to"):
+                    species = evolution.get(side)
+                    if isinstance(species, dict):
+                        form = species.get("form") if isinstance(species.get("form"), dict) else {}
+                        evolution[side] = {key: species[key] for key in ("name_fr", "name_en") if species.get(key)}
+                        if form.get("form_identifier") and not form.get("is_default"):
+                            evolution[side]["form"] = form["form_identifier"]
             if isinstance(evolution, dict) and evolution.get("trigger_fr"):
                 evolution["trigger"] = evolution.pop("trigger_fr")  # libellé français seul pour le modèle
             if isinstance(evolution, dict) and isinstance(evolution.get("conditions"), dict):

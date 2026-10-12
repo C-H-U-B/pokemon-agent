@@ -674,3 +674,27 @@ def test_real_db_named_stats_and_particularities():
     assert exclusive("Meltan") is None and exclusive("Dracolosse") is None
     therian = engine.get_particularities("Boréas Totémique")["rows"][0]  # forme de Noir 2/Blanc 2
     assert "Version exclusive à l'introduction" not in therian and "Rencontre ou obtention à l'introduction" not in therian
+
+
+@pytest.mark.real_data
+def test_unknown_form_is_refused_not_read_as_no_pokemon() -> None:
+    # Régression : une forme inconnue ne filtrait rien et renvoyait zéro ligne sans erreur.
+    from pokemon_rag.structured.query_engine import search_pokemon
+    for form in ("gigamax", "xyz"):
+        with pytest.raises(ValueError, match="Forme inconnue"):
+            search_pokemon(form=form)
+    assert search_pokemon(form="alola", limit=0)["total_count"] == 18
+
+
+@pytest.mark.real_data
+def test_mega_as_a_form_covers_every_mega_evolution() -> None:
+    # Régression : form="mega" ne retenait pas Méga-Dracaufeu X ou Y (71 lignes sur 78).
+    from pokemon_rag.structured.query_engine import search_pokemon
+    assert (search_pokemon(form="mega", limit=0)["total_count"]
+            == search_pokemon(form_category="mega", limit=0)["total_count"])
+
+
+@pytest.mark.real_data
+def test_default_as_a_form_is_the_default_catalogue() -> None:
+    from pokemon_rag.structured.query_engine import search_pokemon
+    assert search_pokemon(form="default", limit=0)["total_count"] == search_pokemon(limit=0)["total_count"]
