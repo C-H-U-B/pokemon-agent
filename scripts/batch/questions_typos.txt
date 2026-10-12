@@ -1,0 +1,8 @@
+# Pokémon écrits avec une faute de frappe, pour l'agent ADK (traces Web du 6 au 12 octobre : « mimigale » six fois,
+# « écoli » deux fois ; avant le rapprochement, Qwen répondait « Mimigale n'a pas été trouvé », s'abstenait, ou ne
+# traitait que Gouroutan). Attendu : le nom exact est rétabli et la réponse porte sur Mimigal, Évoli ou Ronflex.
+# Lu dans pokemon.db le 12 octobre : Mimigal évolue en Migalos au niveau 22 ; Ronflex pèse 460 kg.
+en quoi évoluent carmache et mimigale ?
+est ce que mimigale évolue en migalos ?
+donne moi l'attaque de écoli et gouroutan
+quel est le poids de ronflexx ?

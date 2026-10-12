@@ -1524,6 +1524,25 @@ def _talent_names(path: str, modified: int | None) -> frozenset[str]:
         return frozenset(map(_normalize, _known_values(conn, ("talent_1", "talent_2", "talent_cache"))))
 
 
+def vocabulary_words() -> frozenset[str]:
+    """Mots des noms de capacités, d'objets, de types et de talents, normalisés, lus une fois par état de la base.
+
+    Le guard ADK les écarte du rapprochement des fautes de frappe : « Mimique » est une capacité, pas Mimiqui.
+    """
+    modified = DB_PATH.stat().st_mtime_ns if DB_PATH.exists() else None
+    return _vocabulary_words(str(DB_PATH), modified)
+
+
+@lru_cache(maxsize=2)
+def _vocabulary_words(path: str, modified: int | None) -> frozenset[str]:
+    """path et modified ne servent que de clé : une base reconstruite est relue."""
+    with closing(_connect()) as conn:
+        names = [alias for table, names_table, column in (
+            ("moves", "move_names", "move_id"), ("items", "item_names", "item_id"), ("types", "type_names", "type_id"))
+            for _, alias in _fast_db_names(conn, table, names_table, column)]
+    return frozenset(word for name in (*names, *talent_names()) for word in _normalize(name).split("-"))
+
+
 def _catalogue_value(conn: sqlite3.Connection, name: str, value: str | None,
                      columns: tuple[str, ...], separator: str | None = None) -> str | None:
     """Valeur du tableur désignée par un filtre, comparée exactement après normalisation.

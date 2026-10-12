@@ -13,7 +13,8 @@ from pokemon_rag.constraints.query_constraints import (
     normalize,
     named_version_groups, without_unjustified_filters,
 )
-from pokemon_rag.structured.query_engine import pokemon_name_catalogue, get_pokedex_identity, talent_names
+from pokemon_rag.structured.query_engine import (pokemon_name_catalogue, get_pokedex_identity, talent_names,
+                                                 vocabulary_words)
 
 
 VERSION_GROUP_TOOLS = {
@@ -102,12 +103,12 @@ def _call_target(question: str, tool_name: str, args: dict[str, Any]) -> dict[st
     lequel rétablir. Le rapprochement des résultats est laissé au modèle.
     """
     catalogue = pokemon_name_catalogue()
-    mentions = named_pokemon_mentions(question, catalogue)
+    mentions = named_pokemon_mentions(question, catalogue, vocabulary_words())
     if len(mentions) < 2:
         return mentions[0] if mentions else None
     proposed = args.get("pokemon")
     try:
-        other = extract_named_pokemon(proposed, catalogue) if isinstance(proposed, str) else None
+        other = extract_named_pokemon(proposed, catalogue, vocabulary_words()) if isinstance(proposed, str) else None
     except ValueError:
         other = None
     number = args.get("pokedex_number") if tool_name == "pokemon_search" else None
@@ -168,7 +169,7 @@ def before_tool_guard(
         # Types, identité ou particularités ne décrivent pas un Pokémon : sans ce refus, le modèle
         # disposait d'un résultat valide mais hors sujet et rédigeait la description de mémoire.
         try:
-            entity = extract_named_pokemon(question, pokemon_name_catalogue())
+            entity = extract_named_pokemon(question, pokemon_name_catalogue(), vocabulary_words())
         except ValueError:
             entity = None
         return {"error": "documentary_question_requires_search", "selected_tool": tool_name,
@@ -249,7 +250,7 @@ def before_tool_guard(
                 proposed = corrected.get("pokemon")
                 if isinstance(proposed, str) and proposed.strip():
                     try:
-                        other = extract_named_pokemon(proposed, pokemon_name_catalogue())
+                        other = extract_named_pokemon(proposed, pokemon_name_catalogue(), vocabulary_words())
                     except ValueError:
                         other = None
                     text = f"-{normalize(proposed)}-"

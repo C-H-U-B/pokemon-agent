@@ -10,7 +10,8 @@ from contextlib import closing
 import pytest
 
 from pokemon_rag.config import DB_PATH
-from pokemon_rag.constraints.query_constraints import extract_explicit_constraints
+from pokemon_rag.constraints.query_constraints import extract_explicit_constraints, named_pokemon_mentions
+from pokemon_rag.structured.query_engine import pokemon_name_catalogue, vocabulary_words
 
 pytestmark = pytest.mark.real_data
 
@@ -49,3 +50,17 @@ def test_every_subgroup_of_the_spreadsheet_is_recognised_by_its_own_name():
             "SELECT DISTINCT sous_groupe FROM custom_pokedex_fr WHERE sous_groupe IS NOT NULL")
             for part in cell.split(" ; ") if part.strip()} - {"Fabuleux", "Méga-Évolution"}
     assert {name for name in subgroups if extract_subgroup(f"Quels sont les {name} ?") != name} == set()
+
+
+@pytest.mark.parametrize("question,expected", [
+    ("en quoi évoluent carmache et mimigale ?", ["Carmache", "Mimigal"]),   # traces Web, six fois
+    ("donne moi l'attaque de écoli et gouroutan", ["Évoli", "Gouroutan"]),  # traces Web, deux fois
+    ("quel est le poids de ronflexx ?", ["Ronflex"]),
+    ("Quels Pokémon apprennent Mimique ?", []),          # capacité, pas Mimiqui
+    ("Qui a le talent Armure Miroir ?", []),             # talent, pas Airmure
+    ("Capacités de type Eau dans Pokémon Diamant", []),  # jeu, pas Diamat
+    ("Quel nombre de Pokémon Ombre ou Magma ?", []),     # ni Lombre ni Magmar
+])
+def test_one_typo_names_a_pokemon_but_the_vocabulary_of_the_database_does_not(question, expected):
+    mentions = named_pokemon_mentions(question, pokemon_name_catalogue(), vocabulary_words())
+    assert [mention["pokemon"] for mention in mentions] == expected

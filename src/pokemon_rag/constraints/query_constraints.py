@@ -159,16 +159,42 @@ def normalize(text: str | None) -> str:
     return re.sub(r"[^a-z0-9]+", "-", value).strip("-")
 
 
-def named_pokemon_mentions(question: str, catalogue: list[tuple[str, str, str | None]]) -> list[dict]:
+def _one_edit(word: str, name: str) -> bool:
+    """Une seule faute de frappe sépare word de name : lettre changée, ajoutée, oubliée ou deux voisines inversées."""
+    if len(word) == len(name):
+        diff = [i for i, (a, b) in enumerate(zip(word, name)) if a != b]
+        return len(diff) == 1 or (len(diff) == 2 and diff[1] == diff[0] + 1
+                                  and word[diff[0]] == name[diff[1]] and word[diff[1]] == name[diff[0]])
+    short, long = sorted((word, name), key=len)
+    return len(long) == len(short) + 1 and any(long[:i] + long[i + 1:] == short for i in range(len(long)))
+
+
+def named_pokemon_mentions(question: str, catalogue: list[tuple[str, str, str | None]],
+                           known_words: frozenset[str] | None = None) -> list[dict]:
     """Espèces nommées dans l'ordre de la question, chacune avec sa forme ; deux formes d'une espèce sont refusées.
 
-    Mentions exactes avec frontières ; pas de nom déduit ou de matching flou.
+    Mentions exactes avec frontières ; pas de nom déduit. Avec known_words, un mot à une faute de frappe
+    d'un seul nom français d'espèce la désigne aussi (« mimigale », « ronflexx », « ecoli ») : nom d'un seul
+    mot d'au moins cinq lettres, même initiale, et mot absent de known_words, le vocabulaire que l'appelant
+    sait ne pas être une faute (« Mimique » n'est pas Mimiqui, « armure » n'est pas Airmure).
     """
     text = "-" + normalize(question) + "-"
     hits = []
     for alias, species, form in catalogue:
         for match in re.finditer(rf"(?=-{re.escape(normalize(alias))}-)", text):
             hits.append((match.start(), match.start() + len(normalize(alias)) + 1, species, form))
+    if known_words is not None:
+        names = {normalize(species): species for _, species, _ in catalogue}
+        exact = {normalize(alias) for alias, _, _ in catalogue}
+        for word in re.finditer(r"[a-z0-9]+", text):
+            token = word.group()
+            if token in known_words or token in exact or token in VERSION_ALIASES or any(
+                    start < word.start() and word.end() <= end for start, end, _, _ in hits):
+                continue
+            close = [species for name, species in names.items() if len(name) >= 5 and "-" not in name
+                     and name[0] == token[0] and _one_edit(token, name)]
+            if len(close) == 1:
+                hits.append((word.start() - 1, word.end(), close[0], None))
     # Un alias complet de forme contient souvent aussi le nom de l'espèce.
     hits = [hit for hit in hits if not any(other[0] <= hit[0] and hit[1] <= other[1]
             and other[1]-other[0] > hit[1]-hit[0] for other in hits)]
@@ -180,9 +206,10 @@ def named_pokemon_mentions(question: str, catalogue: list[tuple[str, str, str | 
     return list(mentions.values())
 
 
-def extract_named_pokemon(question: str, catalogue: list[tuple[str, str, str | None]]) -> dict | None:
+def extract_named_pokemon(question: str, catalogue: list[tuple[str, str, str | None]],
+                          known_words: frozenset[str] | None = None) -> dict | None:
     """Le seul Pokémon nommé, ou None ; plusieurs espèces ou formes sont refusées."""
-    mentions = named_pokemon_mentions(question, catalogue)
+    mentions = named_pokemon_mentions(question, catalogue, known_words)
     if len(mentions) > 1:
         raise ValueError("Plusieurs Pokémon ou formes explicites : précisez une cible unique.")
     return mentions[0] if mentions else None

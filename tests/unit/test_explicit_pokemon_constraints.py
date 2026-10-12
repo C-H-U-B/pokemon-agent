@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from pokemon_rag.agent.tool_guard import before_tool_guard
-from pokemon_rag.constraints.query_constraints import extract_named_pokemon, reconcile_search_args
+from pokemon_rag.constraints.query_constraints import extract_named_pokemon, named_pokemon_mentions, reconcile_search_args
 
 
 CATALOGUE = [("gouroutan","Gouroutan",None), ("sinistrail","Sinistrail",None),
@@ -28,6 +28,30 @@ def test_form_alias_wins_over_contained_species_and_multiple_targets_are_blocked
         extract_named_pokemon("Compare Gouroutan et Sinistrail", CATALOGUE)
     assert extract_named_pokemon("Des Pokémon Eau", CATALOGUE) is None
     assert extract_named_pokemon("Gouroutanus", CATALOGUE) is None
+
+
+TYPO_CATALOGUE = [(name.casefold(), name, None) for name in (
+    "Mimigal", "Ronflex", "Évoli", "Carmache", "Lombre", "Mimiqui", "Mew", "Aquali", "Aquala")]
+
+
+@pytest.mark.parametrize("question,expected", [
+    ("types de mimigale", ["Mimigal"]), ("ronflexx", ["Ronflex"]), ("que fait écoli ?", ["Évoli"]),
+    ("Ronlfex", ["Ronflex"]),                                         # deux lettres voisines inversées
+    ("en quoi évoluent carmache et mimigale ?", ["Carmache", "Mimigal"]),
+    ("quel nombre de Pokémon ?", []),                                 # « nombre » n'a pas l'initiale de Lombre
+    ("en quoi évolue Ronflex ?", ["Ronflex"]),                        # « évolue » est à deux lettres d'Évoli
+    ("qui apprend Mimique ?", []),                                    # vocabulaire connu de l'appelant
+    ("mex", []), ("aquale", []),                                      # nom trop court ; deux noms à une lettre
+    ("ronflexxx", []),                                                # deux fautes
+])
+def test_one_typo_names_the_only_close_french_species(question, expected):
+    mentions = named_pokemon_mentions(question, TYPO_CATALOGUE, frozenset({"mimique"}))
+    assert [mention["pokemon"] for mention in mentions] == expected
+
+
+def test_typos_are_ignored_without_a_vocabulary():
+    # Le graphe et le client MCP n'en fournissent pas : leur comparaison reste exacte.
+    assert named_pokemon_mentions("types de mimigale", TYPO_CATALOGUE) == []
 
 
 def test_named_identity_refuses_search_with_required_compatible_call(monkeypatch):

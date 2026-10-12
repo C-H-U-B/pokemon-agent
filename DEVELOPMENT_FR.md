@@ -2162,3 +2162,36 @@ Aquali portait la taille et la durée du retour d'Évoli. Les deux appels
 s'exécutent en même temps et leurs mesures arrivent dans l'ordre où ils se
 terminent, alors que l'interface les rattachait au premier appel du même nom.
 Chaque mesure porte désormais l'identifiant de son appel.
+
+## 104. [Feature] Un nom de Pokémon mal écrit est reconnu
+
+Les visiteurs écrivent les noms comme ils s'en souviennent : « mimigale » revient
+six fois dans les traces de l'interface, « écoli » deux fois. Le nom n'était
+reconnu nulle part, la comparaison des noms étant exacte. Seul dans la question,
+il était transmis tel quel et déclaré introuvable. À côté d'un second Pokémon
+bien écrit, l'appel qui le visait était refusé comme visant une autre espèce :
+Qwen répondait « Mimigale n'a pas été trouvé », s'abstenait, ou ne traitait que
+l'autre Pokémon.
+
+Le guard reconnaît désormais un mot à une seule faute de frappe d'un nom français
+d'espèce : une lettre changée, ajoutée, oubliée, ou deux voisines inversées. Il
+rétablit le nom exact, que le modèle ait recopié la faute ou l'ait corrigée.
+
+Le risque est de prendre un mot courant pour un Pokémon : « Mimique » est une
+capacité à une lettre de Mimiqui, « armure » un mot de talent à une lettre
+d'Airmure, « nombre » est à une lettre de Lombre, « Diamant » de Diamat. Une
+question de liste serait alors ramenée de force à un Pokémon. Le rapprochement
+est donc étroit : le nom tient en un mot d'au moins cinq lettres, garde son
+initiale, et le mot n'est proche que d'une seule espèce. Les mots des noms de
+capacités, d'objets, de types, de talents et de jeux ne sont jamais lus comme une
+faute. Sur les 492 questions des traces, des fichiers de rejeu et du guide, seuls
+« mimigale » et « écoli » sont rapprochés.
+
+Deux fautes (« dracofeu »), un nom court (« Mew ») ou composé (« M. Mime ») ne
+sont pas corrigés. Le graphe et le client MCP gardent la comparaison exacte.
+
+Rejouées avec Qwen, les quatre questions à faute reçoivent une réponse sur le
+bon Pokémon : Migalos au niveau 22 pour « mimigale », 460 kg pour « ronflexx ».
+La réponse reprend souvent l'orthographe du visiteur. Sur « l'attaque de écoli
+et gouroutan », Qwen a ajouté de lui-même un filtre de type Normal, que le guard
+ne retire pas : les deux listes sont justes mais partielles.
