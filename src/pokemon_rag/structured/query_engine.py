@@ -199,6 +199,32 @@ def _resolve_type(conn: sqlite3.Connection, value: str) -> sqlite3.Row:
     return matches[0]
 
 
+_NEUTRAL_FORMS = {"default", "defaut", "base", "normal", "normale"}
+
+
+def _explicit_form(form: str | None) -> str | None:
+    """« default », « base » ou « normal » désignent la forme par défaut : aucune forme demandée.
+
+    Le modèle remplit parfois form ainsi sans que la question nomme une forme ; aucun
+    identifiant de forme ne porte ces valeurs, et l'appel entier était refusé.
+    """
+    return None if isinstance(form, str) and _normalize(form) in _NEUTRAL_FORMS else form
+
+
+def _french_first(matches: list, name: str) -> list:
+    """Départage des homonymes : le nom français écrit tel quel, puis le nom français normalisé.
+
+    « Charge » est le nom français d'une capacité et le nom anglais d'une autre ; la normalisation
+    retire ♀ et ♂ de « Nidoran ». Sans départage unique, l'ambiguïté reste.
+    """
+    for same in (lambda row: (row["name_fr"] or "").casefold() == name.strip().casefold(),
+                 lambda row: _normalize(row["name_fr"]) == _normalize(name)):
+        preferred = [row for row in matches if same(row)]
+        if len(preferred) == 1:
+            return preferred
+    return matches
+
+
 def _resolve_version_id(conn: sqlite3.Connection, version_group: str | None) -> int | None:
     if version_group is None:
         return None
@@ -262,6 +288,7 @@ def get_pokemon_moves(
     max_level: int | None = None, limit: int = 30, offset: int = 0,
 ) -> dict[str, Any]:
     """Movepool unique d'une forme, avec propriétés actuelles, sans union historique."""
+    form = _explicit_form(form)
     _page_arguments(limit, offset)
     if not isinstance(pokemon, str) or not pokemon.strip():
         raise ValueError("pokemon doit être un nom non vide.")
@@ -345,8 +372,13 @@ def search_pokemon(
 
     Une forme par défaut par espèce sans form ; une forme explicite ne replie
     jamais vers la forme par défaut. Les filtres de capacités sont existentiels
-    et portent tous sur une même relation d'apprentissage.
+    et portent tous sur une même relation d'apprentissage. Une forme que la base ne
+    connaît pas est refusée : sans ce contrôle elle ne filtrait rien et renvoyait zéro ligne.
     """
+    form = _explicit_form(form)
+    if isinstance(form, str) and _normalize(form) == "mega" and form_category is None:
+        # « mega » seul ne nomme pas une forme : « mega-x », « mega-y », « mega-z » lui échappaient.
+        form, form_category = None, "mega"
     _page_arguments(limit, offset)
     _bounded_integer("pokedex_number", pokedex_number, 1)
     _bounded_integer("generation", generation, 1)
@@ -377,6 +409,9 @@ def search_pokemon(
         if form is None and form_category is None:
             clauses.extend(["p.is_default=1", "pf.is_default=1"])
         elif form is not None:
+            if not conn.execute("""SELECT 1 FROM pokemon_forms pf WHERE normalize(pf.form_identifier)=?
+                    OR normalize(pf.identifier)=? LIMIT 1""", [_normalize(form)] * 2).fetchone():
+                raise ValueError(f"Forme inconnue : {form!r}. Exemples : alola, galar, hisui, paldea, mega-x.")
             clauses.append("(normalize(pf.form_identifier)=? OR normalize(pf.identifier)=?)")
             params.extend([_normalize(form)] * 2)
         if form_category == "mega":
@@ -566,21 +601,35 @@ def _name_catalogue(path: str, modified: int | None) -> tuple[tuple[str, str, st
         return tuple(entries)
 
 
-def _legacy_movepool_version(conn, pokemon_ids, version_group, all_versions, method=None):
+def _legacy_movepool_version(conn, pokemon_ids, version_group, all_versions, method=None, move_id=None):
+    """Jeu retenu : explicite et connu, tous, ou le plus récent ayant des données.
+
+    Avec move_id : le plus récent où cette capacité est apprise. Le dernier jeu ne porte parfois
+    qu'un movepool réduit, et « Pikachu apprend-il Éclair ? » y lisait une absence. Capacité
+    jamais apprise : le dernier movepool reste retenu et la liste est vide.
+    """
     if type(all_versions) is not bool:
         raise ValueError("all_versions doit être un booléen.")
     if version_group and all_versions:
         raise ValueError("all_versions est incompatible avec un jeu unique.")
     if version_group or all_versions:
+        # Un jeu inconnu ne filtrait aucune ligne : la liste vide passait pour un fait.
+        _resolve_version_id(conn, version_group or None)
         return version_group, "explicit" if version_group else "all_versions"
     placeholders = ",".join("?" for _ in pokemon_ids)
-    method_sql = " AND pmm.identifier=?" if method else ""
-    row = conn.execute(f"""SELECT vg.identifier FROM pokemon_moves pm
-        JOIN version_groups vg ON vg.id=pm.version_group_id
-        JOIN pokemon_move_methods pmm ON pmm.id=pm.pokemon_move_method_id
-        WHERE pm.pokemon_id IN ({placeholders}){method_sql}
-        ORDER BY vg.\"order\" DESC, vg.id DESC LIMIT 1""",
-        [*pokemon_ids, *([method] if method else [])]).fetchone()
+
+    def latest(condition: str, values: list) -> sqlite3.Row | None:
+        return conn.execute(f"""SELECT vg.identifier FROM pokemon_moves pm
+            JOIN version_groups vg ON vg.id=pm.version_group_id
+            JOIN pokemon_move_methods pmm ON pmm.id=pm.pokemon_move_method_id
+            WHERE pm.pokemon_id IN ({placeholders}){condition}
+            ORDER BY vg."order" DESC, vg.id DESC LIMIT 1""", [*pokemon_ids, *values]).fetchone()
+
+    row = None
+    if move_id is not None:
+        row = latest(" AND pm.move_id=?", [move_id])
+    if row is None:
+        row = latest(" AND pmm.identifier=?" if method else "", [method] if method else [])
     return (row[0] if row else None), "latest_available"
 
 
@@ -711,6 +760,7 @@ def _resolve_species(conn: sqlite3.Connection, name: str) -> sqlite3.Row:
 
     if not matches:
         raise ValueError(f"Pokémon introuvable dans pokemon.db : {name!r}")
+    matches = _french_first(matches, name)
     if len(matches) > 1:
         raise ValueError(f"Nom de Pokémon ambigu : {name!r}")
     return matches[0]
@@ -920,6 +970,16 @@ def get_evolutions(
     form: str | None = None,
     version_group: str | None = None,
 ) -> dict[str, Any]:
+    """Évolutions suivantes d'un Pokémon, selon la règle en vigueur.
+
+    Une règle vaut depuis le jeu qui l'introduit jusqu'à celui qui la remplace pour la même
+    cible. Avec version_group : règles en vigueur dans ce jeu, donc introduites au plus tard
+    dans ce jeu (« Pikachu dans Écarlate et Violet » garde la Pierre Foudre de Rouge et Bleu).
+    Sans version_group : la plus récente pour chaque cible. `version_group` de chaque
+    évolution reste le jeu d'introduction de la règle. Les règles remplacées ne sont plus
+    renvoyées.
+    """
+    form = _explicit_form(form)
     start = time.perf_counter()
     conn = _connect()
 
@@ -930,30 +990,33 @@ def get_evolutions(
         )
         source_form_ids = {r["form_id"] for r in source_forms}
 
-        params: list[Any] = [source_species["species_id"]]
-        version_sql = ""
-        if version_group:
-            version_sql = " AND vg.identifier = ?"
-            params.append(version_group)
-
+        version_id = _resolve_version_id(conn, version_group or None)
         rows = conn.execute(
-            f"""
-            SELECT
-                pe.*,
-                et.identifier AS trigger_identifier,
-                vg.identifier AS version_group_identifier
-            FROM pokemon_evolution pe
-            JOIN pokemon_species target
-              ON target.id = pe.evolved_species_id
-            LEFT JOIN evolution_triggers et
-              ON et.id = pe.evolution_trigger_id
-            LEFT JOIN version_groups vg
-              ON vg.id = pe.version_group_id
-            WHERE target.evolves_from_species_id = ?
-            {version_sql}
-            ORDER BY pe.version_group_id, pe.id
+            """
+            SELECT * FROM (
+                SELECT
+                    pe.*,
+                    et.identifier AS trigger_identifier,
+                    vg.identifier AS version_group_identifier,
+                    RANK() OVER (
+                        PARTITION BY pe.evolved_species_id, pe.evolved_pokemon_form_id,
+                                     pe.required_pokemon_form_id
+                        ORDER BY vg."order" DESC
+                    ) AS recency
+                FROM pokemon_evolution pe
+                JOIN pokemon_species target
+                  ON target.id = pe.evolved_species_id
+                LEFT JOIN evolution_triggers et
+                  ON et.id = pe.evolution_trigger_id
+                JOIN version_groups vg
+                  ON vg.id = pe.version_group_id
+                WHERE target.evolves_from_species_id = ?
+                  AND (? IS NULL OR vg."order" <= (SELECT "order" FROM version_groups WHERE id = ?))
+            )
+            WHERE recency = 1
+            ORDER BY version_group_id, id
             """,
-            params,
+            (source_species["species_id"], version_id, version_id),
         ).fetchall()
 
         evolutions = []
@@ -1045,6 +1108,7 @@ def _resolve_move(conn: sqlite3.Connection, name: str) -> sqlite3.Row:
     ]
     if not matches:
         raise ValueError(f"Capacité introuvable dans pokemon.db : {name!r}")
+    matches = _french_first(matches, name)
     if len(matches) > 1:
         raise ValueError(f"Nom de capacité ambigu : {name!r}")
     return matches[0]
@@ -1089,6 +1153,7 @@ def get_move_learning_methods(
     version_group: str | None = None,
     all_versions: bool = False,
 ) -> dict[str, Any]:
+    form = _explicit_form(form)
     start = time.perf_counter()
     conn = _connect()
     try:
@@ -1096,7 +1161,7 @@ def get_move_learning_methods(
         pokemon_ids = [row["pokemon_id"] for row in forms]
         move_row = _resolve_move(conn, move)
         version_group, version_selection = _legacy_movepool_version(
-            conn, pokemon_ids, version_group, all_versions)
+            conn, pokemon_ids, version_group, all_versions, move_id=move_row["move_id"])
 
         placeholders = ",".join("?" for _ in pokemon_ids)
         params: list[Any] = [*pokemon_ids, move_row["move_id"]]
@@ -1162,6 +1227,7 @@ def get_level_up_moves(
     if min_level is not None and max_level is not None and min_level > max_level:
         raise ValueError("min_level ne peut pas être supérieur à max_level.")
 
+    form = _explicit_form(form)
     start = time.perf_counter()
     conn = _connect()
     try:
@@ -1237,6 +1303,7 @@ def get_machine_moves(
     all_versions: bool = False,
 ) -> dict[str, Any]:
     """CT du jeu demandé, ou du plus récent avec des données de CT pour la forme."""
+    form = _explicit_form(form)
     start = time.perf_counter()
     conn = _connect()
     try:
@@ -1316,6 +1383,7 @@ def _pokedex_entry(pokemon: str, form: str | None) -> dict[str, Any]:
         raise ValueError("pokemon doit être un nom non vide.")
     if form is not None and (not isinstance(form, str) or not _normalize(form)):
         raise ValueError("form doit être null ou un nom de forme non vide.")
+    form = _explicit_form(form)
     conn = _connect()
     try:
         rows = [dict(row) for row in conn.execute("SELECT * FROM custom_pokedex")]
@@ -1356,6 +1424,11 @@ def _pokedex_entry(pokemon: str, form: str | None) -> dict[str, Any]:
         matches = [row for row in candidates if row["species_id"] in species and (target in {
             _normalize(row.get(key)) for key in ("form_fr", "form_en", "form_identifier", "name_fr", "name_en")
         } or (target in _REGION_FORMS and _normalize(row.get("form_identifier")).endswith("-" + target)))]
+    if not matches and not form and species_id is None:
+        # Nom inconnu : « précisez la forme » envoyait le modèle chercher une forme d'un nom qui n'existe pas.
+        raise ValueError(f"Pokémon introuvable dans pokemon.db : {pokemon!r}")
+    if len(matches) > 1:
+        matches = _french_first(matches, pokemon)
     if len(matches) != 1:
         raise ValueError("Entrée Pokédex introuvable ou ambiguë ; précisez le nom complet de la forme.")
     entry = matches[0]

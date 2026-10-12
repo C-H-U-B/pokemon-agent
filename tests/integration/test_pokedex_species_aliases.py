@@ -83,3 +83,15 @@ def test_moves_retain_french_names_and_technical_identifiers():
     assert "omega-ruby-alpha-sapphire" in {
         move["version_group"] for move in result["moves"]
     }
+
+
+def test_unknown_name_is_reported_as_unknown_and_gendered_nidoran_resolves() -> None:
+    from pokemon_rag.structured.query_engine import get_pokemon_types, get_evolutions
+    # Régression : « précisez le nom complet de la forme » pour un nom qui n'existe pas.
+    with pytest.raises(ValueError, match="Pokémon introuvable"):
+        get_pokemon_types("Mimigale")
+    # La normalisation retire ♀ et ♂ : le nom français écrit tel quel départage.
+    assert get_pokemon_types("Nidoran♀")["rows"][0]["name_fr"] == "Nidoran♀"
+    assert get_evolutions("Nidoran♂")["evolutions"][0]["to"]["identifier"] == "nidorino"
+    with pytest.raises(ValueError):
+        get_evolutions("Nidoran")

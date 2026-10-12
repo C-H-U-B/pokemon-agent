@@ -1999,3 +1999,48 @@ The agent now passes the passages in that form; the tool server's answer is
 unchanged. The model no longer knows which game a description comes from. Gemini
 answers the question after a single search, and the description campaign still
 passes entirely with Qwen.
+
+## 101. [Bug fix] Another Pokémon than the one in the question is no longer replaced silently
+
+On the demo, Gemini seemed to ask three times for Charizard's sheet before
+abstaining. The traces showed something else: to build a selection around
+Charizard, it asked for Ferrothorn's sheet or Blastoise's moves, and the guard
+ran each call on Charizard, the only Pokémon named in the question, without
+saying so. The model therefore received a sheet it had not asked for and tried
+again.
+
+The same replacement had produced two wrong answers with Qwen: an evolution of
+Gabite attributed to another Pokémon, misspelt in the question. In the traces,
+replacing one species with another had never given a right answer.
+
+The guard still restores the name when the model writes the same Pokémon
+differently: case, form, typo, wrong translation. When the call carries the
+French name of another species, or an unknown name taken from the question, it
+refuses it and says which one was not looked up. Qwen no longer attributes a fact
+to the misspelt Pokémon, and the structured campaign does not meet this refusal.
+Questions that really require a second Pokémon remain unanswered.
+
+## 102. [Bug fix] An empty list only when the request was understood
+
+An audit of the eleven structured tools, called directly with edge-case inputs,
+showed that several returned an empty list for a request they had not
+recognised. The model reads an empty list as a fact: "does not evolve", "does not
+learn this move".
+
+The widest case concerned evolutions. With a game, the tool kept only the rules
+introduced in that game: Pikachu no longer evolved in Scarlet and Violet, and the
+list was empty for most species. It now returns the rule in force in the
+requested game, that is the latest one introduced no later than that game, and a
+single rule per evolution when no game is given. The agent no longer passes the
+internal identifiers of each evolution to the model: with them, only six of
+Eevee's eight evolutions fit within the context budget, and the answer left out
+the other two without saying so.
+
+The other fixes follow the same rule. An unknown game is refused by every move
+and evolution tool. An unknown form is refused by the search, where "mega" now
+covers every Mega Evolution. "default" or "base" mean the default form instead of
+failing the call. To know how a Pokémon learns a move, the game chosen by default
+is the latest one where it learns it: the most recent game in the database only
+has a reduced movepool, and Thunder Shock passed there as not learned by
+Pikachu. Between two homonyms, the French name wins. An unknown Pokémon name is
+reported as such.

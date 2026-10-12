@@ -308,26 +308,35 @@ def test_negative_level() -> None:
         get_level_up_moves("Pikachu", min_level=-1)
 
 
-def test_unknown_version_contract() -> None:
-    level = get_level_up_moves(
-        "Pikachu",
-        version_group="version-inexistante",
-    )
-    machine = get_machine_moves(
-        "Pikachu",
-        version_group="version-inexistante",
-    )
-    methods = get_move_learning_methods(
-        "Pikachu",
-        "Tonnerre",
-        version_group="version-inexistante",
-    )
+@pytest.mark.parametrize("call", [
+    lambda version: get_level_up_moves("Pikachu", version_group=version),
+    lambda version: get_machine_moves("Pikachu", version_group=version),
+    lambda version: get_move_learning_methods("Pikachu", "Tonnerre", version_group=version),
+])
+@pytest.mark.parametrize("version", ["version-inexistante", "Écarlate et Violet", "epee-bouclier"])
+def test_unknown_version_is_refused_not_read_as_an_empty_movepool(call, version) -> None:
+    # Régression : un jeu inconnu ne filtrait aucune ligne, et la liste vide passait pour « n'apprend rien ».
+    with pytest.raises(ValueError, match="Groupe de versions inconnu"):
+        call(version)
 
-    assert level["count"] == 0
-    assert level["moves"] == []
 
-    assert machine["count"] == 0
-    assert machine["moves"] == []
+def test_learning_methods_default_to_the_latest_game_where_the_move_is_learned() -> None:
+    # Régression : le dernier jeu de la base ne porte qu'un movepool réduit ; Éclair, apprise au
+    # niveau 1 dans Écarlate et Violet, y était lue comme non apprise.
+    result = get_move_learning_methods("Pikachu", "Éclair")
+    assert result["version_selection"] == "latest_available"
+    assert result["count"] >= 1
+    assert {method["version_group"] for method in result["methods"]} == {result["version_group"]}
+    # Capacité jamais apprise : toujours une liste vide, sur le dernier movepool.
+    assert get_move_learning_methods("Pikachu", "Lance-Flammes")["count"] == 0
 
-    assert methods["count"] == 0
-    assert methods["methods"] == []
+
+def test_french_move_name_wins_over_the_english_name_of_another_move() -> None:
+    # « Charge » : Tackle en français, et nom anglais de Chargeur.
+    assert get_move_learning_methods("Pikachu", "Charge")["move"]["identifier"] == "tackle"
+
+
+@pytest.mark.parametrize("form", ["default", "base", "Normal"])
+def test_neutral_form_means_the_default_form(form) -> None:
+    assert get_machine_moves("Anchwatt", form=form)["moves"] == get_machine_moves("Anchwatt")["moves"]
+    assert get_level_up_moves("Raichu", form=form)["moves"] == get_level_up_moves("Raichu")["moves"]

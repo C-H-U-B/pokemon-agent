@@ -110,25 +110,40 @@ def test_evoli_has_multiple_historical_evolution_rules() -> None:
     assert "flareon" in targets
 
 
-def test_version_filter_is_strict() -> None:
+def test_version_filter_keeps_the_rules_in_force_in_that_game() -> None:
+    # Régression : le filtre ne gardait que les règles introduites dans le jeu demandé, donc 3 évolutions
+    # d'Évoli sur 8 dans Épée et Bouclier, et aucune pour Pikachu dans Écarlate et Violet.
     result = get_evolutions("Évoli", version_group="sword-shield")
 
     assert result["version_group"] == "sword-shield"
-    assert result["count"] > 0
-    assert all(
-        evolution["version_group"] == "sword-shield"
-        for evolution in result["evolutions"]
-    )
+    targets = [evolution["to"]["identifier"] for evolution in result["evolutions"]]
+    assert sorted(targets) == ["espeon", "flareon", "glaceon", "jolteon", "leafeon", "sylveon", "umbreon", "vaporeon"]
+    # Givrali : la Pierre Glace d'Épée et Bouclier remplace le lieu des jeux précédents.
+    assert find_evolution(result, "glaceon")["version_group"] == "sword-shield"
+    assert find_evolution(result, "vaporeon")["version_group"] == "red-blue"
+
+    assert find_evolution(get_evolutions("Pikachu", version_group="scarlet-violet"), "raichu") is not None
 
 
-def test_unknown_version_returns_no_rule() -> None:
-    result = get_evolutions(
-        "Pikachu",
-        version_group="version-inexistante",
-    )
+def test_version_filter_excludes_rules_introduced_later() -> None:
+    targets = {evolution["to"]["identifier"]
+               for evolution in get_evolutions("Évoli", version_group="red-blue")["evolutions"]}
+    assert targets == {"vaporeon", "jolteon", "flareon"}
 
-    assert result["count"] == 0
-    assert result["evolutions"] == []
+
+def test_one_rule_per_target_without_version() -> None:
+    # Régression : une ligne par jeu d'introduction, 19 lignes pour les 8 évolutions d'Évoli.
+    targets = [evolution["to"]["identifier"] for evolution in get_evolutions("Évoli")["evolutions"]]
+    assert len(targets) == len(set(targets)) == 8
+
+
+def test_unknown_version_is_refused_not_read_as_no_evolution() -> None:
+    with pytest.raises(ValueError, match="Groupe de versions inconnu"):
+        get_evolutions("Pikachu", version_group="version-inexistante")
+
+
+def test_neutral_form_means_no_form() -> None:
+    assert get_evolutions("Pikachu", form="default")["evolutions"] == get_evolutions("Pikachu")["evolutions"]
 
 
 @pytest.mark.parametrize(

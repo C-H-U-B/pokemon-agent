@@ -247,7 +247,21 @@ Chaque résultat de recherche inverse indique son jeu ; le movepool indique
 `version_group`, `version_group_explicit` et `version_selection`.
 Les propriétés des capacités restent actuelles, sans historicisation ;
 `move_properties="current_not_historicized"` le rappelle.
-Les anciens outils gardent leur sélection de versions et leur API.
+Les anciens outils (`get_level_up_moves`, `get_machine_moves`,
+`get_move_learning_methods`) refusent eux aussi un jeu inconnu au lieu de renvoyer
+une liste vide. Sans jeu, `get_move_learning_methods` retient le dernier jeu où la
+capacité est apprise, puis le dernier movepool si elle ne l'est jamais : le jeu le
+plus récent de la base ne porte qu'un movepool réduit.
+
+`get_evolutions` renvoie la règle en vigueur : avec `version_group`, les règles
+introduites au plus tard dans ce jeu, la plus récente pour chaque cible ; sans
+jeu, la plus récente. Le `version_group` d'une évolution est le jeu qui a
+introduit sa règle. Les règles remplacées ne sont plus renvoyées.
+
+`form` valant « default », « base » ou « normal » désigne la forme par défaut dans
+toutes les fonctions. `search_pokemon` refuse une forme inconnue de la base et lit
+`form="mega"` comme `form_category="mega"`. Entre plusieurs homonymes, le nom
+français écrit tel quel l'emporte (« Charge », « Nidoran♀ »).
 
 Les capacités sont uniques par `move_id`. Leur champ `learning` conserve les
 couples méthode/niveau satisfaisant les filtres, sans dupliquer les capacités.
