@@ -20,6 +20,14 @@ def request(text="Question courte"):
     return LlmRequest(contents=[types.Content(role="user", parts=[types.Part(text=text)])])
 
 
+def result_as_text(req):
+    """Résultat d'outil tel que la rédaction le reçoit : un texte, sans aucune structure d'appel à imiter."""
+    assert not any(part.function_call or part.function_response for content in req.contents for part in content.parts)
+    label, _, payload = req.contents[-1].parts[0].text.partition(chr(10))
+    assert label.startswith("Résultat de l'outil ")
+    return json.loads(payload)
+
+
 def test_mcp_structured_result_is_not_sent_twice():
     data = {"results": [{"name_fr": "Regieleki", "base_speed": 200}], "total_count": 1}
     response = {"structuredContent": data, "content": [{"type": "text", "text": json.dumps(data)}], "isError": False}
@@ -126,7 +134,8 @@ def test_final_ranking_formulation_omits_tools_only_for_complete_results(best,to
     original = deepcopy(req.contents)
     assert before_model_budget(SimpleNamespace(state={}),req) is None
     assert (req.config.tools == []) == disable
-    assert req.contents == original
+    # Rédaction : le résultat entier, en texte ; sinon l'historique reste tel quel, aucune contrainte retirée.
+    assert result_as_text(req) == data if disable else req.contents == original
 
 
 @pytest.mark.parametrize("turns", [
@@ -478,7 +487,8 @@ def test_passages_are_formulated_without_the_catalogue_instead_of_a_budget_abste
     assert budget_size(req.config.tools) > 7500
     assert before_model_budget(SimpleNamespace(state={}), req) is None
     assert req.config.tools == []
-    assert req.contents[-1].parts[0].function_response.response == LONG_PASSAGES  # aucun passage retiré
+    # Régression Gemini : devant un historique d'appels, le modèle relançait des recherches sans outil déclaré.
+    assert result_as_text(req) == LONG_PASSAGES  # aucun passage retiré
 
 
 @pytest.mark.parametrize("result, question", [
@@ -719,3 +729,14 @@ def test_a_sheet_without_the_requested_rubric_stays_whole():
     result = bounded_tool_result({"structuredContent": {"operation": "get_particularities", "rows": [dict(sheet)]}},
                                  question="Dans quels jeux Tropius est-il absent ?")
     assert result["rows"][0] == sheet
+
+
+def test_count_page_reaches_the_formulation_as_its_total_only():
+    # Régression Qwen : « returned_count 0 » lu à la place de « total_count 65 » (« 0 Pokémon sont de type Spectre »).
+    data = {"operation":"search_pokemon","best_only":False,"results":[],"total_count":65,"returned_count":0,
+            "limit":0,"offset":0,"truncated":True,"has_more":True}
+    req = formulation_request("pokemon_search", data, "Combien de Pokémon sont de type Spectre ?")
+    original = deepcopy(data)
+    assert before_model_budget(SimpleNamespace(state={}), req) is None
+    assert result_as_text(req) == {"operation":"search_pokemon","best_only":False,"total_count":65}
+    assert data == original  # le résultat de l'outil n'est pas modifié

@@ -454,6 +454,7 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
         logger.warning("double_request_refusal")
         return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=DOUBLE_REQUEST_REFUSAL)]))
     passages, structured = _any_passage(llm_request.contents), _structured_result_present(llm_request.contents)
+    formulation = False
     if passages and has_structured_request(question) and not structured:
         # Description obtenue, fait structuré encore à demander (« décris X et donne ses types ») :
         # catalogue et passages ne tiennent pas ensemble dans le budget, et sans outil le modèle
@@ -468,6 +469,7 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
         # Phase de formulation, comme dans le client MCP : les faits restent
         # intégralement présents, sans transmettre à nouveau le catalogue.
         config.tools = []
+        formulation = True
     for tool in config.tools or []:
         for declaration in getattr(tool, "function_declarations", None) or []:
             if declaration.description:
@@ -488,7 +490,38 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
     callback_context.state["temp:every_tool_call_failed"] = (
         _every_tool_call_failed(llm_request.contents)
         or (is_purely_documentary(question) and not _any_passage(llm_request.contents)))
+    if formulation:
+        llm_request.contents = _history_as_text(llm_request.contents)
     return None
+
+
+_COUNT_PAGE_NOISE = {"results", "returned_count", "limit", "offset", "truncated", "has_more"}
+
+
+def _history_as_text(contents: list) -> list:
+    """Historique de la rédaction sans structure d'appel : chaque résultat d'outil devient un texte.
+
+    Sans catalogue, Gemini imitait les appels de l'historique et relançait des recherches jusqu'à
+    l'abstention de budget, la réponse déjà reçue ; ni une consigne ni `tool_choice: none` ne
+    l'arrêtaient. Les résultats restent entiers ; les contenus d'origine ne sont pas modifiés.
+    """
+    history = []
+    for content in contents:
+        parts = []
+        for part in content.parts or []:
+            if part.function_response:
+                response = part.function_response.response
+                if isinstance(response, dict) and response.get("limit") == 0 and response.get("results") == []:
+                    # Page de comptage : seul le total est un fait. Lu en texte, « returned_count 0 »
+                    # à côté de « total_count 65 » donnait « 0 Pokémon » chez Qwen (3 fois sur 16).
+                    response = {key: value for key, value in response.items() if key not in _COUNT_PAGE_NOISE}
+                parts.append(types.Part(text=f"Résultat de l'outil {part.function_response.name} :\n"
+                                             + json.dumps(response, ensure_ascii=False, default=_dump)))
+            elif not part.function_call:
+                parts.append(part)
+        if parts:
+            history.append(types.Content(role=content.role, parts=parts))
+    return history
 
 
 def _every_tool_call_failed(contents: list) -> bool:
