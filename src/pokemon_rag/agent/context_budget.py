@@ -302,15 +302,27 @@ def _structured_content(response: dict[str, Any]) -> Any:
     return data
 
 
-def _readable_sources(data: dict[str, Any]) -> None:
-    """Passages documentaires : la page Poképédia remplace le nom du fichier local.
+def _readable_passages(data: dict[str, Any]) -> None:
+    """Passages documentaires : source lisible et texte en prose, sans balisage de liste ni numéro de morceau.
 
     Le modèle cite ses sources telles qu'il les reçoit ; « 0143_ronflex.md » ne dit rien au lecteur.
+    Les descriptions du Pokédex arrivent en liste « ;code de jeu » / « :texte », coupée au milieu par le
+    découpage : Gemini y lisait un extrait à compléter et relançait une recherche au lieu de rédiger
+    (Psykokwak, 12 octobre : abstention 9 fois sur 9 ainsi, réponse après une recherche 3 fois sur 3 en
+    prose). Retirer un seul de ces éléments ne suffit pas (2 réponses sur 9).
     """
     for row in data.get("results") or []:
-        if isinstance(row, dict) and row.get("source_file") and row.get("pokemon"):
+        if not isinstance(row, dict):
+            continue
+        if row.get("source_file") and row.get("pokemon"):
             del row["source_file"]
             row["source"] = f"Poképédia, page {row['pokemon']}"
+        if isinstance(row.get("text"), str):
+            # ponytail: le code du jeu (« ;Ep ») et le numéro d'épisode sont perdus ; les traduire en noms
+            # de jeux si une question sur la description d'un jeu précis doit être servie.
+            row["text"] = " ".join(line.lstrip(":").strip() for line in row["text"].splitlines()
+                                   if line.strip() and not line.startswith(";"))
+            row.pop("chunk_number", None)
 
 
 def bounded_tool_result(response: dict[str, Any], *, keep_english: bool = False,
@@ -329,7 +341,7 @@ def bounded_tool_result(response: dict[str, Any], *, keep_english: bool = False,
     if not keep_english:
         data = _french_fields(data)
     data = _presentation_data(data, question, args or {})
-    _readable_sources(data)
+    _readable_passages(data)
     if _size(data) > MAX_TOOL_RESULT_BYTES and data.get("operation") == "get_pokemon_moves":
         # Avant de couper des lignes, ne garder que les faits demandés de chaque capacité.
         fields = _requested_move_fields(question, args or {})

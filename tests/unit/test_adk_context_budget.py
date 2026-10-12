@@ -458,6 +458,21 @@ def test_passages_and_the_catalogue_fit_together_in_the_request_budget():
     assert req.contents[-1].parts[0].function_response.response == LONG_PASSAGES  # aucun passage retiré
 
 
+def test_pokedex_description_list_reaches_the_model_as_prose():
+    # Régression : la liste « ;jeu / :texte » coupée par le découpage faisait relancer une recherche à Gemini.
+    from pokemon_rag.agent.context_budget import bounded_tool_result
+    raw = {"question": "q", "pokemon": "Psykokwak", "results": [
+        {"text": ";PM\n:Ses pouvoirs lui donnent des migraines.\n;Ep\n:Il a toujours la migraine ; elle s'atténue.\n;NPSnap",
+         "pokemon": "Psykokwak", "source_file": "0054_psykokwak.md", "section_path": "Descriptions du Pokédex",
+         "chunk_number": 9},
+        {"text": "Psykokwak est un canard.\nIl se tient la tête.", "pokemon": "Psykokwak", "section_path": "Physionomie"}]}
+    first, second = bounded_tool_result(raw, question="q")["results"]
+    assert first["text"] == "Ses pouvoirs lui donnent des migraines. Il a toujours la migraine ; elle s'atténue."
+    assert "chunk_number" not in first and first["section_path"] == "Descriptions du Pokédex"
+    assert second["text"] == "Psykokwak est un canard. Il se tient la tête."  # aucune phrase perdue hors liste
+    assert raw["results"][0]["chunk_number"] == 9                             # la réponse MCP n'est pas modifiée
+
+
 @pytest.mark.parametrize("result, question", [
     (NO_PASSAGE, "À quoi ressemble Mimiqui ?"),                       # recherche vide : nouvelle tentative possible
     (TIMEOUT, "À quoi ressemble Mimiqui ?"),                          # erreur : nouvelle tentative possible

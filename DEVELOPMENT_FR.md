@@ -2054,3 +2054,25 @@ contre une auparavant ; les deux autres n'ont pas de réponse dans les données.
 Avec Qwen, la campagne structurée reste entièrement réussie, sans appel
 supplémentaire, pour environ trois secondes de plus par question, le catalogue
 étant relu au moment de rédiger.
+
+## 100. [Bug fix] Des passages en prose pour que le modèle rédige
+
+Avec le catalogue disponible à chaque tour, Gemini ne rédigeait toujours pas
+certaines réponses documentaires. À « Pourquoi Psykokwak a-t-il toujours mal à
+la tête ? », le premier résultat contenait la réponse, et le modèle relançait
+pourtant une recherche jusqu'à l'abstention.
+
+Ses requêtes suivantes ont montré ce qu'il cherchait : une cause, puis les
+descriptions d'autres jeux, absentes du corpus. Les descriptions du Pokédex lui
+arrivaient en liste, un code de jeu par ligne, coupée au milieu par le découpage
+en morceaux : il y lisait un extrait à compléter.
+
+Une sonde a comparé plusieurs remèdes sur cette question. Une ligne de consigne
+l'autorisant à rédiger avec ce qu'il avait reçu n'a rien changé. Retirer un seul
+élément de la liste non plus. Les mêmes passages en prose, sans codes de jeux ni
+numéro de morceau, l'ont fait rédiger à chaque essai.
+
+L'agent transmet désormais les passages sous cette forme ; la réponse du serveur
+d'outils ne change pas. Le modèle ne sait plus de quel jeu vient une
+description. Gemini répond à la question après une seule recherche, et la
+campagne des descriptions reste entièrement réussie avec Qwen.

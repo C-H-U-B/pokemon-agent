@@ -92,7 +92,10 @@ complète et le Pokémon ciblé. Des types ou une identité Pokédex ne sont pas
 preuves de description physique. L'agent doit s'en tenir aux passages retrouvés,
 citer leurs sources et signaler une description indisponible s'ils ne suffisent
 pas. Dans la vue du modèle, chaque passage porte `source` (« Poképédia, page Ronflex ») à la
-place du nom du fichier local, que la réponse MCP garde dans `source_file`. Ce choix reste réalisé par le modèle, sans routage déterministe ajouté au guard.
+place du nom du fichier local, que la réponse MCP garde dans `source_file`, et son texte est mis en prose :
+les descriptions du Pokédex, indexées en liste « ;code de jeu » / « :texte » que le découpage coupe au milieu,
+arrivent sans codes, sans numéro de morceau et en un paragraphe. En liste, Gemini lisait un extrait à compléter
+et relançait une recherche au lieu de rédiger ; le modèle ne sait donc plus de quel jeu vient une description. Ce choix reste réalisé par le modèle, sans routage déterministe ajouté au guard.
 
 Les instructions de réponse privilégient les champs français des outils et
 les noms français des jeux, sans traductions anglaises ajoutées sauf demande
