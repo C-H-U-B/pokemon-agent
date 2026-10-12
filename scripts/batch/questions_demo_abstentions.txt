@@ -1,0 +1,30 @@
+# Questions de visiteurs terminées en budget_abstention sur la démo les 10 et 11 octobre 2026
+# (Gemini 3.8 Flash, révision pokemon-agent-00004-8nj, 21 sur 70). Orthographe d'origine conservée.
+# Usage : python scripts/batch/run_questions.py scripts/batch/questions_demo_abstentions.txt --agent
+# Résultat à lire dans traces/web_traces.jsonl, pas dans la console.
+# Plusieurs n'ont pas de réponse dans les données (« bidon », « le plus fort ») : une abstention y est
+# attendue ; ce qui compte est sa raison et le nombre d'appels.
+
+les pokémons avant la 6ème génération ne sont donc pas de type fée ?
+qui est le plus lourd entre ronflex et célébi ?
+quel pokémon est basé sur le chien ?
+quel pokemon est amoureux ?
+bidon
+quelle est la plus grande famille de pokemon ?
+montre moi une image de la forme banc de froussardine
+Pourquoi Psykokwak a-t-il toujours mal à la tête ?
+quel pokémon ressemble le plus à une teub ?
+quel est le plus fort des pokemons
+Qui est le pkémon le plus sympatique envers les humains ?
+Quel est le pokémon aux long le plus long ?
+Quel est le pokémon au nom le plus long ?
+Construis une sélection, incluant dracaufeu, de 6 pokémon avec des résistances et faiblesses qui se compense (pour chaque faiblesse il faut au moins une résistence par un pokémon de la sélection).
+Construis une sélection, incluant dracaufeu, de 2 pokémon avec des résistances et faiblesses qui se compense (pour chaque faiblesse il faut au moins une résistence par un pokémon de la sélection).
+Donne moi un pokemon qui a des attaques efficaces contre dracaufeu.
+
+# Déjà rejouées en local après le changement (12 octobre, 1 exécution) : retirer le « # » pour les repasser.
+# Quelle est la capacité signature d'Amphinobi ?
+# mouscoto
+# quel pokémon fait des massages ?
+# Donne moi un pokémon dont les types sont efficaces contre dracaufeu
+# Quel est la particularité de barloche ?
