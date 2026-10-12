@@ -244,6 +244,15 @@ Cela s'applique aussi aux listes simples, aux pages complètes de
 `pokemon_moves` et aux réponses complètes des outils d'identité, de types, de
 capacités signature, d'évolution et de movepool historiques. Un movepool
 indisponible conserve le catalogue.
+À ce tour de rédaction, comme après une recherche documentaire, l'historique est
+transmis sans structure d'appel : chaque résultat d'outil devient un texte
+(« Résultat de l'outil … »), entier, et les appels du modèle sont omis. Devant
+un historique d'appels et sans catalogue, Gemini relançait des recherches jusqu'à
+l'abstention de budget, la réponse déjà reçue (21 questions sur 70 sur la démo,
+10 et 11 octobre 2026) ; ni une phrase de consigne ni `tool_choice: none`, que
+l'API reçoit pourtant, ne l'arrêtaient. Une page de comptage (`limit` 0, aucune
+ligne) n'y garde que son total : lu en texte, « returned_count 0 » à côté de
+« total_count 65 » donnait « 0 Pokémon » chez Qwen, 3 fois sur 16.
 Chaque abstention locale est journalisée avec sa raison (`request_too_large`
 ou `too_many_model_calls`) et les tailles mesurées, et chaque résultat d'outil
 avec sa taille MCP et sa taille projetée, sans contenu. Ces lignes passent par
