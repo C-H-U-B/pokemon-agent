@@ -20,14 +20,6 @@ def request(text="Question courte"):
     return LlmRequest(contents=[types.Content(role="user", parts=[types.Part(text=text)])])
 
 
-def result_as_text(req):
-    """Résultat d'outil tel que la rédaction le reçoit : un texte, sans aucune structure d'appel à imiter."""
-    assert not any(part.function_call or part.function_response for content in req.contents for part in content.parts)
-    label, _, payload = req.contents[-1].parts[0].text.partition(chr(10))
-    assert label.startswith("Résultat de l'outil ")
-    return json.loads(payload)
-
-
 def test_mcp_structured_result_is_not_sent_twice():
     data = {"results": [{"name_fr": "Regieleki", "base_speed": 200}], "total_count": 1}
     response = {"structuredContent": data, "content": [{"type": "text", "text": json.dumps(data)}], "isError": False}
@@ -121,7 +113,9 @@ def test_oversized_question_short_circuits_before_model():
     (True,2,2,False,True), (True,2,1,False,False),
     (False,20,10,False,True), (False,20,8,True,False), (False,0,0,False,True),
 ])
-def test_final_ranking_formulation_omits_tools_only_for_complete_results(best,total,returned,cut,disable):
+def test_ranking_result_keeps_the_catalogue_and_the_history_untouched(best,total,returned,cut,disable):
+    # Régression Gemini : sans outil déclaré après un résultat complet, le modèle émettait encore un appel,
+    # filtré par l'API (réponse vide), alors qu'une question peut demander un second outil.
     data = {"operation":"search_pokemon", "stat_name_fr":"Défense", "best_only":best,
             "total_count":total,"returned_count":returned,"limit":10,"offset":0,
             "results":[{"name_fr":f"Pokémon {i}","base_stat_value":40} for i in range(returned)]}
@@ -133,9 +127,8 @@ def test_final_ranking_formulation_omits_tools_only_for_complete_results(best,to
     req.config.tools = [types.Tool(function_declarations=[types.FunctionDeclaration(name="pokemon_search")])]
     original = deepcopy(req.contents)
     assert before_model_budget(SimpleNamespace(state={}),req) is None
-    assert (req.config.tools == []) == disable
-    # Rédaction : le résultat entier, en texte ; sinon l'historique reste tel quel, aucune contrainte retirée.
-    assert result_as_text(req) == data if disable else req.contents == original
+    assert [declaration.name for declaration in req.config.tools[0].function_declarations] == ["pokemon_search"]
+    assert req.contents == original
 
 
 @pytest.mark.parametrize("turns", [
@@ -187,7 +180,7 @@ def test_schema_titles_removed_without_losing_validation_or_title_parameter():
                       "mode":{"enum":["asc","desc"], "description":"Ordre SQL"}}}
 
 
-def test_simple_nine_row_list_keeps_names_and_omits_tools_after_complete_response():
+def test_simple_nine_row_list_keeps_names_after_complete_response():
     data = {"operation":"search_pokemon","results":[{"name_fr":f"Nom {i}","pokemon_id":i,
              "form_id":i,"form_identifier":"internal", "generation":4} for i in range(9)],
             "total_count":9,"returned_count":9,"offset":0,"limit":30,"best_only":False,
@@ -198,11 +191,6 @@ def test_simple_nine_row_list_keeps_names_and_omits_tools_after_complete_respons
     assert result["results"] == [{"name_fr":f"Nom {i}"} for i in range(9)]
     assert "context_truncated" not in result and result["catalogue_complete"] is False
     assert "catalogue_missing_default_forms" not in result and data == original
-    req = request()
-    req.contents.append(types.Content(parts=[types.Part(function_response=types.FunctionResponse(name="pokemon_search",response=result))]))
-    req.config.tools = [types.Tool(function_declarations=[types.FunctionDeclaration(name="pokemon_search")])]
-    assert before_model_budget(SimpleNamespace(state={}),req) is None
-    assert req.config.tools == []
 
 
 def test_nested_fr_en_condition_and_machine_item_use_french_only():
@@ -243,16 +231,8 @@ def size(value):
     return len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode())
 
 
-def formulation_request(name, result, question="Question courte"):
-    req = request(question)
-    req.contents.append(types.Content(role="user",parts=[types.Part(
-        function_response=types.FunctionResponse(name=name,response=result))]))
-    req.config.tools = [types.Tool(function_declarations=[types.FunctionDeclaration(name=name)])]
-    return req
-
-
 @pytest.mark.parametrize("count", [3, 8, 10])
-def test_small_moves_page_keeps_every_fact_drops_technical_fields_and_omits_tools(count):
+def test_small_moves_page_keeps_every_fact_and_drops_technical_fields(count):
     data = moves_response(count)
     original = deepcopy(data)
     result = bounded_tool_result(data, question="Quelles capacités physiques peut-il apprendre ?")
@@ -266,18 +246,6 @@ def test_small_moves_page_keeps_every_fact_drops_technical_fields_and_omits_tool
     assert result["version_group_fr"] == "Pokémon Épée et Bouclier"
     assert (result["total_count"], result["returned_count"], result["truncated"], result["has_more"]) == (count, count, False, False)
     assert size(result) < size(original)
-    req = formulation_request("pokemon_moves", result)
-    assert before_model_budget(SimpleNamespace(state={}), req) is None
-    assert req.config.tools == []  # une petite page complète se formule sans le catalogue
-
-
-@pytest.mark.parametrize("change", [{"movepool_available":False}, {"context_truncated":True},
-                                    {"returned_count":2}, {"offset":30}, {"error":"failure"}])
-def test_incomplete_or_unavailable_moves_page_keeps_tools(change):
-    result = {**bounded_tool_result(moves_response(3)), **change}
-    req = formulation_request("pokemon_moves", result)
-    before_model_budget(SimpleNamespace(state={}), req)
-    assert req.config.tools
 
 
 def test_large_movepool_reduces_optional_fields_before_cutting_rows():
@@ -480,15 +448,14 @@ LONG_PASSAGES = {"question": "À quoi ressemble Mimiqui ?", "pokemon": "Mimiqui"
                  "results": [{"text": "Mimiqui se cache sous un chiffon. " * 20, "section_path": "Description"}] * 4}
 
 
-def test_passages_are_formulated_without_the_catalogue_instead_of_a_budget_abstention():
+def test_passages_and_the_catalogue_fit_together_in_the_request_budget():
     # Régression : catalogue + passages dépassaient le budget, la réponse documentaire était abandonnée.
     assert size(LONG_PASSAGES) > 2500
     req = documentary_request(LONG_PASSAGES)
     assert budget_size(req.config.tools) > 7500
     assert before_model_budget(SimpleNamespace(state={}), req) is None
-    assert req.config.tools == []
-    # Régression Gemini : devant un historique d'appels, le modèle relançait des recherches sans outil déclaré.
-    assert result_as_text(req) == LONG_PASSAGES  # aucun passage retiré
+    assert len(req.config.tools[0].function_declarations) == 10
+    assert req.contents[-1].parts[0].function_response.response == LONG_PASSAGES  # aucun passage retiré
 
 
 @pytest.mark.parametrize("result, question", [
@@ -621,8 +588,8 @@ def test_description_obtained_with_a_structured_fact_still_to_ask_keeps_the_name
     [("pokemon_rag_search", LONG_PASSAGES), ("pokemon_types", TYPES)],     # description puis types
     [("pokemon_types", TYPES), ("pokemon_rag_search", LONG_PASSAGES)],     # types puis description
 ])
-def test_compound_question_is_formulated_without_tools_once_both_parts_are_there(results):
-    assert compound_request("Parle-moi de Trépassable et de ses types", *results) == []
+def test_compound_question_keeps_the_whole_catalogue_once_both_parts_are_there(results):
+    assert compound_request("Parle-moi de Trépassable et de ses types", *results) == CATALOGUE
 
 
 def test_refused_structured_call_does_not_count_as_the_structured_part():
@@ -729,14 +696,3 @@ def test_a_sheet_without_the_requested_rubric_stays_whole():
     result = bounded_tool_result({"structuredContent": {"operation": "get_particularities", "rows": [dict(sheet)]}},
                                  question="Dans quels jeux Tropius est-il absent ?")
     assert result["rows"][0] == sheet
-
-
-def test_count_page_reaches_the_formulation_as_its_total_only():
-    # Régression Qwen : « returned_count 0 » lu à la place de « total_count 65 » (« 0 Pokémon sont de type Spectre »).
-    data = {"operation":"search_pokemon","best_only":False,"results":[],"total_count":65,"returned_count":0,
-            "limit":0,"offset":0,"truncated":True,"has_more":True}
-    req = formulation_request("pokemon_search", data, "Combien de Pokémon sont de type Spectre ?")
-    original = deepcopy(data)
-    assert before_model_budget(SimpleNamespace(state={}), req) is None
-    assert result_as_text(req) == {"operation":"search_pokemon","best_only":False,"total_count":65}
-    assert data == original  # le résultat de l'outil n'est pas modifié

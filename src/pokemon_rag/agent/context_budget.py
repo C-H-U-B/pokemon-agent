@@ -22,7 +22,7 @@ from pokemon_rag.constraints.query_constraints import (
 )
 
 
-MAX_REQUEST_BYTES = 13_500
+MAX_REQUEST_BYTES = 16_500
 MAX_TOOL_RESULT_BYTES = 3_000
 MAX_MODEL_CALLS = 4
 MAX_OUTPUT_TOKENS = LLM_MAX_OUTPUT_TOKENS
@@ -47,7 +47,6 @@ _FENCE_END = "<<<END_UNTRUSTED_TOOL_DESCRIPTION>>>"
 # Les autres méthodes PokéAPI, rares, gardent leur identifiant.
 _METHOD_NAMES_FR = {"level-up": "montée de niveau", "machine": "CT/CS", "egg": "reproduction",
                     "tutor": "donneur de capacités", "train": "entraînement"}
-_PAGINATED_OPERATIONS = {"pokemon_search": "search_pokemon", "pokemon_moves": "get_pokemon_moves"}
 
 
 def _dump(value: Any) -> Any:
@@ -387,54 +386,6 @@ def after_tool_budget(tool: Any, args: dict, tool_context: Any, tool_response: d
     return result
 
 
-def _passages_received(contents: list) -> bool:
-    """Le dernier retour est une recherche documentaire avec des passages : il reste à rédiger.
-
-    Le catalogue et des passages ne tiennent pas ensemble dans le budget de requête.
-    Une recherche vide ou en erreur garde le catalogue pour une nouvelle tentative.
-    """
-    if not contents:
-        return False
-    responses = [part.function_response for part in contents[-1].parts or [] if part.function_response]
-    return (len(responses) == 1 and responses[0].name == "pokemon_rag_search"
-            and not responses[0].response.get("error") and bool(responses[0].response.get("results")))
-
-
-def _complete_structured_response(contents: list) -> bool:
-    """Une page structurée complète ne nécessite plus de sélection d'outil.
-
-    Conserve les outils en cas d'erreur, de troncature ADK ou de gagnants manquants.
-    Un top N complet peut avoir has_more=true : le reste du catalogue n'est pas
-    demandé. Une page de superlatif doit au contraire contenir tous les gagnants.
-    """
-    if not contents:
-        return False
-    responses = [part.function_response for part in contents[-1].parts or [] if part.function_response]
-    if len(responses) != 1:
-        return False
-    result = responses[0].response
-    if result.get("error") or result.get("context_truncated"):
-        return False
-    if responses[0].name not in _PAGINATED_OPERATIONS:
-        keys = {"pokemon_level_up_moves":"moves", "pokemon_machine_moves":"moves",
-                "pokemon_move_learning_methods":"methods", "pokemon_types":"rows",
-                "pokemon_pokedex_identity":"rows", "pokemon_signature_moves":"rows",
-                "pokemon_base_stats":"rows", "pokemon_particularities":"rows",
-                "pokemon_evolutions":"evolutions"}
-        key = keys.get(responses[0].name)
-        return bool(key and isinstance(result.get(key), list)
-                    and result.get("count") == len(result[key]))
-    if (result.get("operation") != _PAGINATED_OPERATIONS[responses[0].name]
-            or result.get("movepool_available") is False):
-        return False
-    total, returned, limit = (result.get(key) for key in ("total_count", "returned_count", "limit"))
-    if any(type(value) is not int or value < 0 for value in (total, returned, limit)):
-        return False
-    if returned != len(result.get("results", [])) or result.get("offset") != 0:
-        return False
-    return returned == total if result.get("best_only") else returned == min(total, limit)
-
-
 def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse | None:
     """Réponse locale avant dépassement du budget ou répétition excessive."""
     config = llm_request.config
@@ -443,8 +394,6 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
     question = next((" ".join(part.text for part in content.parts if part.text)
                      for content in reversed(llm_request.contents)
                      if content.role == "user" and any(part.text for part in content.parts or [])), "")
-    compound = re.search(r"(?:^|-)(?:et|puis|ainsi-que)-(?:leurs?-|ses-|son-|sa-|les-|le-|la-)?"
-                         r"(?:types?|numeros?|evolutions?|attaques?|capacites?|statistiques?|vitesse|defense)(?:-|$)",normalize(question))
     documentary = re.search(DOCUMENTARY_PATTERN, normalize(question))
     if documentary and has_structured_request(question):
         # Double demande, description et fait structuré : refusée avant tout appel au modèle. Traitée
@@ -454,22 +403,14 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
         logger.warning("double_request_refusal")
         return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=DOUBLE_REQUEST_REFUSAL)]))
     passages, structured = _any_passage(llm_request.contents), _structured_result_present(llm_request.contents)
-    formulation = False
     if passages and has_structured_request(question) and not structured:
         # Description obtenue, fait structuré encore à demander (« décris X et donne ses types ») :
-        # catalogue et passages ne tiennent pas ensemble dans le budget, et sans outil le modèle
-        # inventait le fait. Rester sur les outils qui nomment un Pokémon suffit et tient.
+        # sans outil le modèle inventait le fait. Rester sur les outils qui nomment un Pokémon suffit.
         for tool in config.tools or []:
             declarations = getattr(tool, "function_declarations", None)
             if declarations:
                 tool.function_declarations = [declaration for declaration in declarations
                                               if declaration.name not in _TOOLS_WITHOUT_NAMED_POKEMON]
-    elif ((passages and (structured or _passages_received(llm_request.contents)))
-          or (not compound and not documentary and _complete_structured_response(llm_request.contents))):
-        # Phase de formulation, comme dans le client MCP : les faits restent
-        # intégralement présents, sans transmettre à nouveau le catalogue.
-        config.tools = []
-        formulation = True
     for tool in config.tools or []:
         for declaration in getattr(tool, "function_declarations", None) or []:
             if declaration.description:
@@ -490,38 +431,7 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
     callback_context.state["temp:every_tool_call_failed"] = (
         _every_tool_call_failed(llm_request.contents)
         or (is_purely_documentary(question) and not _any_passage(llm_request.contents)))
-    if formulation:
-        llm_request.contents = _history_as_text(llm_request.contents)
     return None
-
-
-_COUNT_PAGE_NOISE = {"results", "returned_count", "limit", "offset", "truncated", "has_more"}
-
-
-def _history_as_text(contents: list) -> list:
-    """Historique de la rédaction sans structure d'appel : chaque résultat d'outil devient un texte.
-
-    Sans catalogue, Gemini imitait les appels de l'historique et relançait des recherches jusqu'à
-    l'abstention de budget, la réponse déjà reçue ; ni une consigne ni `tool_choice: none` ne
-    l'arrêtaient. Les résultats restent entiers ; les contenus d'origine ne sont pas modifiés.
-    """
-    history = []
-    for content in contents:
-        parts = []
-        for part in content.parts or []:
-            if part.function_response:
-                response = part.function_response.response
-                if isinstance(response, dict) and response.get("limit") == 0 and response.get("results") == []:
-                    # Page de comptage : seul le total est un fait. Lu en texte, « returned_count 0 »
-                    # à côté de « total_count 65 » donnait « 0 Pokémon » chez Qwen (3 fois sur 16).
-                    response = {key: value for key, value in response.items() if key not in _COUNT_PAGE_NOISE}
-                parts.append(types.Part(text=f"Résultat de l'outil {part.function_response.name} :\n"
-                                             + json.dumps(response, ensure_ascii=False, default=_dump)))
-            elif not part.function_call:
-                parts.append(part)
-        if parts:
-            history.append(types.Content(role=content.role, parts=parts))
-    return history
 
 
 def _every_tool_call_failed(contents: list) -> bool:

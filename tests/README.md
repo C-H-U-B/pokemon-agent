@@ -101,8 +101,8 @@ de budget ignore le balisage qu'ADK ajoute dans le vrai flux :
 modèle simulé, qu'une question longue atteint le modèle sans abstention locale.
 Le même fichier vérifie qu'une petite page de `pokemon_moves`, y compris après
 réparation par le guard, arrive à la formulation avec tous ses faits, qu'un
-movepool complet est listé sans coupe silencieuse et qu'un refus du guard
-laisse le catalogue disponible pour la reprise.
+movepool complet est listé sans coupe silencieuse et que le catalogue reste
+disponible à chaque tour, dans le budget de requête.
 `unit/test_adk_context_budget.py` couvre la projection : champs techniques
 retirés, faits conservés, réduction aux faits demandés avant toute coupe,
 valeur de classement nommée par sa statistique, vue simplifiée des schémas,

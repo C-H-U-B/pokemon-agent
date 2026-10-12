@@ -12,7 +12,7 @@ from google.genai import types
 from pydantic import Field
 
 from pokemon_rag.agent.agent import root_agent, pokemon_mcp
-from pokemon_rag.agent.context_budget import _size, TOOL_FAILURE_ABSTENTION
+from pokemon_rag.agent.context_budget import _size, MAX_REQUEST_BYTES, TOOL_FAILURE_ABSTENTION
 
 
 SIMULATED_ANSWER = "Réponse simulée après résultat SQL."
@@ -85,7 +85,7 @@ def test_runner_corrects_invented_filter_and_missing_ranking_without_budget_abst
                 assert all(row["Vitesse"] == 20 for row in result["results"])
             assert any(t.startswith(SIMULATED_ANSWER) for t in texts), (texts,model.request_sizes)
             assert model.calls == 2
-            assert model.tool_counts[0] > 0 and model.tool_counts[1] == 0
+            assert all(model.tool_counts)  # catalogue gardé jusqu'à la rédaction
         finally:
             await runner.close()
     asyncio.run(run())
@@ -116,8 +116,7 @@ def test_simple_lists_and_named_machine_query_reach_final_formulation_without_bu
                 assert result["returned_count"] == count and not result["best_only"]
             else:
                 assert result["pokemon"] == "Gouroutan" and result["moves"]
-            assert model.calls == 2 and model.tool_counts[-1] == 0
-            assert max(model.request_sizes) <= 12000
+            assert model.calls == 2 and max(model.request_sizes) <= MAX_REQUEST_BYTES
         finally:
             await runner.close()
     asyncio.run(run())
@@ -208,7 +207,7 @@ def test_small_filtered_movepool_reaches_formulation_with_every_fact(question, a
     assert all({"name_fr","type_fr","power","damage_class_fr","learning"} <= set(row) for row in result["results"])
     assert not any({"move_id","identifier","damage_class_id","name_en"} & set(row) for row in result["results"])
     assert len(texts) == 1 and texts[0].startswith(SIMULATED_ANSWER), (texts, model.request_sizes)
-    assert model.calls == 2 and model.tool_counts[-1] == 0
+    assert model.calls == 2
 
 
 @pytest.mark.real_data
@@ -219,7 +218,7 @@ def test_unfiltered_movepool_lists_every_name_without_silent_truncation():
     assert result["total_count"] == result["returned_count"] == len(result["results"]) > 30
     assert not result.get("context_truncated") and not result["truncated"] and not result["has_more"]
     assert all(row.get("name_fr") for row in result["results"])
-    assert len(texts) == 1 and texts[0].startswith(SIMULATED_ANSWER) and model.tool_counts[-1] == 0
+    assert len(texts) == 1 and texts[0].startswith(SIMULATED_ANSWER)
 
 
 def test_guard_refusal_leaves_room_to_retry_with_the_catalogue():
@@ -275,7 +274,7 @@ def test_named_stats_and_particularities_reach_formulation_in_the_real_runner(qu
     assert expected.items() <= row.items(), responses[-1]
     assert "execution_time" not in responses[-1]
     # Réponse complète : le catalogue n'est plus transmis pour la rédaction.
-    assert len(texts) == 1 and texts[0].startswith(SIMULATED_ANSWER) and model.calls == 2 and model.tool_counts[-1] == 0
+    assert len(texts) == 1 and texts[0].startswith(SIMULATED_ANSWER) and model.calls == 2
 
 
 @pytest.mark.real_data
@@ -337,10 +336,9 @@ def test_an_answer_omitting_returned_rows_is_replaced_by_the_list_from_the_data(
 @pytest.mark.real_data
 def test_a_requested_field_of_a_list_reaches_the_model_within_the_request_budget():
     # Avant : seuls les noms étaient transmis, les outils retirés, et le modèle rédigeait les types de mémoire.
-    from pokemon_rag.agent.context_budget import MAX_REQUEST_BYTES
     model, responses, texts = asyncio.run(_run_simulated(
         "Quels sont les types des starters de première génération ?", "pokemon_search", {"subgroup": "Starter"}))
     rows = responses[-1]["results"]
     assert {row["name_fr"] for row in rows} == {"Bulbizarre", "Salamèche", "Carapuce"}
     assert all(row.get("type_1_fr") for row in rows) and rows[0]["type_2_fr"] == "Poison"
-    assert max(model.request_sizes) <= MAX_REQUEST_BYTES and model.tool_counts[-1] == 0
+    assert max(model.request_sizes) <= MAX_REQUEST_BYTES
