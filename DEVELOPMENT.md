@@ -1977,3 +1977,25 @@ Out of five failing questions put to Gemini, three are answered in full against
 one before; the other two have no answer in the data. With Qwen, the structured
 campaign still passes entirely, with no extra call, for about three more
 seconds per question, the catalogue being read again when drafting.
+
+## 100. [Bug fix] Passages as prose so that the model drafts
+
+With the catalogue available at every turn, Gemini still did not draft some
+documentary answers. On "Pourquoi Psykokwak a-t-il toujours mal à la tête ?",
+the first result held the answer, yet the model launched another search until
+it abstained.
+
+Its following queries showed what it was looking for: a cause, then the
+descriptions from other games, which the corpus does not hold. The Pokédex
+descriptions reached it as a list, one game code per line, cut in the middle by
+the chunking: it read them as an excerpt to complete.
+
+A probe compared several remedies on that question. An instruction line allowing
+it to draft with what it had received changed nothing. Removing a single element
+of the list did not either. The same passages as prose, with no game codes or
+chunk number, made it draft on every attempt.
+
+The agent now passes the passages in that form; the tool server's answer is
+unchanged. The model no longer knows which game a description comes from. Gemini
+answers the question after a single search, and the description campaign still
+passes entirely with Qwen.
