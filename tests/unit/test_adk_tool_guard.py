@@ -407,6 +407,7 @@ def test_move_question_naming_a_stat_word_does_not_point_to_the_stats_tool(catal
 @pytest.mark.parametrize("question", [
     "Décris Dracolosse", "À quoi ressemble Dracolosse ?", "Quel est l'habitat de Dracolosse ?",
     "Quelle est l'origine de Dracolosse ?", "décris-moi le comportement de dracolosse",
+    "décrit moi dracolosse",  # faute courante, vue dans les traces Web : recevait des évolutions
 ])
 @pytest.mark.parametrize("tool", ["pokemon_types", "pokemon_pokedex_identity", "pokemon_particularities", "pokemon_search"])
 def test_description_question_refuses_every_tool_but_the_document_search(catalogue, question, tool):
@@ -616,3 +617,39 @@ def test_same_pokemon_misspelt_by_the_model_is_still_restored(catalogue, propose
     args = {"pokemon": proposed}
     assert before_tool_guard(_tool("pokemon_base_stats"), args, _context("Quelles sont les statistiques de Dracolosse ?")) is None
     assert args == {"pokemon": "Dracolosse"}
+
+
+TWO_NAMED = "En quoi évoluent Dracolosse et Carabaffe ?"
+
+
+@pytest.mark.parametrize("tool", ["pokemon_evolutions", "pokemon_particularities", "pokemon_moves"])
+@pytest.mark.parametrize("proposed, kept", [("Dracolosse", "Dracolosse"), ("carabaffe", "Carabaffe"),
+                                            ("Wartortle", "Carabaffe")])
+def test_question_naming_two_pokemon_accepts_one_call_for_each(catalogue, tool, proposed, kept):
+    # Régression : les 6 questions à deux Pokémon des traces Web (6 au 12 octobre) étaient refusées à chaque appel.
+    args = {"pokemon": proposed}
+    assert before_tool_guard(_tool(tool), args, _context(TWO_NAMED)) is None
+    assert args == {"pokemon": kept}
+
+
+@pytest.mark.parametrize("args", [{"pokemon": "Dardargnan"}, {"pokemon": "Dracolosee"}, {"pokemon": "Gourgeist"},
+                                  {"pokemon": ""}, {}])
+def test_question_naming_two_pokemon_refuses_a_call_that_names_neither(catalogue, args):
+    # Autre espèce, faute de frappe, mauvaise traduction ou nom absent : rien ne dit lequel des deux rétablir.
+    proposed = dict(args)
+    refusal = before_tool_guard(_tool("pokemon_evolutions"), args, _context(TWO_NAMED))
+    assert refusal["error"] == "other_pokemon_than_question"
+    assert refusal["named_pokemon"] == [{"pokemon": "Dracolosse"}, {"pokemon": "Carabaffe"}]
+    assert args == proposed
+
+
+def test_search_by_number_must_be_the_number_of_a_named_pokemon(catalogue, monkeypatch):
+    # Qwen proposait 246 et 252 pour Rayquaza et Évoli (trace du 9 octobre) : un numéro inventé reste refusé.
+    numbers = {"Dracolosse": 149, "Carabaffe": 8}
+    monkeypatch.setattr("pokemon_rag.agent.tool_guard.get_pokedex_identity",
+                        lambda pokemon, form=None: {"rows": [{"national_number": numbers[pokemon]}]})
+    args = {"pokedex_number": 8}
+    assert before_tool_guard(_tool("pokemon_search"), args, _context(TWO_NAMED)) is None
+    assert args["pokedex_number"] == 8
+    refusal = before_tool_guard(_tool("pokemon_search"), {"pokedex_number": 246}, _context(TWO_NAMED))
+    assert refusal["error"] == "other_pokemon_than_question"

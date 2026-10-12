@@ -2123,3 +2123,42 @@ savoir comment un Pokémon apprend une capacité, le jeu retenu par défaut est 
 dernier où il l'apprend : le jeu le plus récent de la base n'a qu'un movepool
 réduit, et Éclair y passait pour non apprise par Pikachu. Entre deux homonymes,
 le nom français l'emporte. Un nom de Pokémon inconnu est signalé comme tel.
+
+## 103. [Feature] Les questions qui nomment deux Pokémon reçoivent une réponse
+
+Le guard refusait toute question nommant deux Pokémon, plutôt que d'en choisir
+un. Dans les traces de l'interface, six questions de ce genre n'avaient reçu
+aucune réponse : « en quoi évoluent Salamèche et Reptincel ? », « comment Évoli
+évolue-t-il en Aquali ? », « qui est le plus lourd entre Ronflex et Célébi ? ».
+Dans quatre d'entre elles, le modèle faisait déjà ce qu'il fallait : un appel
+par Pokémon, chacun avec le bon nom.
+
+Le guard accepte désormais un appel par Pokémon nommé dans la question, désigné
+par son nom ou par son numéro national. Tout autre appel reste refusé : un autre
+Pokémon, un numéro qui n'appartient à aucun des deux, ou un nom mal écrit, que
+le guard ne rétablit plus puisque rien ne dit vers lequel corriger. Chaque appel
+exécuté vise donc toujours un Pokémon de la question.
+
+Le modèle rapproche lui-même les deux résultats. Pour une comparaison, c'est lui
+qui lit les deux valeurs et désigne la plus grande : la règle qui réserve les
+calculs à SQL ne couvre pas ce cas, limite acceptée tant qu'aucune comparaison
+fausse n'est observée. Deux formes d'une même espèce restent refusées.
+
+Rejouées avec Qwen, cinq des six questions reçoivent une réponse juste, dont la
+comparaison de poids. Le guide de l'interface ne présente plus ces questions
+comme indisponibles.
+
+La sixième, « décrit moi évoli et aquali », recevait des évolutions : « décrit »
+n'était pas reconnu comme une demande de description. Une fois reconnu, le
+modèle a lancé une recherche par Pokémon, chacune a ramené des passages où les
+deux noms se côtoient, des listes de capacités, et la réponse a inventé les
+types. Les questions à deux Pokémon servent à comparer des faits, pas des
+descriptions : une description qui nomme deux Pokémon est désormais refusée
+avant tout appel au modèle, par le message qui demande déjà de séparer une
+description d'un fait précis.
+
+Ce rejeu a montré une trace fausse : avec deux appels au même outil, l'appel sur
+Aquali portait la taille et la durée du retour d'Évoli. Les deux appels
+s'exécutent en même temps et leurs mesures arrivent dans l'ordre où ils se
+terminent, alors que l'interface les rattachait au premier appel du même nom.
+Chaque mesure porte désormais l'identifiant de son appel.

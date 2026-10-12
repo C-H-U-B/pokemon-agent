@@ -284,22 +284,13 @@ questions = [
 
 [[indisponible]]
 titre = "Deux demandes dans la même question"
-raison = "Une description et un fait chiffré ne se demandent pas ensemble : l'outil refuse plutôt que de ne répondre qu'à moitié. Posez deux questions."
+raison = "Une description ne se demande ni avec un fait chiffré ni pour deux Pokémon à la fois : l'outil refuse plutôt que de ne répondre qu'à moitié. Posez deux questions."
 issues = ["double_request_refusal"]
 questions = [
   "Décris Trépassable et donne ses types",
   "Décris l'évolution de Pikachu",
 ]
 voisine = "En quoi Pikachu évolue-t-il ?"
-
-[[indisponible]]
-titre = "Deux Pokémon dans la même question"
-messages = ["Plusieurs Pokémon ou formes explicites"]
-raison = "Une question porte sur un seul Pokémon nommé : avec deux noms, l'outil refuse plutôt que d'en choisir un."
-questions = [
-  "Comment Évoli évolue-t-il en Aquali ?",
-]
-voisine = "Comment évolue Insécateur ?"
 
 [[indisponible]]
 titre = "Une question de texte sans Pokémon nommé"

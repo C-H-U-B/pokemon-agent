@@ -35,6 +35,9 @@ La résolution des espèces et des capacités reste hors de ce module.
 moteur : correspondances exactes après normalisation, frontières de noms,
 priorité à un alias complet sur un nom d'espèce qu'il contient. Plusieurs
 espèces ou formes détectées sont refusées ; aucune mention ne produit `None`.
+`named_pokemon_mentions` renvoie toutes les espèces nommées, dans l'ordre de la
+question, et ne refuse que deux formes d'une même espèce : le guard ADK s'en
+sert pour accepter un appel par Pokémon nommé.
 L'extracteur conserve séparément l'espèce et la forme et ne déduit aucun nom.
 `is_named_identity_question` reconnaît le motif numéro national / identité
 Pokédex ; le guard garde la responsabilité du refus d'outil incompatible.

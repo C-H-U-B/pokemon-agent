@@ -6,7 +6,8 @@ import re
 from pokemon_rag.constraints.query_constraints import (
     ExplicitConstraints,
     extract_explicit_constraints, reconcile_search_args,
-    extract_named_pokemon, is_named_identity_question, is_named_stat_question, is_purely_documentary,
+    extract_named_pokemon, named_pokemon_mentions,
+    is_named_identity_question, is_named_stat_question, is_purely_documentary,
     is_type_matchup_question,
     without_unnamed_learning_method,
     normalize,
@@ -92,6 +93,34 @@ def _unsupported(tool_name: str, required: dict[str, Any]) -> dict[str, Any] | N
     return None
 
 
+def _call_target(question: str, tool_name: str, args: dict[str, Any]) -> dict[str, Any] | None:
+    """Pokémon de la question visé par cet appel, None si elle n'en nomme aucun, ou un refus.
+
+    Un seul Pokémon nommé : c'est lui, quel que soit l'argument proposé (la suite rétablit ou refuse).
+    Plusieurs (« en quoi évoluent Salamèche et Reptincel ? ») : celui que l'appel désigne par son nom ou,
+    pour pokemon_search, par son numéro national. Un appel qui n'en désigne aucun est refusé : rien ne dit
+    lequel rétablir. Le rapprochement des résultats est laissé au modèle.
+    """
+    catalogue = pokemon_name_catalogue()
+    mentions = named_pokemon_mentions(question, catalogue)
+    if len(mentions) < 2:
+        return mentions[0] if mentions else None
+    proposed = args.get("pokemon")
+    try:
+        other = extract_named_pokemon(proposed, catalogue) if isinstance(proposed, str) else None
+    except ValueError:
+        other = None
+    number = args.get("pokedex_number") if tool_name == "pokemon_search" else None
+    for mention in mentions:
+        if (other and other["pokemon"] == mention["pokemon"]) or (
+                number and get_pokedex_identity(**mention)["rows"][0]["national_number"] == number):
+            return mention
+    names = " et ".join(mention["pokemon"] for mention in mentions)
+    return {"error": "other_pokemon_than_question", "selected_tool": tool_name, "named_pokemon": mentions,
+            "message": f"Appel non exécuté : la question nomme {names}. Faites un appel par Pokémon, "
+                       "chacun avec le nom exact de l'un d'eux."}
+
+
 def _extract_user_text(user_content: Any) -> str:
     """Extrait le texte du message utilisateur courant fourni par ADK."""
     if user_content is None:
@@ -166,7 +195,11 @@ def before_tool_guard(
         # « Ectoplasma craint-il les attaques de type Normal ? » : le type d'attaque est interrogé lui aussi, mais
         # seulement avec un mot de sensibilité. « Quelles attaques de type Feu Dracaufeu apprend-il ? » reste un filtre.
         asked = ASKED_FIELDS | ({"move_type"} if is_type_matchup_question(question) else set())
-        named = extract_named_pokemon(question, pokemon_name_catalogue()) if asked.intersection(required) else None
+        target = _call_target(question, tool_name, corrected) if (
+            tool_name in FORM_TOOLS or asked.intersection(required)) else None
+        if target and "error" in target:
+            return target
+        named = target if asked.intersection(required) else None
         if named:
             # « Mewtwo est-il un légendaire ? », « Pikachu est-il de type Électrik ? » : la catégorie ou le
             # type est interrogé, pas un filtre de liste. Seule la fiche l'accepte, parce qu'elle le renvoie ;
@@ -182,8 +215,7 @@ def before_tool_guard(
         unsupported = _unsupported(tool_name, required)
         if unsupported:
             return unsupported
-        entity = extract_named_pokemon(question, pokemon_name_catalogue()) if (
-            tool_name in FORM_TOOLS) else None
+        entity = dict(target) if target and tool_name in FORM_TOOLS else None
         if entity:
             identity = is_named_identity_question(question)
             if constraints.form:

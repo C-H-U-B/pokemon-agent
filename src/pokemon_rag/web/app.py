@@ -285,14 +285,19 @@ class ActivityTiming:
             for index, (called, start, end) in enumerate(self.calls):
                 if called == name and end is None:
                     self.calls[index] = (called, start, elapsed)
-                    measure = next((item for item in new_measures if item.get("tool") == name), None)
-                    if measure is not None:
-                        new_measures.remove(measure)
-                        self.measures[index] = measure
                     result = next((item for item in returned if item.name == name), None)
                     if result is not None:
                         returned.remove(result)
                         self.results[index] = result.response
+                    # Appels d'un même tour exécutés en concurrence : les mesures arrivent dans l'ordre de
+                    # fin, pas d'appel. L'identifiant de l'appel les rattache ; à défaut, le premier du nom.
+                    call_id = getattr(result, "id", None)
+                    same_tool = [item for item in new_measures if item.get("tool") == name]
+                    measure = next((item for item in same_tool if call_id and item.get("call_id") == call_id),
+                                   same_tool[0] if same_tool else None)
+                    if measure is not None:
+                        new_measures.remove(measure)
+                        self.measures[index] = measure
                     break
         if self.calls:
             self.transition("tools" if any(end is None for _, _, end in self.calls) else "generation", elapsed)
@@ -578,7 +583,8 @@ def _web_trace(question: str, answer: str, outcome: str, error: Exception | None
     tools = []
     for index, (name, arguments) in enumerate(tool_calls):
         _, call_start, call_end = timing.calls[index] if index < len(timing.calls) else (name, None, None)
-        measure = {key: value for key, value in timing.measures.get(index, {}).items() if key != "tool"}
+        measure = {key: value for key, value in timing.measures.get(index, {}).items()
+                   if key not in ("tool", "call_id")}
         # Arguments exécutés après le guard ; la proposition du modèle n'est gardée que si elle diffère.
         executed = measure.pop("executed_arguments", None)
         if executed is not None and executed != arguments:

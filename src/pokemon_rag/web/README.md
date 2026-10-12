@@ -185,7 +185,8 @@ Les durées par étape de la synthèse sont mesurées par l'interface : analyse 
 des outils (les appels simultanés ne sont pas additionnés), préparation entre retours et nouveaux appels ou
 fin de requête ; elles incluent le transport et la session. Les appels homonymes sont associés aux retours
 dans l'ordre d'arrivée (FIFO). Les mesures de l'outil et la taille de son retour passent par l'état de session
-ADK (`tool_timings`), jamais par le retour envoyé au modèle. Un résultat reçu ne prouve pas la réussite métier
+ADK (`tool_timings`), jamais par le retour envoyé au modèle ; elles y arrivent dans l'ordre de fin des outils
+et sont rattachées à leur appel par son identifiant (`call_id`). Un résultat reçu ne prouve pas la réussite métier
 de l'outil.
 
 ## Illustrations

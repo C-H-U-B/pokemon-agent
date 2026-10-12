@@ -16,8 +16,10 @@ from google.genai import types
 from pokemon_rag.agent.list_fidelity import complete_list, render, unfaithful_names
 from pokemon_rag.agent.tool_guard import _extract_user_text
 from pokemon_rag.config import LLM_MAX_OUTPUT_TOKENS
+from pokemon_rag.structured.query_engine import pokemon_name_catalogue
 from pokemon_rag.constraints.query_constraints import (
-    DOCUMENTARY_PATTERN, has_structured_request, is_purely_documentary, is_type_matchup_question, normalize,
+    DOCUMENTARY_PATTERN, has_structured_request, is_purely_documentary, is_type_matchup_question,
+    named_pokemon_mentions, normalize,
     VERSION_GROUP_NAMES_FR,
 )
 
@@ -33,8 +35,9 @@ TOOL_FAILURE_ABSTENTION = (
     "reformulez la question ou réessayez dans un instant.")
 
 DOUBLE_REQUEST_REFUSAL = (
-    "Cette question demande à la fois une description et un fait précis (types, talents, statistiques, "
-    "évolutions…). Je traite une demande à la fois pour rester fiable : posez d'abord l'une, puis l'autre.")
+    "Cette question demande une description en même temps qu'autre chose : un fait précis (types, talents, "
+    "statistiques, évolutions…) ou un second Pokémon. Je traite une demande à la fois pour rester fiable : "
+    "posez d'abord l'une, puis l'autre.")
 BUDGET_ABSTENTION = ("Je n'ai pas pu obtenir une réponse fiable dans les limites de traitement. "
                      "Précisez les filtres ou demandez une liste plus courte.")
 
@@ -389,7 +392,7 @@ def after_tool_budget(tool: Any, args: dict, tool_context: Any, tool_response: d
     result = bounded_tool_result(tool_response, keep_english=_english_requested(question), question=question, args=args)
     state = getattr(tool_context, "state", None)
     if state is not None:
-        # Une entrée par retour d'outil, dans l'ordre : l'interface l'associe à l'appel du même nom.
+        # Une entrée par retour d'outil, dans l'ordre de fin : l'interface l'associe à son appel par call_id.
         raw = _structured_content(tool_response)
         raw = raw if isinstance(raw, dict) else {}
         measure = {key: raw[key] for key in ("execution_time", "timings") if raw.get(key) is not None}
@@ -399,7 +402,9 @@ def after_tool_budget(tool: Any, args: dict, tool_context: Any, tool_response: d
         # Dernière liste transmise au modèle dans cette question : la réponse finale lui sera confrontée.
         state["temp:fidelity_list"] = complete_list(getattr(tool, "name", ""), result)
         # raw_bytes : taille du retour de l'outil avant la réduction ci-dessus, pour l'onglet d'observabilité.
+        call_id = getattr(tool_context, "function_call_id", None)
         state["tool_timings"] = [*state.get("tool_timings", []), {"tool": getattr(tool, "name", None),
+                                                                  **({"call_id": call_id} if call_id else {}),
                                                                   "executed_arguments": deepcopy(args),
                                                                   "raw_bytes": _size(raw or tool_response), **measure}]
     if logger.isEnabledFor(logging.INFO):
@@ -407,6 +412,13 @@ def after_tool_budget(tool: Any, args: dict, tool_context: Any, tool_response: d
                     getattr(tool, "name", None), _size(tool_response), _size(result), MAX_TOOL_RESULT_BYTES,
                     bool(result.get("context_truncated")), result.get("error"))
     return result
+
+
+def _names_several_pokemon(question: str) -> bool:
+    try:
+        return len(named_pokemon_mentions(question, pokemon_name_catalogue())) > 1
+    except ValueError:  # deux formes d'une même espèce
+        return True
 
 
 def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse | None:
@@ -418,9 +430,11 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
                      for content in reversed(llm_request.contents)
                      if content.role == "user" and any(part.text for part in content.parts or [])), "")
     documentary = re.search(DOCUMENTARY_PATTERN, normalize(question))
-    if documentary and has_structured_request(question):
+    if documentary and (has_structured_request(question) or _names_several_pokemon(question)):
         # Double demande, description et fait structuré : refusée avant tout appel au modèle. Traitée
         # en un seul échange, elle a donné des types inventés (« décris X et donne ses types »).
+        # Description de deux Pokémon : même refus. Une recherche par Pokémon ramenait les passages où
+        # les deux noms se côtoient (listes de capacités), et la réponse inventait les types.
         # ponytail: reconnaissance par mots, donc « l'origine du talent de X » est refusée aussi ;
         # affiner si ces questions à intention unique deviennent gênantes.
         logger.warning("double_request_refusal")

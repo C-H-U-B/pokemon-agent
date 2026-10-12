@@ -255,6 +255,10 @@ def test_sql_time_reaches_the_interface_through_the_session_state_and_not_the_mo
     assert len(recorded) == 1 and len(recorded[0]) == 1
     measure = recorded[0][0]
     assert measure["tool"] == tool and 0 <= measure["execution_time"] < 5
+    # Même identifiant que le retour d'outil : l'interface y rattache la mesure quand deux appels se croisent.
+    returned_ids = [part.function_response.id for event in model.events if event.content
+                    for part in event.content.parts if part.function_response]
+    assert measure["call_id"] and [measure["call_id"]] == returned_ids
     # Ni le retour d'outil ni la requête envoyée au modèle ne contiennent la mesure.
     assert "execution_time" not in responses[-1]
     assert all("execution_time" not in request and "tool_timings" not in request for request in model.requests)
