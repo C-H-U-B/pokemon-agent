@@ -1955,3 +1955,25 @@ Read as text, a count misled Qwen: "0 Pokémon sont de type Spectre" three times
 out of sixteen, the result carrying "no row returned" next to the total. A
 counting page now passes only its total to the drafting turn; ten counts in a
 row then gave 65.
+
+## 99. [Bug fix] The tool catalogue stays available until the answer
+
+The drafting turn with no tool call to imitate did not hold on other questions.
+With Gemini, a sheet came back cut mid-sentence, two questions received no text
+at all and a simple answer took twelve seconds instead of two.
+
+The model's log showed why: left without tools after the first result, Gemini
+still emitted a call, which the API filtered out. Some questions do need
+several tools, and it was the code, not the model, that decided the first
+result was enough.
+
+The tool catalogue now stays declared at every turn and the model decides when
+to draft; the history is no longer turned into text. The request size limit
+goes from 13,500 to 16,500 bytes so that the catalogue and a result fit
+together: the requests refused for their size on the demo were all under 16,100
+bytes, and the limit was only a quarter of Qwen's context.
+
+Out of five failing questions put to Gemini, three are answered in full against
+one before; the other two have no answer in the data. With Qwen, the structured
+campaign still passes entirely, with no extra call, for about three more
+seconds per question, the catalogue being read again when drafting.

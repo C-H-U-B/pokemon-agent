@@ -2029,3 +2029,28 @@ Lu en texte, un comptage trompait Qwen : « 0 Pokémon sont de type Spectre »
 trois fois sur seize, le résultat portant « aucune ligne renvoyée » à côté du
 total. Une page de comptage ne transmet plus que son total à la rédaction ; dix
 comptages de suite ont ensuite donné 65.
+
+## 99. [Bug fix] Le catalogue d'outils reste disponible jusqu'à la réponse
+
+La rédaction sans appel d'outil à imiter ne tenait pas sur d'autres questions.
+Avec Gemini, une fiche revenait coupée en cours de phrase, deux questions ne
+recevaient aucun texte et une réponse simple prenait douze secondes au lieu de
+deux.
+
+Le journal du modèle a montré pourquoi : privé d'outils après le premier
+résultat, Gemini émettait encore un appel, que l'API filtrait. Certaines
+questions demandent en effet plusieurs outils, et c'est le code, non le modèle,
+qui décidait que le premier résultat suffisait.
+
+Le catalogue d'outils reste désormais déclaré à chaque tour et le modèle décide
+quand rédiger ; la mise en texte de l'historique est retirée. Le plafond de
+taille de requête passe de 13 500 à 16 500 octets pour que le catalogue et un
+résultat tiennent ensemble : les requêtes refusées pour leur taille sur la démo
+faisaient toutes moins de 16 100 octets, et le plafond ne représentait qu'un
+quart du contexte de Qwen.
+
+Sur cinq questions en échec posées à Gemini, trois sont répondues entièrement
+contre une auparavant ; les deux autres n'ont pas de réponse dans les données.
+Avec Qwen, la campagne structurée reste entièrement réussie, sans appel
+supplémentaire, pour environ trois secondes de plus par question, le catalogue
+étant relu au moment de rédiger.

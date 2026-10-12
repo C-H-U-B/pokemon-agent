@@ -219,7 +219,7 @@ retirées et un argument facultatif décrit comme « type ou null, défaut null 
 devient son type simple ; enums, bornes, propriétés, défauts non nuls, arguments
 requis et descriptions d'arguments sont conservés. Le schéma MCP n'est pas modifié.
 Cette simplification libère de quoi garder le catalogue après un refus du guard,
-pour que le modèle puisse réessayer. Au-delà de 13500 octets
+pour que le modèle puisse réessayer. Au-delà de 16500 octets
 d'instructions, messages et schémas sérialisés, ou après quatre appels
 dans la même invocation, le callback renvoie une abstention locale. Il ne
 supprime aucune contrainte utilisateur. Ce budget en octets est conservateur
@@ -235,24 +235,16 @@ impose `height` pour « le plus grand », « le plus petit » et `weight` pour �
 « le plus gros », « le plus léger », seulement quand l'adjectif qualifie le Pokémon (« la plus
 grande Attaque » reste l'Attaque) ; deux critères dans un même superlatif sont refusés comme ambigus. Les enums et descriptions des nouveaux
 arguments restent dans le schéma après l'abrègement des descriptions d'outils.
-Une fois une première page structurée complète obtenue, la formulation
-reçoit les faits et l'historique sans le catalogue d'outils. Pour un superlatif,
-tous les gagnants doivent être présents ; pour un top N, la page demandée suffit.
-Les erreurs, les résultats tronqués par ADK et les gagnants manquants conservent
-les outils. Le plafond de contexte et le nombre maximal d'appels restent inchangés.
-Cela s'applique aussi aux listes simples, aux pages complètes de
-`pokemon_moves` et aux réponses complètes des outils d'identité, de types, de
-capacités signature, d'évolution et de movepool historiques. Un movepool
-indisponible conserve le catalogue.
-À ce tour de rédaction, comme après une recherche documentaire, l'historique est
-transmis sans structure d'appel : chaque résultat d'outil devient un texte
-(« Résultat de l'outil … »), entier, et les appels du modèle sont omis. Devant
-un historique d'appels et sans catalogue, Gemini relançait des recherches jusqu'à
-l'abstention de budget, la réponse déjà reçue (21 questions sur 70 sur la démo,
-10 et 11 octobre 2026) ; ni une phrase de consigne ni `tool_choice: none`, que
-l'API reçoit pourtant, ne l'arrêtaient. Une page de comptage (`limit` 0, aucune
-ligne) n'y garde que son total : lu en texte, « returned_count 0 » à côté de
-« total_count 65 » donnait « 0 Pokémon » chez Qwen, 3 fois sur 16.
+Le catalogue d'outils reste déclaré à chaque tour, y compris après un résultat
+complet : le modèle décide lui-même quand rédiger. Le retirer après le premier
+résultat (état précédent) faisait échouer Gemini, qui émettait encore un appel :
+recherches répétées jusqu'à l'abstention de budget (21 questions sur 70 sur la
+démo, 10 et 11 octobre 2026), puis, l'historique transmis en texte, appel filtré
+par l'API et réponse vide (`MALFORMED_FUNCTION_CALL`) ou coupée. Ni une phrase de
+consigne ni `tool_choice: none` ne l'arrêtaient. Une question peut aussi
+demander plusieurs outils (« mouscoto » : quatre appels au même tour). Coût : le
+catalogue est relu au tour de rédaction, environ 2,75 s de plus par question
+avec Qwen en local (campagne structurée, 699 s contre 578 s pour 44 cas).
 Chaque abstention locale est journalisée avec sa raison (`request_too_large`
 ou `too_many_model_calls`) et les tailles mesurées, et chaque résultat d'outil
 avec sa taille MCP et sa taille projetée, sans contenu. Ces lignes passent par
@@ -288,9 +280,6 @@ absent ou déformé et les négations d'appartenance courantes (« ne sont pas �
 pas contrôlés.
 `after_tool_budget` retire `timings` et `execution_time` de la vue du modèle
 et les consigne dans l'état de session pour l'interface Web.
-Après une recherche documentaire qui a trouvé des passages, le catalogue est
-aussi retiré pour la rédaction : catalogue et passages ne tiennent pas ensemble
-dans le budget de requête. Une recherche vide ou en erreur le conserve.
 Une question qui contient à la fois un mot de description et un fait structuré
 (« décris X et donne ses types ») est refusée avant tout appel au modèle, par
 un message fixe demandant de poser les deux questions séparément, journalisé
@@ -301,7 +290,7 @@ Pour une double demande que ces mots ne signalent pas (« parle-moi de X et de
 ses types »), si aucun outil structuré n'a encore répondu, les outils qui prennent un
 Pokémon en argument restent disponibles, sans `pokemon_search` ni
 `pokemon_rag_search` : privé de tout outil, le modèle inventait le fait
-manquant. Le catalogue est retiré dès que les deux parties sont obtenues.
+manquant. Le catalogue entier revient dès que les deux parties sont obtenues.
 Une demande composée reconnue ou documentaire conserve le catalogue pour les
 autres faits à obtenir ; les champs de ligne explicitement demandés restent
 dans la projection de recherche.
@@ -368,6 +357,11 @@ de 7953 à 9228 octets, et la marge laissée à une reprise après refus du guar
 tombait de 1650 à 400 octets. Les traces Web montrent qu'une requête proche de
 la limite consomme environ 3000 tokens sur les 16384 du contexte ; la limite
 borne surtout le temps de lecture de la requête par le modèle.
+Il est passé à 16500 octets le 12 octobre 2026, quand le catalogue est resté
+déclaré après un résultat : le catalogue et la consigne pèsent 11801 octets, et
+les 13 requêtes refusées pour leur taille sur la démo du 8 au 11 octobre
+faisaient de 14224 à 16046 octets. Une requête avec catalogue fait environ
+3440 tokens chez Qwen, soit 3,4 octets par token.
 
 Une question nommant un Pokémon et une statistique, proposée à
 `pokemon_search`, est refusée en désignant `pokemon_base_stats` et ses
