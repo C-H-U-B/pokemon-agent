@@ -38,7 +38,13 @@ Le guard ne modifie pas le catalogue d'outils de l'agent.
 Pour les outils structurés, il charge les alias via le moteur SQLite puis
 restaure une espèce explicitement nommée et sa forme reconnue. Il refuse
 plusieurs cibles au lieu d'en choisir une ; sans mention reconnue, il n'ajoute
-aucun Pokémon. `pokemon_search` ne filtre pas par nom : pour un numéro national
+aucun Pokémon. Le nom proposé par le modèle n'est remplacé que s'il désigne la
+même espèce (casse, forme, faute de frappe absente de la question) ou s'il est
+une mauvaise traduction (nom anglais d'une autre espèce) : un appel portant le
+nom français d'une autre espèce, ou un nom inconnu repris de la question, est
+refusé (`other_pokemon_than_question`) au lieu d'être exécuté sur le Pokémon
+nommé. Une question qui demande un second Pokémon (« une sélection incluant
+Dracaufeu », « efficace contre Dracaufeu ») reste donc sans chemin. `pokemon_search` ne filtre pas par nom : pour un numéro national
 d'une espèce nommée, le refus indique `pokemon_pokedex_identity` et les arguments
 requis. Qwen reste responsable du choix et de la reprise de l'outil.
 Une recherche ciblée portant déjà un numéro peut être conservée hors de cette

@@ -359,7 +359,8 @@ def test_blocks_tool_that_cannot_preserve_form_constraint() -> None:
 
 
 NAMES = [("Méga-Dardargnan", "Dardargnan", "beedrill-mega"), ("Dardargnan", "Dardargnan", None),
-         ("Dracolosse", "Dracolosse", None), ("Carabaffe", "Carabaffe", None)]
+         ("Dracolosse", "Dracolosse", None), ("Carabaffe", "Carabaffe", None),
+         ("Wartortle", "Carabaffe", None), ("Gourgeist", "Banshitrouye", None)]
 
 
 @pytest.fixture
@@ -590,3 +591,28 @@ def test_a_zero_pokedex_number_is_a_placeholder_not_a_filter():
     kept = {"pokedex_number": 25}
     assert before_tool_guard(_tool("pokemon_search"), kept, _context("Quel Pokémon porte le numéro 25 ?")) is None
     assert kept["pokedex_number"] == 25
+
+
+@pytest.mark.parametrize("tool", ["pokemon_particularities", "pokemon_moves", "pokemon_evolutions"])
+@pytest.mark.parametrize("question, proposed", [
+    ("Construis une sélection de 2 Pokémon incluant Dracolosse.", "Carabaffe"),   # autre espèce connue
+    ("En quoi évoluent Dracolosse et Mimigale ?", "Mimigale"),                    # nom inconnu repris de la question
+])
+def test_call_for_another_pokemon_than_the_named_one_is_refused_not_rewritten(catalogue, tool, question, proposed):
+    # Régression : l'appel était exécuté sur le Pokémon de la question sans le signaler ; le modèle redemandait
+    # la même fiche jusqu'à l'abstention ou attribuait le résultat au Pokémon demandé.
+    args = {"pokemon": proposed}
+    refusal = before_tool_guard(_tool(tool), args, _context(question))
+    assert refusal["error"] == "other_pokemon_than_question"
+    assert refusal["required_arguments"] == {"pokemon": "Dracolosse"}
+    assert proposed in refusal["message"]
+    assert args == {"pokemon": proposed}
+
+
+@pytest.mark.parametrize("proposed", ["dracolosse", "Dracolosee", "", None, "Gourgeist", "Wartortle"])
+def test_same_pokemon_misspelt_by_the_model_is_still_restored(catalogue, proposed):
+    # Casse, faute de frappe absente de la question, argument vide ou mauvaise traduction (nom anglais
+    # d'une autre espèce) : la correction reste silencieuse.
+    args = {"pokemon": proposed}
+    assert before_tool_guard(_tool("pokemon_base_stats"), args, _context("Quelles sont les statistiques de Dracolosse ?")) is None
+    assert args == {"pokemon": "Dracolosse"}

@@ -105,7 +105,8 @@ def test_largest_document_result_is_formulated_within_the_real_request_budget():
     ], config=types.GenerateContentConfig(system_instruction=root_agent.instruction,
         tools=[types.Tool(function_declarations=[tool._get_declaration() for tool in tools])]))
     assert before_model_budget(SimpleNamespace(state={}), req) is None
-    assert req.config.tools == []
+    # Le catalogue reste déclaré au tour de rédaction : sans lui Gemini émettait encore un appel, filtré par l'API.
+    assert req.config.tools[0].function_declarations
 
 
 def test_compound_description_keeps_named_tools_within_the_real_request_budget():
