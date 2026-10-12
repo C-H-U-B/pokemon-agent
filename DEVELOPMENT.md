@@ -2082,3 +2082,36 @@ Vaporeon carried the size and duration of Eevee's result. The two calls run at
 the same time and their measures arrive in the order they finish, while the
 interface attached them to the first call of the same name. Each measure now
 carries the identifier of its call.
+
+## 104. [Feature] A misspelt Pokémon name is recognised
+
+Visitors write names the way they remember them: "mimigale" (for Mimigal,
+Spinarak) appears six times in the interface traces, "écoli" (for Évoli, Eevee)
+twice. The name was recognised nowhere, since names are compared exactly. Alone
+in the question, it was passed on as written and reported as not found. Next to
+a second, correctly written Pokémon, the call targeting it was refused as
+targeting another species: Qwen answered "Mimigale was not found", abstained, or
+handled only the other Pokémon.
+
+The guard now recognises a word one typo away from a French species name: one
+letter changed, added, missing, or two neighbours swapped. It restores the exact
+name, whether the model copied the typo or corrected it.
+
+The risk is to take an ordinary word for a Pokémon: "Mimique" is a move one
+letter away from Mimiqui, "armure" a word of an ability one letter away from
+Airmure, "nombre" (number) is one letter away from Lombre, "Diamant" from
+Diamat. A list question would then be forced onto one Pokémon. The matching is
+therefore narrow: the name is a single word of at least five letters, keeps its
+initial, and the word is close to one species only. Words from the names of
+moves, items, types, abilities and games are never read as a typo. Over the 492
+questions of the traces, the replay files and the guide, only "mimigale" and
+"écoli" are matched.
+
+Two typos ("dracofeu"), a short name ("Mew") or a compound one ("M. Mime") are
+not corrected. The graph and the MCP client keep the exact comparison.
+
+Replayed with Qwen, the four misspelt questions get an answer about the right
+Pokémon: Migalos (Ariados) at level 22 for "mimigale", 460 kg for "ronflexx".
+The answer often keeps the visitor's spelling. On "l'attaque de écoli et
+gouroutan", Qwen added a Normal-type filter of its own, which the guard does not
+remove: both lists are correct but partial.

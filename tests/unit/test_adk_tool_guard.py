@@ -624,7 +624,7 @@ TWO_NAMED = "En quoi évoluent Dracolosse et Carabaffe ?"
 
 @pytest.mark.parametrize("tool", ["pokemon_evolutions", "pokemon_particularities", "pokemon_moves"])
 @pytest.mark.parametrize("proposed, kept", [("Dracolosse", "Dracolosse"), ("carabaffe", "Carabaffe"),
-                                            ("Wartortle", "Carabaffe")])
+                                            ("Wartortle", "Carabaffe"), ("Dracolosee", "Dracolosse")])
 def test_question_naming_two_pokemon_accepts_one_call_for_each(catalogue, tool, proposed, kept):
     # Régression : les 6 questions à deux Pokémon des traces Web (6 au 12 octobre) étaient refusées à chaque appel.
     args = {"pokemon": proposed}
@@ -632,10 +632,11 @@ def test_question_naming_two_pokemon_accepts_one_call_for_each(catalogue, tool, 
     assert args == {"pokemon": kept}
 
 
-@pytest.mark.parametrize("args", [{"pokemon": "Dardargnan"}, {"pokemon": "Dracolosee"}, {"pokemon": "Gourgeist"},
+@pytest.mark.parametrize("args", [{"pokemon": "Dardargnan"}, {"pokemon": "Dracolasee"}, {"pokemon": "Gourgeist"},
                                   {"pokemon": ""}, {}])
 def test_question_naming_two_pokemon_refuses_a_call_that_names_neither(catalogue, args):
-    # Autre espèce, faute de frappe, mauvaise traduction ou nom absent : rien ne dit lequel des deux rétablir.
+    # Autre espèce, deux fautes de frappe, mauvaise traduction ou nom absent : rien ne dit lequel des deux rétablir.
+    # Une seule faute désigne encore l'un des deux (« Dracolosee ») : l'appel est accepté, test précédent.
     proposed = dict(args)
     refusal = before_tool_guard(_tool("pokemon_evolutions"), args, _context(TWO_NAMED))
     assert refusal["error"] == "other_pokemon_than_question"
@@ -653,3 +654,30 @@ def test_search_by_number_must_be_the_number_of_a_named_pokemon(catalogue, monke
     assert args["pokedex_number"] == 8
     refusal = before_tool_guard(_tool("pokemon_search"), {"pokedex_number": 246}, _context(TWO_NAMED))
     assert refusal["error"] == "other_pokemon_than_question"
+
+
+@pytest.mark.parametrize("question, proposed, kept", [
+    ("Quels sont les types de dracolose ?", "dracolose", "Dracolosse"),      # le modèle recopie la faute
+    ("Quels sont les types de dracolose ?", "Dracolosse", "Dracolosse"),     # le modèle la corrige
+    ("Quels sont les types de dracolose ?", "Gourgeist", "Dracolosse"),      # mauvaise traduction : rétablie
+    ("En quoi évoluent carabafe et Dracolosse ?", "carabafe", "Carabaffe"),
+    ("En quoi évoluent carabafe et Dracolosse ?", "Carabaffe", "Carabaffe"),
+    ("En quoi évoluent carabafe et Dracolosse ?", "Dracolosse", "Dracolosse"),
+])
+def test_pokemon_named_with_one_typo_in_the_question_is_restored(catalogue, question, proposed, kept):
+    # Traces Web du 6 au 12 octobre : « mimigale » six fois, « écoli » deux fois. Le nom n'était reconnu nulle
+    # part ; avec un second Pokémon bien écrit, l'appel sur le premier était refusé comme visant une autre espèce.
+    args = {"pokemon": proposed}
+    assert before_tool_guard(_tool("pokemon_evolutions"), args, _context(question)) is None
+    assert args == {"pokemon": kept}
+
+
+def test_word_of_the_vocabulary_is_not_a_misspelt_pokemon(catalogue, monkeypatch):
+    # « Carabiffe » est à une lettre de Carabaffe : inconnu, il le nomme ; connu comme capacité, il ne nomme personne.
+    question = "Quels Pokémon apprennent Carabiffe ?"
+    assert before_tool_guard(_tool("pokemon_types"), {"pokemon": "Dracolosse"}, _context(question))["error"] == (
+        "other_pokemon_than_question")
+    monkeypatch.setattr("pokemon_rag.agent.tool_guard.vocabulary_words", lambda: frozenset({"carabiffe"}))
+    args = {"pokemon": "Dracolosse"}
+    assert before_tool_guard(_tool("pokemon_types"), args, _context(question)) is None
+    assert args == {"pokemon": "Dracolosse"}

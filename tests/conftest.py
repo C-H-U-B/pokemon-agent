@@ -18,6 +18,9 @@ def forbid_project_database_in_light_tests(request, monkeypatch):
                 pytest.fail("Test léger : accès interdit aux bases du projet")
         return original(database, *args, **kwargs)
     monkeypatch.setattr(sqlite3, "connect", connect)
+    # Le guard lit ce vocabulaire à chaque appel d'outil : vide ici, un test le remplace s'il en dépend.
+    import pokemon_rag.structured.query_engine as query_engine
+    monkeypatch.setattr(query_engine, "_vocabulary_words", lambda path, modified: frozenset())
 
 
 @pytest.fixture(autouse=True)

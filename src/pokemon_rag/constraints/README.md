@@ -39,6 +39,18 @@ espèces ou formes détectées sont refusées ; aucune mention ne produit `None`
 question, et ne refuse que deux formes d'une même espèce : le guard ADK s'en
 sert pour accepter un appel par Pokémon nommé.
 L'extracteur conserve séparément l'espèce et la forme et ne déduit aucun nom.
+Seule exception à la comparaison exacte, et seulement quand l'appelant fournit
+`known_words` (le guard ADK ; ni le graphe ni le client MCP) : un mot à une faute
+de frappe d'un seul nom français d'espèce la désigne (« mimigale », « ronflexx »,
+« écoli » : lettre changée, ajoutée, oubliée, ou deux voisines inversées). Le nom
+doit tenir en un mot d'au moins cinq lettres et garder son initiale ; le mot ne
+doit être ni un alias, ni un nom de jeu, ni un mot de `known_words`, le
+vocabulaire que l'appelant sait ne pas être une faute (« Mimique » n'est pas
+Mimiqui, « armure » pas Airmure). Deux fautes (« dracofeu »), un nom court
+(« Mew ») ou composé (« M. Mime ») et un mot proche de deux espèces ne sont pas
+rapprochés. Mesure du 12 octobre sur les 492 questions des traces Web, de
+`scripts/batch/` et du guide : seules « mimigale » et « écoli » sont rapprochées,
+aucun mot courant ; 869 noms retrouvés sur 1 025 avec une faute simulée.
 `is_named_identity_question` reconnaît le motif numéro national / identité
 Pokédex ; le guard garde la responsabilité du refus d'outil incompatible.
 La correspondance interne `Tonnerre` → `thunderbolt` appartient à

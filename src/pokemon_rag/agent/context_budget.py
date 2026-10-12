@@ -16,7 +16,7 @@ from google.genai import types
 from pokemon_rag.agent.list_fidelity import complete_list, render, unfaithful_names
 from pokemon_rag.agent.tool_guard import _extract_user_text
 from pokemon_rag.config import LLM_MAX_OUTPUT_TOKENS
-from pokemon_rag.structured.query_engine import pokemon_name_catalogue
+from pokemon_rag.structured.query_engine import pokemon_name_catalogue, vocabulary_words
 from pokemon_rag.constraints.query_constraints import (
     DOCUMENTARY_PATTERN, has_structured_request, is_purely_documentary, is_type_matchup_question,
     named_pokemon_mentions, normalize,
@@ -416,7 +416,7 @@ def after_tool_budget(tool: Any, args: dict, tool_context: Any, tool_response: d
 
 def _names_several_pokemon(question: str) -> bool:
     try:
-        return len(named_pokemon_mentions(question, pokemon_name_catalogue())) > 1
+        return len(named_pokemon_mentions(question, pokemon_name_catalogue(), vocabulary_words())) > 1
     except ValueError:  # deux formes d'une même espèce
         return True
 

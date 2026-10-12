@@ -41,12 +41,18 @@ reconnue, il n'ajoute aucun Pokémon. Quand la question nomme plusieurs espèces
 (« en quoi évoluent Salamèche et Reptincel ? », « le plus lourd entre Ronflex
 et Célébi »), il accepte un appel par Pokémon nommé, désigné par son nom ou, pour
 `pokemon_search`, par son numéro national, et refuse tout appel qui n'en désigne
-aucun (`other_pokemon_than_question`) : faute de frappe et mauvaise traduction
-ne sont alors plus rétablies, rien ne disant vers lequel corriger. Le modèle
+aucun (`other_pokemon_than_question`) : une mauvaise traduction ou un nom à deux
+fautes ne sont alors plus rétablis, rien ne disant vers lequel corriger ; à une
+seule faute de l'un des noms, l'appel le désigne encore. Le modèle
 rapproche lui-même les résultats ; une comparaison entre deux valeurs lues n'est
 donc pas calculée en SQL, limite acceptée le 12 octobre et à reprendre à la
 première comparaison fausse observée. Deux formes d'une même espèce restent
-refusées. Le nom proposé par le modèle n'est remplacé que s'il désigne la
+refusées. Un Pokémon écrit avec une faute de frappe dans la question
+(« mimigale », « écoli ») est nommé comme les autres : le guard rétablit le nom
+exact, que le modèle ait recopié la faute ou l'ait corrigée. Les mots des noms de
+capacités, d'objets, de types et de talents (`vocabulary_words`) ne sont jamais
+lus comme une faute ; règle et limites dans les
+[contraintes](../constraints/README.md). Le nom proposé par le modèle n'est remplacé que s'il désigne la
 même espèce (casse, forme, faute de frappe absente de la question) ou s'il est
 une mauvaise traduction (nom anglais d'une autre espèce) : un appel portant le
 nom français d'une autre espèce, ou un nom inconnu repris de la question, est
