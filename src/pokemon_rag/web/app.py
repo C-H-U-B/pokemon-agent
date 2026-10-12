@@ -324,10 +324,27 @@ GUIDE = load_guide()
 GUIDE_HTML = guide_html(GUIDE)
 
 
+# Simulation (POKEMON_RAG_SIMULATION=1) : les traces réelles de `simulation.json` sont rejouées, sans appel au
+# modèle ni aux outils. Seules ces questions ont une réponse ; les boutons ne proposent qu'elles.
+SIMULATION = os.environ.get("POKEMON_RAG_SIMULATION") == "1"
+REPLAYS = {normalize(trace["question"]): trace for trace in
+           json.loads(Path(__file__).with_name("simulation.json").read_text(encoding="utf-8"))}
+SIMULATION_ONLY = ("Cette démo est une simulation : elle rejoue des réponses enregistrées, sans appeler le modèle. "
+                   "Seules les questions des boutons « Débutant », « Joueur » et « Expert » ont une réponse.")
+# Le rejeu suit les durées mesurées, chaque étape plafonnée : Qwen en local met dix secondes à choisir un outil,
+# et le premier chargement de la base documentaire a duré 26 s dans une trace.
+REPLAY_STEP_CAP = 4.0
+# En tête de page : le modèle servi, ou celui des enregistrements, dit comme tel ; rien n'est enregistré en simulation.
+RECORDED_MODELS = " et ".join(sorted({trace["model"].rsplit("/", 1)[-1] for trace in REPLAYS.values()}))
+HEADING_MODEL = (f"Simulation : réponses enregistrées de {RECORDED_MODELS}, rejouées sans appel au modèle"
+                 if SIMULATION else f"Modèle : {MODEL_LABEL}")
+HEADING_NOTICE = "" if SIMULATION else " · Les questions posées sont enregistrées pour améliorer l'outil."
+
+
 def _next_suggestion(audience: str, state: WebSession) -> tuple[str, WebSession]:
     """Question suivante de la liste du public, en revenant au début après la dernière."""
 
-    questions = SUGGESTIONS[audience]
+    questions = [question for question in SUGGESTIONS[audience] if not SIMULATION or normalize(question) in REPLAYS]
     index = state.next_suggestion.get(audience, 0) % len(questions)
     state.next_suggestion[audience] = index + 1
     return questions[index], state
@@ -653,6 +670,39 @@ async def _run_agent_into_queue(
             await queue.put(("done", None))
 
 
+async def _replay(message: str, history: list[dict]):
+    """Rejoue la trace enregistrée d'une question : mêmes vues que `chat`, aucun appel au modèle ni aux outils.
+
+    Trois états en cours (le modèle choisit, l'outil travaille, le modèle rédige), puis la trace complète.
+    Rien n'est écrit dans les traces : ce n'est pas une nouvelle exécution.
+    """
+    recorded = REPLAYS.get(normalize(message))
+    asked = history + [{"role": "user", "content": message}]
+    if recorded is None:
+        yield (asked + [{"role": "assistant", "content": SIMULATION_ONLY}], gr.skip(), observability_html(None),
+               EMPTY_GRAPH, GUIDE_HTML)
+        return
+    question_id, user_icon = uuid.uuid4().hex, random_pikachu()
+    tools = recorded["tools"]
+    # Appel en attente tel que `_web_trace` le donne : la proposition du modèle, ni durée ni retour.
+    waiting = [{"name": tool["name"], "arguments": tool.get("proposed_arguments", tool["arguments"]),
+                "start": tool.get("start"), "seconds": None, "result": None} for tool in tools]
+    for index, (step, called) in enumerate((("analysis", []), ("tools", waiting), ("generation", tools))):
+        trace = {**recorded, "outcome": "running", "tools": called}
+        yield (asked + [{"role": "assistant", "content": PENDING_ANSWER}] if index == 0 else gr.skip(), gr.skip(),
+               observability_html(trace, question_id), _graph(trace, question_id, user_icon),
+               GUIDE_HTML if index == 0 else gr.skip())
+        await asyncio.sleep(min(recorded["seconds"][step], REPLAY_STEP_CAP))
+    # Illustrations tirées des mêmes données que pour une vraie réponse : retours d'outils et arguments exécutés.
+    timing = ActivityTiming(results={index: tool["result"] or {} for index, tool in enumerate(tools)},
+                            measures={index: {"executed_arguments": tool["arguments"]}
+                                      for index, tool in enumerate(tools)})
+    answer = recorded["answer"]
+    yield (asked + [{"role": "assistant", "content": _image_html(answer, timing) + answer}], gr.skip(),
+           observability_html(recorded, question_id),
+           _graph(recorded, question_id, user_icon, answer_icon=_answer_icon(answer, timing)), gr.skip())
+
+
 async def chat(
     message: str,
     history: list[dict],
@@ -678,6 +728,11 @@ async def chat(
             _graph(refused, uuid.uuid4().hex, random_pikachu()),
             guide_html(GUIDE, known_failure(GUIDE, refused)),
         )
+        return
+
+    if SIMULATION:
+        async for update in _replay(message, history):
+            yield update
         return
 
     content = types.Content(
@@ -871,9 +926,8 @@ def build_app() -> gr.Blocks:
                 Des réponses tirées d'une base de données et de Poképédia, pas de la mémoire du modèle.
                 Posez une question et suivez à droite ce que fait l'agent.
 
-                <span class="app-meta">Modèle : {MODEL_LABEL} ·
-                <a href="{REPOSITORY_URL}" target="_blank">Code et explications sur GitHub</a> ·
-                Les questions posées sont enregistrées pour améliorer l'outil.</span>
+                <span class="app-meta">{HEADING_MODEL} ·
+                <a href="{REPOSITORY_URL}" target="_blank">Code et explications sur GitHub</a>{HEADING_NOTICE}</span>
                 """,
                 elem_id="app-heading",
             )
@@ -1001,7 +1055,8 @@ def build_app() -> gr.Blocks:
                 cancels=chat_events,
             )
 
-        app.load(fn=_warm_up)
+        if not SIMULATION:  # aucun outil n'est appelé : ni serveur d'outils ni base documentaire à charger
+            app.load(fn=_warm_up)
         app.load(fn=_guide_with_names, outputs=guide)
         app.load(fn=None, js=BLOCK_ENTER_WHILE_ANSWERING_JS)
         app.load(fn=None, js=IMAGE_VIEWER_JS)

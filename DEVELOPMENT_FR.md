@@ -1985,3 +1985,47 @@ Le budget de contexte, seul nœud majeur du graphe sans tête, reçoit Kabutops 
 ses deux faux coupent ce que le modèle ne pourrait pas lire. Le rejet et le
 chargement de la base documentaire tirent leur tête au sort à chaque question,
 parmi trois chacun.
+
+## 97. [Feature] Une démo en simulation, qui rejoue de vraies traces
+
+Chaque question posée à la démo publique est payée au modèle distant, et la
+démo cesse de répondre dès que ce modèle ou sa clé manque. Il fallait pouvoir
+montrer l'interface sans aucun appel.
+
+Avec `POKEMON_RAG_SIMULATION=1`, l'interface rejoue des traces réelles au lieu
+d'exécuter l'agent. `simulation.json` garde une trace par question suggérée,
+soit 64 : 17 réponses de Gemini 3.8 Flash, dont les neuf questions de vitrine,
+et 47 de Qwen en local là où Gemini n'avait pas été interrogé. Chaque réponse a
+été relue contre le retour de l'outil enregistré dans la même trace. Le graphe, l'onglet « Observabilité » et les illustrations sont tirés de
+la trace par le même code que pour une vraie réponse ; le rejeu suit les durées
+mesurées, chaque étape plafonnée à quatre secondes.
+
+La page le dit en tête et nomme les deux modèles, à la place du modèle servi. Les boutons ne
+proposent que les questions enregistrées, une autre question reçoit un message
+qui l'explique, rien n'est ajouté aux traces et le serveur d'outils n'est pas
+démarré. Un test rejoue chaque question suggérée.
+
+## 98. [Bug fix] Une rédaction sans appel d'outil à imiter
+
+Sur la démo publique, près d'une question sur trois finissait par « Je n'ai pas
+pu obtenir une réponse fiable dans les limites de traitement » : 21 sur 70 en
+un weekend, dont des questions suggérées. Avec Qwen en local, la même
+abstention touchait 3 % des questions.
+
+Les traces de la démo ont montré la cause. Une fois le résultat d'un outil
+reçu, le catalogue d'outils est retiré pour que le modèle rédige. Gemini
+continuait pourtant d'appeler des outils, en imitant les appels de
+l'historique, jusqu'au plafond d'appels, alors que la réponse était souvent
+dans le premier résultat. Une phrase de consigne n'y changeait rien, et
+l'interdiction d'appel prévue par l'API non plus.
+
+Au tour de rédaction, l'historique est désormais transmis sans structure
+d'appel : chaque résultat d'outil devient un texte, entier, et les appels du
+modèle sont omis. « Pourquoi Psykokwak a-t-il toujours mal à la tête ? », qui
+donnait quatre recherches puis une abstention à chaque essai, est répondue
+après une seule recherche.
+
+Lu en texte, un comptage trompait Qwen : « 0 Pokémon sont de type Spectre »
+trois fois sur seize, le résultat portant « aucune ligne renvoyée » à côté du
+total. Une page de comptage ne transmet plus que son total à la rédaction ; dix
+comptages de suite ont ensuite donné 65.

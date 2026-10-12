@@ -446,3 +446,39 @@ def test_unwritable_trace_never_breaks_an_answer(web, monkeypatch, tmp_path, cap
     with caplog.at_level("WARNING", logger="pokemon_rag.web.app"):
         outputs = asyncio.run(run())
     assert outputs[-1][0][-1]["content"] == "Réponse" and "web_trace_failed" in caplog.text
+
+
+def test_simulation_replays_every_suggested_question_without_the_agent(web, monkeypatch):
+    import json
+    monkeypatch.setattr(web, "SIMULATION", True)
+    monkeypatch.setattr(web, "runner", None)  # tout appel à l'agent lèverait
+    monkeypatch.setattr(web, "REPLAY_STEP_CAP", 0)
+
+    async def run(message):
+        return [output async for output in web.chat(message, [], web.WebSession())]
+
+    # Chaque suggestion des trois boutons a son enregistrement : une liste modifiée sans lui fait échouer ici.
+    for audience, questions in web.SUGGESTIONS.items():
+        state = web.WebSession(next_suggestion={})
+        assert [web._next_suggestion(audience, state)[0] for _ in questions] == questions
+        for question in questions:
+            outputs = asyncio.run(run(question))
+            recorded = web.REPLAYS[web.normalize(question)]
+            assert recorded["outcome"] == "answered" and recorded["tools"], question
+            assert outputs[0][0][-1]["content"] == web.PENDING_ANSWER
+            assert outputs[-1][0][-1]["content"].endswith(recorded["answer"])
+            # L'appel apparaît d'abord en attente, puis le parcours va jusqu'à la réponse.
+            assert "reponse" not in [step[1] for step in json.loads(outputs[1][3])["path"]]
+            last = json.loads(outputs[-1][3])
+            assert last["path"][-1][1] == "reponse" and last["running"] is False, question
+    # Aucune trace écrite, et une question sans enregistrement est dite telle, sans parcours.
+    assert not web.WEB_TRACE_FILE.exists()
+    unknown = asyncio.run(run("Quel est le type de Pikachu ?"))
+    assert unknown[-1][0][-1]["content"] == web.SIMULATION_ONLY and unknown[-1][3] == web.EMPTY_GRAPH
+
+
+def test_a_question_without_recording_is_not_suggested_in_simulation(web, monkeypatch):
+    monkeypatch.setattr(web, "SIMULATION", True)
+    monkeypatch.setattr(web, "SUGGESTIONS", {"experts": ["Question jamais posée ?", web.FIRST_QUESTION]})
+    state = web.WebSession(next_suggestion={})
+    assert [web._next_suggestion("experts", state)[0] for _ in range(2)] == [web.FIRST_QUESTION] * 2
