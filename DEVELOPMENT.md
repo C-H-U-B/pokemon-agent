@@ -1911,3 +1911,47 @@ The context budget, the only major node of the graph without a head, receives
 Kabutops: its two scythes cut what the model could not read. The rejection and
 the loading of the documentary base draw their head at random for each
 question, among three each.
+
+## 97. [Feature] A simulated demo that replays real traces
+
+Every question asked on the public demo is paid to the remote model, and the
+demo stops answering as soon as that model or its key is missing. The interface
+had to be shown without any call.
+
+With `POKEMON_RAG_SIMULATION=1`, the interface replays real traces instead of
+running the agent. `simulation.json` keeps one trace per suggested question, 64
+in all: 17 answers from Gemini 3.8 Flash, including the nine showcase
+questions, and 47 from local Qwen where Gemini had not been asked. Each answer
+was checked against the tool return recorded in the same trace. The graph,
+the "Observabilité" tab and the illustrations are derived from the trace by the
+same code as for a real answer; the replay follows the measured durations, each
+step capped at four seconds.
+
+The page says so in its heading and names both models, in place of the model
+served. The
+buttons only offer the recorded questions, any other question receives a
+message that explains it, nothing is added to the traces and the tool server is
+not started. A test replays every suggested question.
+
+## 98. [Bug fix] A drafting turn with no tool call to imitate
+
+On the public demo, nearly one question in three ended with "Je n'ai pas pu
+obtenir une réponse fiable dans les limites de traitement": 21 out of 70 over
+one weekend, suggested questions included. With local Qwen, the same abstention
+affected 3% of the questions.
+
+The demo's traces showed the cause. Once a tool result is received, the tool
+catalogue is removed so that the model drafts its answer. Gemini kept calling
+tools anyway, imitating the calls in the history, up to the call limit, while
+the answer was often in the first result. A sentence in the instruction changed
+nothing, and neither did the API's own ban on tool calls.
+
+At the drafting turn, the history is now sent without any call structure: each
+tool result becomes a text, in full, and the model's calls are left out.
+"Pourquoi Psykokwak a-t-il toujours mal à la tête ?", which gave four searches
+then an abstention on every attempt, is answered after a single search.
+
+Read as text, a count misled Qwen: "0 Pokémon sont de type Spectre" three times
+out of sixteen, the result carrying "no row returned" next to the total. A
+counting page now passes only its total to the drafting turn; ten counts in a
+row then gave 65.

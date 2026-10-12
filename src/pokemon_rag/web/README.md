@@ -411,6 +411,38 @@ contrepartie de l'autre version) et les jeux où un Pokémon nommé est absent
     d'un Pokémon attachant (la flamme de Salamèche). En « Je découvre », une
     image intrigante suffit à rendre accessible un Pokémon inconnu (Mimiqui).
 
+## Simulation
+
+Avec `POKEMON_RAG_SIMULATION=1`, l'interface n'exécute pas l'agent : `chat` rejoue (`_replay`) les traces
+réelles de `simulation.json`, sans appel au modèle ni aux outils. Le graphe, l'onglet « Observabilité » et
+les illustrations sont tirés de la trace par le même code que pour une vraie réponse ; les durées affichées
+sont celles mesurées à l'enregistrement, et le rejeu les suit, chaque étape plafonnée à 4 s
+(`REPLAY_STEP_CAP`).
+
+```powershell
+$env:POKEMON_RAG_SIMULATION = "1"
+python -m pokemon_rag.web.app
+```
+
+- La tête de page dit « Simulation : réponses enregistrées de … » à la place du modèle servi.
+- Les trois boutons ne proposent que les questions enregistrées ; toute autre question, y compris celles de
+  l'onglet « Guide », reçoit un message fixe (`SIMULATION_ONLY`).
+- Rien n'est écrit dans les traces, et le serveur d'outils n'est pas démarré à l'ouverture. Les illustrations
+  lisent encore `pokemon.db` ; sans base, la réponse s'affiche sans image.
+
+`simulation.json` contient une trace par suggestion des trois boutons, 64 au 12 octobre 2026, extraites de
+`traces/web_traces.jsonl` sans l'adresse du serveur : 17 réponses de Gemini 3.8 Flash (8 et 12 octobre, dont
+les neuf questions de vitrine) et 47 de Qwen en local, faute de trace Gemini. Chaque réponse a été relue
+contre le retour d'outil de sa trace ; six traces ont été préférées à la plus récente, qui était coupée,
+répétitive, complétée de mémoire ou porteuse d'un mot technique. Les traces antérieures au 9 octobre n'ont ni
+`start` ni `raw_bytes` : la taille du retour brut n'y est pas affichée. Ajouter une question revient à y
+ajouter sa trace. Un test rejoue chaque suggestion : en changer une sans l'enregistrer le fait échouer.
+
+Limites connues des réponses rejouées : plusieurs réponses de Qwen sont des noms nus, sans phrase
+(« Bulbizarre », « Gromago ») ; les classements à égalité (les 5 plus légers, tous à 0,1 kg) montrent les
+cinq premiers rendus par l'outil, sans dire que d'autres sont à égalité ; une réponse Gemini cite un nom
+de fichier (`0143_ronflex.md`).
+
 ## Démo hébergée
 
 La cible `demo` du `Dockerfile` produit une image autonome pour un hébergeur sans volume : base et

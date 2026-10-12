@@ -1,0 +1,4243 @@
+[
+ {
+  "timestamp": "2026-10-08T17:08:13.843278+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Quels sont les 5 Pokémon les plus lourds ?",
+  "outcome": "answered",
+  "answer": "Les 5 Pokémon les plus lourds (parmi les 1 025 Pokémon répertoriés) sont :\n\n1. **Cosmovum** : 999,9 kg (à égalité)\n2. **Bamboiselle** : 999,9 kg (à égalité)\n3. **Groudon** : 950,0 kg (à égalité)\n4. **Éthernatos** : 950,0 kg (à égalité)\n5. **Bourrinos** : 920,0 kg",
+  "seconds": {
+   "total": 15.459161599999788,
+   "analysis": 8.748871799998597,
+   "tools": 0.08815619999950286,
+   "generation": 6.622116400001687
+  },
+  "tokens": {
+   "prompt": 4117,
+   "output": 161,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "limit": 5,
+     "sort_by": "weight",
+     "best_only": false,
+     "sort_order": "desc",
+     "offset": 0
+    },
+    "seconds": 0.08815619999950286,
+    "execution_time": 0.020255200000974583,
+    "proposed_arguments": {
+     "limit": 5,
+     "sort_by": "weight",
+     "best_only": false,
+     "sort_order": "desc"
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "weight",
+     "sort_order": "desc",
+     "best_only": false,
+     "stat_name_fr": "Poids (kg)",
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Cosmovum",
+       "Poids (kg)": 999.9
+      },
+      {
+       "name_fr": "Bamboiselle",
+       "Poids (kg)": 999.9
+      },
+      {
+       "name_fr": "Groudon",
+       "Poids (kg)": 950.0
+      },
+      {
+       "name_fr": "Éthernatos",
+       "Poids (kg)": 950.0
+      },
+      {
+       "name_fr": "Bourrinos",
+       "Poids (kg)": 920.0
+      }
+     ],
+     "total_count": 1025,
+     "returned_count": 5,
+     "limit": 5,
+     "offset": 0,
+     "truncated": true,
+     "has_more": true,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T12:52:51.839402+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Combien de Pokémon existe-t-il ?",
+  "outcome": "answered",
+  "answer": "Il existe 1025 Pokémon.",
+  "seconds": {
+   "total": 9.874029700000392,
+   "analysis": 7.233585600000879,
+   "tools": 0.31981199999972887,
+   "generation": 2.317454899999575
+  },
+  "tokens": {
+   "prompt": 3937,
+   "output": 23
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "limit": 0
+    },
+    "seconds": 0.31981199999972887,
+    "execution_time": 0.023435600000084378,
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "national_number",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": null,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [],
+     "total_count": 1025,
+     "returned_count": 0,
+     "limit": 0,
+     "offset": 0,
+     "truncated": true,
+     "has_more": true,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T12:54:21.165404+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Que fait Ronflex de ses journées ?",
+  "outcome": "answered",
+  "answer": "D'après les descriptions du Pokédex (issues du dossier *0143_ronflex.md*, notamment dans *Pokémon GO*, *Pokémon Masters*, *Pokémon Épée* et *Pokémon Écarlate*) :\n\n* Les journées de Ronflex se résument essentiellement à manger et à dormir.\n* Il n'est pas rassasié tant qu'il n'a pas ingurgité ses 400 kg de nourriture quotidienne ; dès qu'il a terminé, il fait une sieste pour digérer.\n* Lorsqu'il dort, les enfants n'hésitent pas à jouer sur son énorme ventre et de petits Pokémon s'en servent comme matelas sans que cela ne le dérange.",
+  "seconds": {
+   "total": 39.05368459999954,
+   "analysis": 3.0598725999989256,
+   "tools": 31.903881600001114,
+   "generation": 4.083940999998958
+  },
+  "tokens": {
+   "prompt": 4416,
+   "output": 186
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "pokemon": "Ronflex",
+     "question": "Que fait Ronflex de ses journées ?"
+    },
+    "seconds": 31.903881600001114,
+    "timings": {
+     "vector": 0.1605373000002146,
+     "bm25": 0.05573750000075961,
+     "rrf": 0.00012119999882997945,
+     "reranker": 1.5293927999991865,
+     "total": 1.892104599999584,
+     "startup": {
+      "embedding": 5.572204899999633,
+      "reranker": 5.479611200000363,
+      "corpus": 5.326356100000339,
+      "bm25": 1.0623386000006576,
+      "total": 17.897432800000388
+     }
+    },
+    "passages": 3,
+    "result": {
+     "question": "Que fait Ronflex de ses journées ?",
+     "pokemon": "Ronflex",
+     "results": [
+      {
+       "text": ";GO\n:Les journées de Ronflex se résument aux repas et aux siestes. C'est un Pokémon tellement gentil que les enfants n'hésitent pas à jouer sur son énorme ventre.\n;PM\n:Il ne fait pas grand-chose à part manger et dormir, mais gare à lui quand il décide de passer à l'action !\n;Ep\n:Ronflex n'est pas satisfait tant qu'il n'a pas avalé ses 400 kg de nourriture quotidienne. Dès qu'il a fini, il commence une sieste pour digérer.\n;Bo\n:L'estomac de ce Pokémon est si résistant qu'il peut même digérer de la nourriture avariée.\n;NPSnap\n:Après avoir ingéré son propre poids en nourriture, il arbore un ventre des plus rebondis. Des petits Pokémon viennent même s'en servir comme matelas, ce qui ne le dérange absolument pas.\n;DE",
+       "pokemon": "Ronflex",
+       "source_file": "0143_ronflex.md",
+       "section_path": "À propos du Pokémon > Descriptions du Pokédex",
+       "chunk_number": 10
+      },
+      {
+       "text": ";DE\n:Son estomac peut digérer n'importe quel type de nourriture, même si elle est moisie ou pourrie.\n;PS\n:Il ne s'arrête de manger que pour dormir. Il lui faut 400 kg de nourriture par jour pour être rassasié.\n;LPA\n:Ce glouton débarque parfois dans le village sans crier gare pour vider les granges en un instant. Il est considéré comme l'une des pires calamités depuis fort longtemps.\n;Ec\n:Quand il ne dort pas, ce glouton passe son temps à manger. Il peut ingurgiter jusqu'à 400 kg de nourriture en une seule journée.\n;Vi\n:Ses sucs digestifs peuvent dissoudre n'importe quel poison. Il n'a donc pas peur de manger des aliments trouvés par terre.\n;Pokopia",
+       "pokemon": "Ronflex",
+       "source_file": "0143_ronflex.md",
+       "section_path": "À propos du Pokémon > Descriptions du Pokédex",
+       "chunk_number": 11
+      },
+      {
+       "text": ";Pokopia\n:Il ne fait pas grand-chose à part manger et dormir, mais gare à lui quand il décide de passer à l'action !",
+       "pokemon": "Ronflex",
+       "source_file": "0143_ronflex.md",
+       "section_path": "À propos du Pokémon > Descriptions du Pokédex",
+       "chunk_number": 12
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:59:57.547210+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quel Pokémon porte le numéro 1 du Pokédex ?",
+  "outcome": "answered",
+  "answer": "Bulbizarre",
+  "seconds": {
+   "total": 9.829060100000788,
+   "analysis": 8.537169400000494,
+   "tools": 0.14296099999955914,
+   "generation": 1.1489259000009042
+  },
+  "tokens": {
+   "prompt": 4156,
+   "output": 27,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "pokedex_number": 1
+    },
+    "start": 8.537169400000494,
+    "seconds": 0.14296099999955914,
+    "raw_bytes": 706,
+    "execution_time": 0.014837900000202353,
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "national_number",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": null,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Bulbizarre",
+       "national_number": 1
+      }
+     ],
+     "total_count": 1,
+     "returned_count": 1,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:14:03.078935+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Où Pikachu stocke-t-il son électricité ?",
+  "outcome": "answered",
+  "answer": "Pikachu stocke son électricité dans les poches de ses joues. Ces poches peuvent s'étendre lorsque la puissance électrique de Pikachu augmente, et il libère de l'électricité en cas de stress ou de danger. Il génère également de l'électricité pendant son sommeil.",
+  "seconds": {
+   "total": 15.702422299998943,
+   "analysis": 7.6151541999988694,
+   "tools": 1.818362200001502,
+   "generation": 6.268901899999037
+  },
+  "tokens": {
+   "prompt": 4736,
+   "output": 109,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "Où Pikachu stocke-t-il son électricité ?",
+     "pokemon": "Pikachu"
+    },
+    "start": 7.6151541999988694,
+    "seconds": 1.818362200001502,
+    "raw_bytes": 2514,
+    "timings": {
+     "vector": 0.1847514000000956,
+     "bm25": 0.05979469999874709,
+     "rrf": 0.0001685999995970633,
+     "reranker": 1.4433558999990055,
+     "total": 1.80289939999966
+    },
+    "passages": 3,
+    "result": {
+     "question": "Où Pikachu stocke-t-il son électricité ?",
+     "pokemon": "Pikachu",
+     "results": [
+      {
+       "text": ";GO\n:Chaque fois que Pikachu découvre quelque chose de nouveau, il envoie un arc électrique. Lorsqu'on tombe sur une Baie carbonisée, ça signifie sans doute qu'un de ces Pokémon a envoyé une charge trop forte.\n;PM\n:Son corps peut accumuler de l'électricité. Les forêts abritant des groupes de Pikachu sont d'ailleurs souvent frappées par la foudre.\n;Ep\n:Plus la puissance électrique de Pikachu est élevée, plus les poches de ses joues sont extensibles.\n;Bo\n:Les Pikachu se disent bonjour en se frottant la queue et en y faisant passer du courant électrique.\n;NPSnap\n:Quand il dort, Pikachu génère et stocke de l'électricité dans les poches de ses joues. Ce Pokémon est un petit curieux qui vient régulièrement nous rendre visite à la base.",
+       "pokemon": "Pikachu",
+       "section_path": "À propos du Pokémon > Descriptions du Pokédex > Forme normale",
+       "chunk_number": 19,
+       "source": "Poképédia, page Pikachu"
+      },
+      {
+       "text": ";DE\n:Il vit en forêts avec ses pairs. Les poches sur ses joues emmagasinent de l'électricité.\n;PS\n:Les poches électriques sur ses joues crépitent lorsqu'il est sur ses gardes.\n;LPA\n:Cet astucieux Pokémon gîte en forêt. Ses bajoues contiennent des poches qui emmagasinent l'électricité dont il se sert pour griller les Baies avant de s'en repaître.\n;Ec\n:Quand il s'énerve, il libère instantanément l'énergie emmagasinée dans les poches de ses joues.\n;Vi\n:Quand plusieurs de ces Pokémon se réunissent, ils provoquent de gigantesques orages.\n;Sleep\n:Il génère de l'électricité dans les poches de ses joues quand il dort et relâche parfois des décharges en somnolant, comme s'il rêvait d'un combat survolté.\n;LPZA",
+       "pokemon": "Pikachu",
+       "section_path": "À propos du Pokémon > Descriptions du Pokédex > Forme normale",
+       "chunk_number": 20,
+       "source": "Poképédia, page Pikachu"
+      },
+      {
+       "text": ";LPZA\n:Ce Pokémon a de petites poches pleines d'électricité sur les joues. S'il se sent menacé, il laisse s'échapper des décharges électriques.\n;Pokopia\n:Plus la puissance électrique de Pikachu est élevée, plus les poches de ses joues sont extensibles.",
+       "pokemon": "Pikachu",
+       "section_path": "À propos du Pokémon > Descriptions du Pokédex > Forme normale",
+       "chunk_number": 21,
+       "source": "Poképédia, page Pikachu"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T12:53:02.549836+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Quel est le Pokémon le plus rapide ?",
+  "outcome": "answered",
+  "answer": "Le Pokémon le plus rapide est Regieleki, avec une Vitesse de 200.",
+  "seconds": {
+   "total": 5.472723700000643,
+   "analysis": 2.502965800000311,
+   "tools": 0.02628770000046643,
+   "generation": 2.940432699999292
+  },
+  "tokens": {
+   "prompt": 3978,
+   "output": 52
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "sort_order": "desc",
+     "sort_by": "speed",
+     "best_only": true,
+     "limit": 30,
+     "offset": 0
+    },
+    "seconds": 0.02628770000046643,
+    "execution_time": 0.022908699998879456,
+    "proposed_arguments": {
+     "sort_order": "desc",
+     "sort_by": "speed",
+     "best_only": true
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "speed",
+     "sort_order": "desc",
+     "best_only": true,
+     "stat_name_fr": "Vitesse",
+     "matching_count": 1025,
+     "best_value": 200,
+     "tie": false,
+     "tie_count": 1,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Regieleki",
+       "Vitesse": 200
+      }
+     ],
+     "total_count": 1,
+     "returned_count": 1,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:14:15.296366+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Comment distinguer un Pikachu mâle d'une femelle ?",
+  "outcome": "answered",
+  "answer": "Les Pikachu femelles ont au bout de la queue une encoche en V qui ressemble à un cœur. Les Pikachu mâles n'ont pas cette caractéristique.",
+  "seconds": {
+   "total": 12.21371850000105,
+   "analysis": 7.6953255999997054,
+   "tools": 1.666295100001662,
+   "generation": 2.8520934999996825
+  },
+  "tokens": {
+   "prompt": 4146,
+   "output": 79,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "Comment distinguer un Pikachu mâle d'une femelle ?",
+     "pokemon": "Pikachu"
+    },
+    "start": 7.6953255999997054,
+    "seconds": 1.666295100001662,
+    "raw_bytes": 516,
+    "timings": {
+     "vector": 0.0708494000009523,
+     "bm25": 0.07601559999966412,
+     "rrf": 0.00023839999994379468,
+     "reranker": 1.3383343999994395,
+     "total": 1.6572391999998217
+    },
+    "passages": 1,
+    "result": {
+     "question": "Comment distinguer un Pikachu mâle d'une femelle ?",
+     "pokemon": "Pikachu",
+     "results": [
+      {
+       "text": "Les Pikachu femelles ont au bout de la queue une encoche en V qui ressemble à un cœur.",
+       "pokemon": "Pikachu",
+       "section_path": "À propos du Pokémon > Physionomie et attitudes > Différences mâle/femelle",
+       "chunk_number": 10,
+       "source": "Poképédia, page Pikachu"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:14:31.488431+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Pourquoi Osselait porte-t-il un crâne ?",
+  "outcome": "answered",
+  "answer": "Osselait porte un crâne parce qu'il s'agit du crâne de sa mère, morte lors de sa naissance. Il le porte en permanence en guise de casque protecteur. Cette information provient du Pokédex et de Poképédia.",
+  "seconds": {
+   "total": 16.193017699999473,
+   "analysis": 9.85266650000085,
+   "tools": 2.0241458999989845,
+   "generation": 4.31620219999968
+  },
+  "tokens": {
+   "prompt": 4274,
+   "output": 103,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "Pourquoi Osselait porte-t-il un crâne ?",
+     "pokemon": "Osselait"
+    },
+    "start": 9.85266650000085,
+    "seconds": 2.0241458999989845,
+    "raw_bytes": 897,
+    "timings": {
+     "vector": 0.06566949999978533,
+     "bm25": 0.05980280000039784,
+     "rrf": 0.00016689999938535038,
+     "reranker": 1.6844457000006514,
+     "total": 2.010972500000207
+    },
+    "passages": 1,
+    "result": {
+     "question": "Pourquoi Osselait porte-t-il un crâne ?",
+     "pokemon": "Osselait",
+     "results": [
+      {
+       "text": "Osselait est un Pokémon bipède, brun, au visage caché par un crâne sans lequel il n'est jamais vu. Selon le Pokédex, le crâne qu'il porte est celui de sa mère, morte lors de sa naissance. Il porte en permanence ce crâne en guise de casque protecteur, et utilise un os comme moyen de défense. Dans RBJ, RFVF, LGPE, ce Pokémon est la cible de braconnage de la part de la Team Rocket, cherchant à tout prix à s'emparer de son crâne, dit se vendre à bon prix.\n\n- Taille : 0.4 m\n- Poids : 6.5 kg",
+       "pokemon": "Osselait",
+       "section_path": "À propos du Pokémon > Physionomie et attitudes",
+       "chunk_number": 2,
+       "source": "Poképédia, page Osselait"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:57:48.938816+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quels sont les Pokémon de départ de la première génération ?",
+  "outcome": "answered",
+  "answer": "Bulbizarre, Salamèche, Carapuce",
+  "seconds": {
+   "total": 13.288398400000005,
+   "analysis": 11.415931699999419,
+   "tools": 0.032371000001148786,
+   "generation": 1.8400915000001987
+  },
+  "tokens": {
+   "prompt": 4183,
+   "output": 51,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "subgroup": "Starter",
+     "generation": 1
+    },
+    "start": 11.415931699999419,
+    "seconds": 0.032371000001148786,
+    "raw_bytes": 1148,
+    "execution_time": 0.022119600000223727,
+    "proposed_arguments": {
+     "subgroup": "starter",
+     "evolution_stage": "base",
+     "talent": "none"
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "national_number",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": null,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Bulbizarre"
+      },
+      {
+       "name_fr": "Salamèche"
+      },
+      {
+       "name_fr": "Carapuce"
+      }
+     ],
+     "total_count": 3,
+     "returned_count": 3,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T16:31:35.955572+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Qu'y a-t-il sous le déguisement de Mimiqui ?",
+  "outcome": "answered",
+  "answer": "Sous son déguisement, le véritable corps de Mimiqui est presque entièrement dissimulé. Seuls quelques éléments sont visibles :\n\n* Ses petits yeux noirs apparaissent à travers des trous percés dans le déguisement.\n* Le bas de son corps, semblable à une frange informe, est visible sous l'ourlet du tissu.\n* Un appendice noir se découvre également occasionnellement.\n\nCe qui se trouve exactement sous le costume reste inconnu et mortel à observer : tous ceux qui ont essayé de regarder sous son costume sont morts de peur.\n\n**Source :** Poképédia, page Mimiqui (section *À propos du Pokémon > Physionomie et attitudes*).",
+  "seconds": {
+   "total": 40.84146889999829,
+   "analysis": 8.843910799998412,
+   "tools": 28.01502910000272,
+   "generation": 3.982507099997747
+  },
+  "tokens": {
+   "prompt": 4415,
+   "output": 183,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "Qu'y a-t-il sous le déguisement de Mimiqui ?",
+     "pokemon": "Mimiqui"
+    },
+    "seconds": 28.01502910000272,
+    "timings": {
+     "vector": 0.18036960000245017,
+     "bm25": 0.08131560000038007,
+     "rrf": 0.00014060000103199854,
+     "reranker": 1.7539032999993651,
+     "total": 2.2662108999975317,
+     "startup": {
+      "embedding": 4.988093700001627,
+      "reranker": 4.6337049000030675,
+      "corpus": 4.1765356000032625,
+      "bm25": 0.9446710999982315,
+      "total": 15.04742019999685
+     }
+    },
+    "passages": 3,
+    "result": {
+     "question": "Qu'y a-t-il sous le déguisement de Mimiqui ?",
+     "pokemon": "Mimiqui",
+     "results": [
+      {
+       "text": "Mimiqui est un petit Pokémon — un des plus petits Pokémon de type Spectre — dont le corps est presque entièrement dissimulé sous un chiffon. Ses petits yeux noirs sont visibles à travers des trous percés dans le corps de son déguisement, et le bas de son corps, qui ressemble à une frange informe, est visible sous l'ourlet du tissu. Occasionnellement, un appendice noir se découvre également. Le chiffon en lui-même est à l'effigie de Pikachu. Il est beige avec des oreilles aux extrémités noires. Le visage du Pikachu semble être dessiné au crayon et se compose de deux yeux noirs, des joues oranges et une bouche souriante en zigzag. Mimiqui se balade également avec un bâton en forme d'éclair pour faire la queue de son costume",
+       "pokemon": "Mimiqui",
+       "section_path": "À propos du Pokémon > Physionomie et attitudes",
+       "chunk_number": 2,
+       "source": "Poképédia, page Mimiqui"
+      },
+      {
+       "text": ". Mimiqui se balade également avec un bâton en forme d'éclair pour faire la queue de son costume. Tout ceux qui ont essayé de voir sous son costume sont morts de peur. Quand le déguisement est abîmé, la tête tombe légèrement en arrière, révélant la ruse de Mimiqui. Si jamais son déguisement se déchire, Mimiqui passera toute une nuit à le rapiécer devant un miroir en ne se reposant jamais tant qu'il n'aura pas fini de le reconstituer. Il cherchera ensuite à prendre sa revanche sur celui qui a commis ce crime qui aurait pu révéler sa véritable identité. Il trouve cependant cette tâche très compliquée et pleure en le faisant.",
+       "pokemon": "Mimiqui",
+       "section_path": "À propos du Pokémon > Physionomie et attitudes",
+       "chunk_number": 3,
+       "source": "Poképédia, page Mimiqui"
+      },
+      {
+       "text": "Le déguisement de Mimiqui est inspiré de Pikachu. L'exécution de celui-ci rappelle les costumes de fantômes fabriqués à partir de draps. Le fait que l'apparence de Mimiqui peut causer la mort est une référence aux monstres lovecraftiens, qui rendent fous ou tuent les personnes qui découvrent leur vraie forme.\n\n<center></center>",
+       "pokemon": "Mimiqui",
+       "section_path": "À propos du Pokémon > Physionomie et attitudes",
+       "chunk_number": 4,
+       "source": "Poképédia, page Mimiqui"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:09:28.090953+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Combien pèse Ronflex ?",
+  "outcome": "answered",
+  "answer": "Ronflex pèse 460,0 kg.",
+  "seconds": {
+   "total": 10.74163530000078,
+   "analysis": 8.62883690000126,
+   "tools": 0.1961195999992924,
+   "generation": 1.9166755999995075
+  },
+  "tokens": {
+   "prompt": 4340,
+   "output": 37,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_particularities",
+    "arguments": {
+     "pokemon": "Ronflex"
+    },
+    "start": 8.62883690000126,
+    "seconds": 0.1961195999992924,
+    "raw_bytes": 932,
+    "execution_time": 0.06743479999931878,
+    "result": {
+     "operation": "get_particularities",
+     "pokemon": "Ronflex",
+     "form": null,
+     "source": "Pokédex personnalisé",
+     "count": 1,
+     "rows": [
+      {
+       "name_fr": "Ronflex",
+       "Type 1": "Normal",
+       "Talent 1": "Vaccin",
+       "Talent 2": "Isograisse",
+       "Talent caché": "Gloutonnerie",
+       "Stade d'évolution": "Final · stade 2",
+       "Statistiques remarquables": "Parmi tous les Pokémon — PV : 9e plus haute (160)",
+       "Rencontre ou obtention à l'introduction": "Deux Ronflex fixes bloquent des routes et ne peuvent être réveillés qu’avec la Poké Flûte.",
+       "Faiblesses de type": "Combat (×2)",
+       "Immunités de type": "Spectre",
+       "Anciennes statistiques": "Spécial : 65 (G1 seulement)",
+       "Objets tenus à l'état sauvage": "Baie Maron (100 %, G3), Restes (5 à 100 %, G3–G7)",
+       "Gigamax": "Forme Gigamax dans Pokémon Épée et Bouclier",
+       "Jeux sans ce Pokémon depuis son introduction": "aucun",
+       "Taille": "2,1 m",
+       "Poids": "460,0 kg",
+       "Taux de capture": "25 sur 255"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:11:53.158835+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "D'où vient le nom de Lokhlass ?",
+  "outcome": "answered",
+  "answer": "Lokhlass vient de Loch Ness et de l'expression « la classe ! » selon le commentaire du traducteur français sur l'origine des noms.",
+  "seconds": {
+   "total": 42.622155200000634,
+   "analysis": 7.0521272999994835,
+   "tools": 30.873744200000147,
+   "generation": 4.696277999999438
+  },
+  "tokens": {
+   "prompt": 4468,
+   "output": 76,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "D'où vient le nom de Lokhlass ?",
+     "pokemon": "Lokhlass"
+    },
+    "start": 7.0521272999994835,
+    "seconds": 30.873744200000147,
+    "raw_bytes": 1659,
+    "timings": {
+     "vector": 0.1653126000001066,
+     "bm25": 0.05789329999970505,
+     "rrf": 0.00014139999984763563,
+     "reranker": 1.744352900001104,
+     "total": 2.210050100000444,
+     "startup": {
+      "embedding": 5.1005521999995835,
+      "reranker": 4.743797600000107,
+      "corpus": 4.4641726999998355,
+      "bm25": 1.159752199999275,
+      "total": 15.89972090000083
+     }
+    },
+    "passages": 2,
+    "result": {
+     "question": "D'où vient le nom de Lokhlass ?",
+     "pokemon": "Lokhlass",
+     "results": [
+      {
+       "text": "- Français : Lokhlass vient de Loch Ness et de l'expression « la classe ! »[http://www.liberation.fr/apps/2016/06/pokemon/#item-133o Commentaire du traducteur français sur l'origine des noms] (fr).\n- Anglais, allemand, coréen : 라프라스 Lapras est tiré du nom Laplace avec un jeu de mots sur le fait que l'on a la place de s'asseoir à plusieurs sur son dos.\n- Japonais : ラプラス Laplace, même étymologie que précédemment.\n- Chinois (Cantonais) : 背背龍 Buihbuihlùhng, littéralement « dragon qui transporte ».\n- Chinois (Mandarin) : 乘龍 Chénglóng pourrait venir de 乘 chéng (monter sur un animal) et de 龍 lóng (dragon).",
+       "pokemon": "Lokhlass",
+       "section_path": "À propos du Pokémon > Étymologies",
+       "chunk_number": 11,
+       "source": "Poképédia, page Lokhlass"
+      },
+      {
+       "text": "On voit l'utilisation du nom d'un grand scientifique français, Pierre-Simon de Laplace. Pourtant, ses recherches n'ont rien à voir avec l'eau, la glace, ou un domaine lié. Indirectement, tout au plus, a-t-il aidé à comprendre l'influence de la lune sur les marées. C'est donc plus un éloge de l'intelligence de Lokhlass qu'autre chose.",
+       "pokemon": "Lokhlass",
+       "section_path": "À propos du Pokémon > Étymologies",
+       "chunk_number": 12,
+       "source": "Poképédia, page Lokhlass"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T14:15:52.333584+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Quel est le plus grand Pokémon ?",
+  "outcome": "answered",
+  "answer": "Le plus grand Pokémon est Éthernatos avec une taille de 20,0 m.",
+  "seconds": {
+   "total": 5.48448339999959,
+   "analysis": 2.918479500000103,
+   "tools": 0.019685399998707,
+   "generation": 2.5463006000027235
+  },
+  "tokens": {
+   "prompt": 4055,
+   "output": 51,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "best_only": true,
+     "sort_order": "desc",
+     "sort_by": "height",
+     "limit": 30,
+     "offset": 0
+    },
+    "seconds": 0.019685399998707,
+    "execution_time": 0.014074800001253607,
+    "proposed_arguments": {
+     "best_only": true,
+     "sort_order": "desc",
+     "sort_by": "height"
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "height",
+     "sort_order": "desc",
+     "best_only": true,
+     "stat_name_fr": "Taille (m)",
+     "matching_count": 1025,
+     "best_value": 20.0,
+     "tie": false,
+     "tie_count": 1,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Éthernatos",
+       "Taille (m)": 20.0
+      }
+     ],
+     "total_count": 1,
+     "returned_count": 1,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:57:11.213862+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Combien y a-t-il de Pokémon dans la première génération ?",
+  "outcome": "answered",
+  "answer": "151 Pokémon.",
+  "seconds": {
+   "total": 10.40704310000001,
+   "analysis": 9.265132799999265,
+   "tools": 0.015204600000288337,
+   "generation": 1.1267007000005833
+  },
+  "tokens": {
+   "prompt": 4147,
+   "output": 32,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "generation": 1,
+     "limit": 0
+    },
+    "start": 9.265132799999265,
+    "seconds": 0.015204600000288337,
+    "raw_bytes": 476,
+    "execution_time": 0.00848260000020673,
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "national_number",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": null,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [],
+     "total_count": 151,
+     "returned_count": 0,
+     "limit": 0,
+     "offset": 0,
+     "truncated": true,
+     "has_more": true,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:57:21.767480+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Combien y a-t-il de Pokémon légendaires ?",
+  "outcome": "answered",
+  "answer": "71 Pokémon légendaires.",
+  "seconds": {
+   "total": 10.554310600000463,
+   "analysis": 9.098026499999833,
+   "tools": 0.22340409999924304,
+   "generation": 1.2328766000009637
+  },
+  "tokens": {
+   "prompt": 4142,
+   "output": 34,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "legendary": true,
+     "limit": 0
+    },
+    "start": 9.098026499999833,
+    "seconds": 0.22340409999924304,
+    "raw_bytes": 476,
+    "execution_time": 0.009512799999356503,
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "national_number",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": null,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [],
+     "total_count": 71,
+     "returned_count": 0,
+     "limit": 0,
+     "offset": 0,
+     "truncated": true,
+     "has_more": true,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:15:22.144070+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quelle anecdote peux-tu me donner sur Miaouss ?",
+  "outcome": "answered",
+  "answer": "Miaouss est inspiré du maneki-neko, une statuette traditionnelle japonaise représentant un chat assis avec une patte levée. Selon les croyances folkloriques, cette figurine apporterait bonne fortune et richesse aux magasins et foyers qui en possèdent une. Miaouss, avec son corps beige, ses pattes et sa queue marron, ainsi que ses oreilles noires et sa pièce dorée sur le front ressemblant à une Pièce Rune, incarne cette idée de chat porte-bonheur.\n\nDe plus, Miaouss est unique en étant le seul Pokémon à posséder deux formes régionales : Miaouss d'Alola (depuis SL) et Miaouss de Galar (depuis EB). Il mesure 0,4 mètre de hauteur et pèse 4,2 kg.",
+  "seconds": {
+   "total": 23.875149699999383,
+   "analysis": 7.462411599999541,
+   "tools": 1.7665395000003628,
+   "generation": 14.646195400000579
+  },
+  "tokens": {
+   "prompt": 4426,
+   "output": 236,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "anecdote sur Miaouss",
+     "pokemon": "Miaouss"
+    },
+    "start": 7.462411599999541,
+    "seconds": 1.7665395000003628,
+    "raw_bytes": 1432,
+    "timings": {
+     "vector": 0.18096730000070238,
+     "bm25": 0.03252679999968677,
+     "rrf": 0.00014259999989008065,
+     "reranker": 1.381929000001037,
+     "total": 1.7440405999986979
+    },
+    "passages": 2,
+    "result": {
+     "question": "anecdote sur Miaouss",
+     "pokemon": "Miaouss",
+     "results": [
+      {
+       "text": "Miaouss ressemble à un chat, à la différence qu'il n'a pas de museau visible et qu'il se tient la plupart du temps sur ses deux pattes arrières où il prend une posture plantigrade. Il a le corps beige, le bout des pattes et de la queue marron et les oreilles noires. Sa pièce dorée fixée sur son front a une relative ressemblance avec la Pièce Rune.\n\nIl est inspiré du maneki-neko, une statuette traditionnelle japonaise qui représente un chat assis avec une de ses pattes levées. D'après des croyances folkloriques, elle apporterait bonne fortune et richesse aux magasins et foyers qui en possèdent une.",
+       "pokemon": "Miaouss",
+       "section_path": "À propos du Pokémon > Physionomie et attitudes",
+       "chunk_number": 2,
+       "source": "Poképédia, page Miaouss"
+      },
+      {
+       "text": "Depuis SL, Miaouss possède une nouvelle variante, appelée Miaouss d'Alola. Depuis EB, Miaouss possède également une variante à Galar, appelée Miaouss de Galar. C'est actuellement le seul Pokémon à posséder deux formes régionales.\n\n<center></center>\n\n- Taille : 0.4 m\n- Poids : 4.2 kg",
+       "pokemon": "Miaouss",
+       "section_path": "À propos du Pokémon > Physionomie et attitudes",
+       "chunk_number": 3,
+       "source": "Poképédia, page Miaouss"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:15:46.717921+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Pourquoi dit-on que Magicarpe est le Pokémon le plus faible ?",
+  "outcome": "answered",
+  "answer": "Magicarpe est souvent considéré comme le Pokémon le plus faible à cause de ses statistiques de base extrêmement basses, notamment :\n\n- **PV : 20** (3e plus basse)\n- **Attaque : 10** (2e plus basse)\n- **Attaque Spéciale : 15** (2e plus basse)\n- **Défense Spéciale : 20** (la plus basse)\n- **Total : 200** (8e plus basse)\n\nCes valeurs sont les plus faibles de toute la première génération, avec une Attaque Spéciale de 15 et une Défense Spéciale de 20, ce qui le rend extrêmement vulnérable.\n\nDe plus, son movepool naturel est très réduit à l’introduction (seulement Trempette et Charge), ce qui limite sa couverture offensive. Il dépend fortement de son évolution pour devenir plus utile en combat.\n\nCes caractéristiques, combinées à son faible total de statistiques, lui valent le surnom de \"le Pokémon le plus faible\".",
+  "seconds": {
+   "total": 24.56571729999996,
+   "analysis": 5.606824099999358,
+   "tools": 0.19117650000043795,
+   "generation": 18.767711800001052
+  },
+  "tokens": {
+   "prompt": 4440,
+   "output": 280,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_particularities",
+    "arguments": {
+     "pokemon": "Magicarpe"
+    },
+    "start": 5.606824099999358,
+    "seconds": 0.19117650000043795,
+    "raw_bytes": 1208,
+    "execution_time": 0.06952319999982137,
+    "result": {
+     "operation": "get_particularities",
+     "pokemon": "Magicarpe",
+     "form": null,
+     "source": "Pokédex personnalisé",
+     "count": 1,
+     "rows": [
+      {
+       "name_fr": "Magicarpe",
+       "Type 1": "Eau",
+       "Talent 1": "Glissade",
+       "Talent caché": "Phobique",
+       "Stade d'évolution": "Base · 1 évolution possible",
+       "Statistiques remarquables": "Parmi tous les Pokémon — PV : 3e plus basse (20), Attaque : 2e plus basse (10), Attaque Spéciale : 2e plus basse (15), Défense Spéciale : la plus basse (20), Total : 8e plus basse (200) ; Plus basse valeur de la génération 1 — Attaque Spéciale 15, Défense Spéciale 20",
+       "Particularité du movepool": "Movepool naturel extrêmement réduit à l’introduction : Trempette, puis Charge ; sa couverture offensive dépend presque entièrement de l’évolution.",
+       "Différences selon le sexe": "Mâle : barbillons jaunes ; femelle : barbillons blancs.",
+       "Faiblesses de type": "Plante (×2), Électrik (×2)",
+       "Résistances de type": "Acier (×½), Feu (×½), Eau (×½), Glace (×½)",
+       "Anciennes statistiques": "Spécial : 20 (G1 seulement)",
+       "Jeux sans ce Pokémon depuis son introduction": "Pokémon Champions",
+       "Taille": "0,9 m",
+       "Poids": "10,0 kg",
+       "Taux de capture": "255 sur 255"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:02:17.267844+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "En quoi Pikachu évolue-t-il ?",
+  "outcome": "answered",
+  "answer": "Pikachu évolue en Raichu en utilisant une Pierre Foudre.\n\n- **Dans Pokémon Rouge et Bleu** : Pikachu → Raichu (utilisation d'une Pierre Foudre).\n- **Dans Pokémon Soleil et Lune** : Pikachu → Raichu (forme Alola) (utilisation d'une Pierre Foudre dans la région d'Alola).\n\nIl n'existe pas d'autre évolution directe pour Pikachu.",
+  "seconds": {
+   "total": 17.17678900000101,
+   "analysis": 8.538055900000472,
+   "tools": 0.15082479999909992,
+   "generation": 8.487904900001013
+  },
+  "tokens": {
+   "prompt": 4439,
+   "output": 122,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_evolutions",
+    "arguments": {
+     "pokemon": "Pikachu"
+    },
+    "start": 8.538055900000472,
+    "seconds": 0.15082479999909992,
+    "raw_bytes": 1257,
+    "execution_time": 0.025243399999453686,
+    "result": {
+     "operation": "get_evolutions",
+     "pokemon": "Pikachu",
+     "form": null,
+     "version_group": null,
+     "count": 2,
+     "evolutions": [
+      {
+       "evolution_id": 17,
+       "from": {
+        "species_id": 25,
+        "identifier": "pikachu",
+        "name_fr": "Pikachu",
+        "form": {
+         "form_id": 25,
+         "identifier": "pikachu",
+         "form_identifier": null,
+         "pokemon_id": 25,
+         "species_id": 25,
+         "is_default": 1
+        }
+       },
+       "to": {
+        "species_id": 26,
+        "identifier": "raichu",
+        "name_fr": "Raichu",
+        "form": null
+       },
+       "trigger": "utilisation d'un objet",
+       "version_group": "red-blue",
+       "conditions": {
+        "objet utilisé": "Pierre Foudre"
+       },
+       "version_group_fr": "Pokémon Rouge et Bleu"
+      },
+      {
+       "evolution_id": 517,
+       "from": {
+        "species_id": 25,
+        "identifier": "pikachu",
+        "name_fr": "Pikachu",
+        "form": {
+         "form_id": 25,
+         "identifier": "pikachu",
+         "form_identifier": null,
+         "pokemon_id": 25,
+         "species_id": 25,
+         "is_default": 1
+        }
+       },
+       "to": {
+        "species_id": 26,
+        "identifier": "raichu",
+        "name_fr": "Raichu",
+        "form": {
+         "form_id": 10202,
+         "identifier": "raichu-alola",
+         "form_identifier": "alola",
+         "pokemon_id": 10100,
+         "species_id": 26,
+         "is_default": 0
+        }
+       },
+       "trigger": "utilisation d'un objet",
+       "version_group": "sun-moon",
+       "conditions": {
+        "objet utilisé": "Pierre Foudre",
+        "région": "Alola"
+       },
+       "version_group_fr": "Pokémon Soleil et Lune"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-12T08:44:56.779110+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Pourquoi Psykokwak a-t-il toujours mal à la tête ?",
+  "outcome": "answered",
+  "answer": "D'après le Pokédex, utiliser ses pouvoirs psychiques donne de terribles migraines à Psykokwak, ce qui le pousse à rester immobile à ne rien faire. Sa migraine s'intensifie également à mesure que son stress monte, et lorsqu'elle devient trop intense, son pouvoir mystérieux explose, ce qui semble atténuer momentanément sa douleur.\n\nSource : Poképédia, page Psykokwak",
+  "seconds": {
+   "total": 34.78376160000016,
+   "analysis": 7.12281239999993,
+   "tools": 23.60373320000008,
+   "generation": 4.057211700000153
+  },
+  "tokens": {
+   "prompt": 4346,
+   "output": 130,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "pokemon": "Psykokwak",
+     "question": "Pourquoi Psykokwak a-t-il toujours mal à la tête ?"
+    },
+    "start": 7.12281239999993,
+    "seconds": 23.60373320000008,
+    "raw_bytes": 2772,
+    "timings": {
+     "vector": 0.0546409999997195,
+     "bm25": 0.07811949999995704,
+     "rrf": 0.00010900000006586197,
+     "reranker": 1.4333466000002772,
+     "total": 1.6447308000001613,
+     "startup": {
+      "embedding": 4.465653300000213,
+      "reranker": 3.8722302000001037,
+      "corpus": 3.9071975000001657,
+      "bm25": 0.8189380999997411,
+      "total": 13.2293238999996
+     }
+    },
+    "passages": 3,
+    "result": {
+     "question": "Pourquoi Psykokwak a-t-il toujours mal à la tête ?",
+     "pokemon": "Psykokwak",
+     "results": [
+      {
+       "text": ";GO\n:Psykokwak utilise un mystérieux pouvoir. Ce Pokémon peut générer des ondes cérébrales normalement observées chez les dormeurs. Cette découverte a lancé une polémique dans le milieu universitaire.\n;PM\n:Utiliser ses pouvoirs psychiques lui donne de terribles migraines, aussi préfère-t-il passer tout son temps immobile à ne rien faire.\n;Ep\n:Il a toujours la migraine, mais la douleur semble s'atténuer momentanément s'il laisse exploser son pouvoir mystérieux.\n;Bo\n:Sa migraine s'intensifie à mesure que son stress monte. Il libère une force psychique puissante qui terrasse tous ceux qui l'entourent.\n;NPSnap",
+       "pokemon": "Psykokwak",
+       "section_path": "À propos du Pokémon > Descriptions du Pokédex",
+       "chunk_number": 9,
+       "source": "Poképédia, page Psykokwak"
+      },
+      {
+       "text": ";NPSnap\n:Les Psykokwak souffrent de maux de tête constants et ne sont donc pas très alertes. Il arrive d'en voir se faire emporter par les rivières, mais on dirait que ça ne leur fait ni chaud ni froid.\n;DE\n:Lorsque son mal de tête empire, il devient capable d'utiliser d'étranges pouvoirs, mais il ne s'en souvient pas après coup.\n;PS\n:Il possède d'étranges pouvoirs mais il ne se rappelle pas les avoir utilisés, c'est pourquoi il penche toujours la tête d'un air perplexe.\n;LPA\n:Il souffre en permanence de céphalées. Quand la douleur devient trop intense, la force latente de ce Pokémon explose malgré lui. Je recherche un moyen de l'apaiser.\n;Ec",
+       "pokemon": "Psykokwak",
+       "section_path": "À propos du Pokémon > Descriptions du Pokédex",
+       "chunk_number": 10,
+       "source": "Poképédia, page Psykokwak"
+      },
+      {
+       "text": ";Ec\n:Ce Pokémon a tout le temps la migraine. Quand la douleur devient trop intense, il se met à utiliser des pouvoirs mystérieux.\n;Vi\n:Quand son éternelle migraine devient trop forte, il manifeste d'étranges pouvoirs, mais il ne semble jamais s'en souvenir par la suite.\n;Sleep\n:Il est toujours en proie à des maux de tête, même pendant son sommeil, si bien qu'il est très rare de trouver un Psykokwak dormant paisiblement sans se tenir la tête.\n;Pokopia\n:Ce Pokémon a tout le temps la migraine. Quand la douleur devient trop intense, il se met à utiliser des pouvoirs mystérieux.",
+       "pokemon": "Psykokwak",
+       "section_path": "À propos du Pokémon > Descriptions du Pokédex",
+       "chunk_number": 11,
+       "source": "Poképédia, page Psykokwak"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T16:11:15.185451+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quels sont les 5 Pokémon les plus légers ?",
+  "outcome": "answered",
+  "answer": "1. Fantominus — Poids (kg) : 0.1  \n2. Spectrum — Poids (kg) : 0.1  \n3. Flabébé — Poids (kg) : 0.1  \n4. Cosmog — Poids (kg) : 0.1  \n5. Katagami — Poids (kg) : 0.1",
+  "seconds": {
+   "total": 15.952358700000332,
+   "analysis": 9.534959500000696,
+   "tools": 0.1443080999997619,
+   "generation": 6.273073000000295
+  },
+  "tokens": {
+   "prompt": 4261,
+   "output": 125,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "sort_by": "weight",
+     "sort_order": "asc",
+     "limit": 5,
+     "best_only": false,
+     "offset": 0
+    },
+    "seconds": 0.1443080999997619,
+    "execution_time": 0.023574700000608573,
+    "proposed_arguments": {
+     "sort_by": "weight",
+     "sort_order": "asc",
+     "limit": 5,
+     "subgroup": "baby"
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "weight",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": "Poids (kg)",
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Fantominus",
+       "Poids (kg)": 0.1
+      },
+      {
+       "name_fr": "Spectrum",
+       "Poids (kg)": 0.1
+      },
+      {
+       "name_fr": "Flabébé",
+       "Poids (kg)": 0.1
+      },
+      {
+       "name_fr": "Cosmog",
+       "Poids (kg)": 0.1
+      },
+      {
+       "name_fr": "Katagami",
+       "Poids (kg)": 0.1
+      }
+     ],
+     "total_count": 1025,
+     "returned_count": 5,
+     "limit": 5,
+     "offset": 0,
+     "truncated": true,
+     "has_more": true,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:34:13.185387+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quel est le plus petit Pokémon légendaire ?",
+  "outcome": "answered",
+  "answer": "Cosmovum, avec une taille de 0,1 mètre.",
+  "seconds": {
+   "total": 12.992883999999322,
+   "analysis": 10.800337200000286,
+   "tools": 0.35606259999985923,
+   "generation": 1.8219871999990573
+  },
+  "tokens": {
+   "prompt": 4211,
+   "output": 62,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "legendary": true,
+     "sort_by": "height",
+     "sort_order": "asc",
+     "best_only": true,
+     "limit": 30,
+     "offset": 0
+    },
+    "start": 10.800337200000286,
+    "seconds": 0.35606259999985923,
+    "raw_bytes": 781,
+    "execution_time": 0.01644250000026659,
+    "proposed_arguments": {
+     "legendary": true,
+     "sort_by": "height",
+     "sort_order": "asc",
+     "best_only": true,
+     "limit": 1
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "height",
+     "sort_order": "asc",
+     "best_only": true,
+     "stat_name_fr": "Taille (m)",
+     "matching_count": 71,
+     "best_value": 0.1,
+     "tie": false,
+     "tie_count": 1,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Cosmovum",
+       "Taille (m)": 0.1
+      }
+     ],
+     "total_count": 1,
+     "returned_count": 1,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T17:08:25.390819+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Comment évolue Insécateur ?",
+  "outcome": "answered",
+  "answer": "Insécateur peut évoluer de deux manières :\n\n* En **Cizayox** : par échange en tenant l'objet Peau Métal.\n* En **Hachécateur** : par l'utilisation d'un objet, en utilisant l'objet Obsidienne.",
+  "seconds": {
+   "total": 6.28078319999986,
+   "analysis": 2.822531000001618,
+   "tools": 0.1206361000004108,
+   "generation": 3.3375826999981655
+  },
+  "tokens": {
+   "prompt": 4027,
+   "output": 80,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_evolutions",
+    "arguments": {
+     "pokemon": "Insécateur"
+    },
+    "seconds": 0.1206361000004108,
+    "execution_time": 0.018808099997841055,
+    "result": {
+     "operation": "get_evolutions",
+     "pokemon": "Insécateur",
+     "form": null,
+     "version_group": null,
+     "count": 2,
+     "evolutions": [
+      {
+       "evolution_id": 116,
+       "from": {
+        "species_id": 123,
+        "identifier": "scyther",
+        "name_fr": "Insécateur",
+        "form": null
+       },
+       "to": {
+        "species_id": 212,
+        "identifier": "scizor",
+        "name_fr": "Cizayox",
+        "form": null
+       },
+       "trigger": "échange",
+       "version_group": "gold-silver",
+       "conditions": {
+        "objet tenu": "Peau Métal"
+       },
+       "version_group_fr": "Pokémon Or et Argent"
+      },
+      {
+       "evolution_id": 463,
+       "from": {
+        "species_id": 123,
+        "identifier": "scyther",
+        "name_fr": "Insécateur",
+        "form": null
+       },
+       "to": {
+        "species_id": 900,
+        "identifier": "kleavor",
+        "name_fr": "Hachécateur",
+        "form": null
+       },
+       "trigger": "utilisation d'un objet",
+       "version_group": "legends-arceus",
+       "conditions": {
+        "objet utilisé": "Obsidienne"
+       },
+       "version_group_fr": "Légendes Pokémon : Arceus"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T17:08:32.383212+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Quelles sont les statistiques de base de Leveinard ?",
+  "outcome": "answered",
+  "answer": "Les statistiques de base de Leveinard sont :\n\n* PV : 250\n* Attaque : 5\n* Défense : 5\n* Attaque Spéciale : 35\n* Défense Spéciale : 105\n* Vitesse : 50\n* Total des statistiques : 450",
+  "seconds": {
+   "total": 6.992025999999896,
+   "analysis": 2.351877599998261,
+   "tools": 0.19017130000065663,
+   "generation": 4.449920099999872
+  },
+  "tokens": {
+   "prompt": 3888,
+   "output": 97,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_base_stats",
+    "arguments": {
+     "pokemon": "Leveinard"
+    },
+    "seconds": 0.19017130000065663,
+    "execution_time": 0.06050880000111647,
+    "result": {
+     "operation": "get_base_stats",
+     "pokemon": "Leveinard",
+     "form": null,
+     "source": "Pokédex personnalisé",
+     "count": 1,
+     "rows": [
+      {
+       "name_fr": "Leveinard",
+       "PV": 250,
+       "Attaque": 5,
+       "Défense": 5,
+       "Attaque Spéciale": 35,
+       "Défense Spéciale": 105,
+       "Vitesse": 50,
+       "Total des statistiques": 450
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T17:09:05.337816+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "D'où vient le nom de Tygnon ?",
+  "outcome": "answered",
+  "answer": "Le nom de Tygnon vient du boxeur Mike Tyson et du mot « gnon ».\n\nSource : Poképédia, page Tygnon",
+  "seconds": {
+   "total": 32.94672659999924,
+   "analysis": 2.5337685000013153,
+   "tools": 26.43037899999763,
+   "generation": 3.98255380000046
+  },
+  "tokens": {
+   "prompt": 4009,
+   "output": 69,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "D'où vient le nom de Tygnon ? Étymologie",
+     "pokemon": "Tygnon"
+    },
+    "seconds": 26.43037899999763,
+    "timings": {
+     "vector": 0.15276430000085384,
+     "bm25": 0.05869359999996959,
+     "rrf": 7.689999983995222e-05,
+     "reranker": 1.6943042000020796,
+     "total": 2.1204141000016534,
+     "startup": {
+      "embedding": 5.261625999999524,
+      "reranker": 4.473540099999809,
+      "corpus": 4.1469567000021925,
+      "bm25": 0.8166027999977814,
+      "total": 15.123825599999691
+     }
+    },
+    "passages": 1,
+    "result": {
+     "question": "D'où vient le nom de Tygnon ? Étymologie",
+     "pokemon": "Tygnon",
+     "results": [
+      {
+       "text": "- Français : Tygnon vient de Mike Tyson et de gnon[http://www.liberation.fr/apps/2016/06/pokemon/#item-109o Commentaire du traducteur français sur l'origine des noms] (fr).\n- Anglais : Hitmonchan pourrait venir de hit (coup), de monster (monstre) et de Jackie Chan.\n- Allemand : Nockchan pourrait venir de to knock (frapper, en anglais) et de Jackie Chan.\n- Japonais : エビワラー Ebiwalar vient d'un boxeur japonais, Hiroyuki Ebihara.",
+       "pokemon": "Tygnon",
+       "section_path": "À propos du Pokémon > Étymologies",
+       "chunk_number": 10,
+       "source": "Poképédia, page Tygnon"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T12:53:22.515200+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Quelle Méga-Évolution a le meilleur total de statistiques ?",
+  "outcome": "answered",
+  "answer": "Il y a une égalité entre 3 Méga-Évolutions qui partagent le meilleur total de statistiques de base, avec une valeur maximale de 780 :\n\n* Méga-Mewtwo X : 780\n* Méga-Mewtwo Y : 780\n* Méga-Rayquaza : 780",
+  "seconds": {
+   "total": 6.620421199999328,
+   "analysis": 2.9325325999998313,
+   "tools": 0.14769100000012259,
+   "generation": 3.5369387999999162
+  },
+  "tokens": {
+   "prompt": 4124,
+   "output": 121
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "best_only": true,
+     "sort_by": "base-stat-total",
+     "form_category": "mega",
+     "sort_order": "desc",
+     "limit": 30,
+     "offset": 0
+    },
+    "seconds": 0.14769100000012259,
+    "execution_time": 0.01654419999977108,
+    "proposed_arguments": {
+     "best_only": true,
+     "sort_by": "base-stat-total",
+     "form_category": "mega",
+     "sort_order": "desc"
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "category",
+     "form_category": "mega",
+     "sort_by": "base-stat-total",
+     "sort_order": "desc",
+     "best_only": true,
+     "stat_name_fr": "Total des statistiques",
+     "matching_count": 78,
+     "best_value": 780,
+     "tie": true,
+     "tie_count": 3,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Méga-Mewtwo X",
+       "Total des statistiques": 780
+      },
+      {
+       "name_fr": "Méga-Mewtwo Y",
+       "Total des statistiques": 780
+      },
+      {
+       "name_fr": "Méga-Rayquaza",
+       "Total des statistiques": 780
+      }
+     ],
+     "total_count": 3,
+     "returned_count": 3,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:00:29.042777+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quels sont les types d'Arcanin de Hisui ?",
+  "outcome": "answered",
+  "answer": "Arcanin de Hisui est de type Feu et Roche.",
+  "seconds": {
+   "total": 11.497896299999411,
+   "analysis": 9.186101899998903,
+   "tools": 0.10020900000017718,
+   "generation": 2.211581400000796
+  },
+  "tokens": {
+   "prompt": 4107,
+   "output": 45,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_types",
+    "arguments": {
+     "pokemon": "Arcanin",
+     "form": "hisui"
+    },
+    "start": 9.186101899998903,
+    "seconds": 0.10020900000017718,
+    "raw_bytes": 245,
+    "execution_time": 0.07841479999842704,
+    "proposed_arguments": {
+     "pokemon": "Arcanin",
+     "form": "Hisui"
+    },
+    "result": {
+     "operation": "get_pokemon_types",
+     "pokemon": "Arcanin de Hisui",
+     "form": "Forme de Hisui",
+     "source": "Pokédex personnalisé",
+     "rows": [
+      {
+       "name_fr": "Arcanin de Hisui",
+       "type_1_fr": "Feu",
+       "type_2_fr": "Roche"
+      }
+     ],
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:36:14.732021+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Dracaufeu peut-il apprendre une attaque de type Dragon ?",
+  "outcome": "answered",
+  "answer": "Oui, Dracaufeu peut apprendre plusieurs attaques de type Dragon, notamment :\n\n- **Abattage** (60 de puissance, précision 100, 15 PP)\n- **Colère** (120 de puissance, précision 100, 10 PP)\n- **Cri Draconique** (effet statut, 15 PP)\n- **Danse Draco** (effet statut, 20 PP)\n- **Draco-Charge** (100 de puissance, précision 75, 10 PP)\n- **Draco-Choc** (85 de puissance, précision 100, 10 PP)\n- **Draco-Griffe** (80 de puissance, précision 100, 15 PP)\n- **Draco-Queue** (60 de puissance, précision 90, 10 PP)\n- **Rafale Écailles** (25 de puissance, précision 90, 20 PP)\n\nCes attaques peuvent être apprises par entraînement dans le jeu Pokémon Champions.",
+  "seconds": {
+   "total": 36.830718200000774,
+   "analysis": 9.784590400000525,
+   "tools": 0.3215321000006952,
+   "generation": 26.711016099998233
+  },
+  "tokens": {
+   "prompt": 8330,
+   "output": 320,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_move_learning_methods",
+    "arguments": {
+     "pokemon": "Dracaufeu",
+     "move": "Dragon Pulse"
+    },
+    "start": 9.784590400000525,
+    "seconds": 0.04660599999988335,
+    "raw_bytes": 256,
+    "result": {
+     "error": "unsupported_move_constraints",
+     "selected_tool": "pokemon_move_learning_methods",
+     "required_arguments": {
+      "move_type": "dragon"
+     },
+     "message": "Cet outil ne peut pas conserver les contraintes explicites. Retentez avec un outil compatible et ces arguments."
+    }
+   },
+   {
+    "name": "pokemon_moves",
+    "arguments": {
+     "pokemon": "Dracaufeu",
+     "move_type": "dragon"
+    },
+    "start": 13.424891099999513,
+    "seconds": 0.27492610000081186,
+    "raw_bytes": 2565,
+    "execution_time": 0.039308100000198465,
+    "result": {
+     "operation": "get_pokemon_moves",
+     "pokemon": "Dracaufeu",
+     "form": null,
+     "version_group": "champions",
+     "movepool_available": true,
+     "results": [
+      {
+       "name_fr": "Abattage",
+       "type_fr": "Dragon",
+       "power": 60,
+       "accuracy": 100,
+       "pp": 15,
+       "damage_class_fr": "physique",
+       "learning": [
+        {
+         "method": "entraînement"
+        }
+       ]
+      },
+      {
+       "name_fr": "Colère",
+       "type_fr": "Dragon",
+       "power": 120,
+       "accuracy": 100,
+       "pp": 10,
+       "damage_class_fr": "physique",
+       "learning": [
+        {
+         "method": "entraînement"
+        }
+       ]
+      },
+      {
+       "name_fr": "Cri Draconique",
+       "type_fr": "Dragon",
+       "power": 0,
+       "accuracy": 0,
+       "pp": 15,
+       "damage_class_fr": "statut",
+       "learning": [
+        {
+         "method": "entraînement"
+        }
+       ]
+      },
+      {
+       "name_fr": "Danse Draco",
+       "type_fr": "Dragon",
+       "power": null,
+       "accuracy": null,
+       "pp": 20,
+       "damage_class_fr": "statut",
+       "learning": [
+        {
+         "method": "entraînement"
+        }
+       ]
+      },
+      {
+       "name_fr": "Draco-Charge",
+       "type_fr": "Dragon",
+       "power": 100,
+       "accuracy": 75,
+       "pp": 10,
+       "damage_class_fr": "physique",
+       "learning": [
+        {
+         "method": "entraînement"
+        }
+       ]
+      },
+      {
+       "name_fr": "Draco-Choc",
+       "type_fr": "Dragon",
+       "power": 85,
+       "accuracy": 100,
+       "pp": 10,
+       "damage_class_fr": "spéciale",
+       "learning": [
+        {
+         "method": "entraînement"
+        }
+       ]
+      },
+      {
+       "name_fr": "Draco-Griffe",
+       "type_fr": "Dragon",
+       "power": 80,
+       "accuracy": 100,
+       "pp": 15,
+       "damage_class_fr": "physique",
+       "learning": [
+        {
+         "method": "entraînement"
+        }
+       ]
+      },
+      {
+       "name_fr": "Draco-Queue",
+       "type_fr": "Dragon",
+       "power": 60,
+       "accuracy": 90,
+       "pp": 10,
+       "damage_class_fr": "physique",
+       "learning": [
+        {
+         "method": "entraînement"
+        }
+       ]
+      },
+      {
+       "name_fr": "Rafale Écailles",
+       "type_fr": "Dragon",
+       "power": 25,
+       "accuracy": 90,
+       "pp": 20,
+       "damage_class_fr": "physique",
+       "learning": [
+        {
+         "method": "entraînement"
+        }
+       ]
+      }
+     ],
+     "total_count": 9,
+     "returned_count": 9,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true,
+     "version_group_fr": "Pokémon Champions"
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:58:01.234684+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quels sont les Pokémon légendaires de sixième génération ?",
+  "outcome": "answered",
+  "answer": "Les Pokémon légendaires de sixième génération sont :\n\n- Xerneas\n- Yveltal\n- Zygarde\n\nTotal : 3 Pokémon.",
+  "seconds": {
+   "total": 12.292588100001012,
+   "analysis": 9.056485500001145,
+   "tools": 0.24625829999968118,
+   "generation": 2.9898401999998896
+  },
+  "tokens": {
+   "prompt": 4174,
+   "output": 60,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "generation": 6,
+     "legendary": true
+    },
+    "start": 9.056485500001145,
+    "seconds": 0.24625829999968118,
+    "raw_bytes": 1166,
+    "execution_time": 0.010464900000442867,
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "national_number",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": null,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Xerneas"
+      },
+      {
+       "name_fr": "Yveltal"
+      },
+      {
+       "name_fr": "Zygarde"
+      }
+     ],
+     "total_count": 3,
+     "returned_count": 3,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:41:03.261380+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quelles sont les faiblesses de Cizayox ?",
+  "outcome": "answered",
+  "answer": "Cizayox est faible contre les attaques de type **Feu** (multiplicateur ×4).\n\nIl a également des résistances contre plusieurs types :  \n- **Normal** (×½)  \n- **Insecte** (×½)  \n- **Acier** (×½)  \n- **Psy** (×½)  \n- **Glace** (×½)  \n- **Dragon** (×½)  \n- **Fée** (×½)  \n- **Plante** (×¼)\n\nIl est **immunisé contre le type Poison**.\n\n⚠️ *Source : Pokédex personnalisé*",
+  "seconds": {
+   "total": 19.046993399999337,
+   "analysis": 8.737668399999166,
+   "tools": 0.25119249999988824,
+   "generation": 10.045466300000044
+  },
+  "tokens": {
+   "prompt": 4155,
+   "output": 164,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_particularities",
+    "arguments": {
+     "pokemon": "Cizayox"
+    },
+    "start": 8.737668399999166,
+    "seconds": 0.25119249999988824,
+    "raw_bytes": 998,
+    "execution_time": 0.07588469999973313,
+    "result": {
+     "operation": "get_particularities",
+     "pokemon": "Cizayox",
+     "form": null,
+     "source": "Pokédex personnalisé",
+     "count": 1,
+     "rows": [
+      {
+       "name_fr": "Cizayox",
+       "Faiblesses de type": "Feu (×4)",
+       "Résistances de type": "Normal (×½), Insecte (×½), Acier (×½), Psy (×½), Glace (×½), Dragon (×½), Fée (×½), Plante (×¼)",
+       "Immunités de type": "Poison"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T14:16:32.572095+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Comment obtenait-on Mewtwo à sa sortie ?",
+  "outcome": "answered",
+  "answer": "À sa sortie, Mewtwo s'obtenait par une rencontre fixe unique située au fond de la Caverne Azurée, accessible uniquement après avoir battu la Ligue.",
+  "seconds": {
+   "total": 34.272392499999114,
+   "analysis": 3.8485322000015003,
+   "tools": 25.665658899997652,
+   "generation": 4.758177899999282
+  },
+  "tokens": {
+   "prompt": 4844,
+   "output": 93,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_particularities",
+    "arguments": {
+     "pokemon": "Mewtwo"
+    },
+    "seconds": 25.665658899997652,
+    "execution_time": 0.10715200000049663,
+    "result": {
+     "operation": "get_particularities",
+     "pokemon": "Mewtwo",
+     "form": null,
+     "source": "Pokédex personnalisé",
+     "count": 1,
+     "rows": [
+      {
+       "name_fr": "Mewtwo",
+       "Type 1": "Psy",
+       "Talent 1": "Pression",
+       "Talent caché": "Tension",
+       "Stade d'évolution": "Sans évolution",
+       "Sous-groupe": "Légendaire secondaire",
+       "Statistiques remarquables": "Parmi tous les Pokémon — Attaque Spéciale : 7e plus haute (154), Total : 8e plus haute (680) ; Plus haute valeur de la génération 1 — Attaque Spéciale 154, Total 680 ; Plus haute valeur de la génération 1 à stade d’évolution égal — Vitesse 130",
+       "Rencontre ou obtention à l'introduction": "Rencontre fixe unique au fond de la Caverne Azurée, accessible seulement après la Ligue.",
+       "Autre particularité": "Possède une Méga-Évolution introduite en G6.",
+       "Faiblesses de type": "Insecte (×2), Spectre (×2), Ténèbres (×2)",
+       "Résistances de type": "Combat (×½), Psy (×½)",
+       "Anciennes statistiques": "Spécial : 154 (G1 seulement)",
+       "Jeux sans ce Pokémon depuis son introduction": "Légendes Pokémon : Arceus ; Pokémon Champions",
+       "Taille": "2,0 m",
+       "Poids": "122,0 kg",
+       "Taux de capture": "3 sur 255"
+      }
+     ]
+    }
+   },
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "Comment obtenir Mewtwo dans Pokémon Rouge et Bleu première génération sortie ?",
+     "pokemon": "Mewtwo"
+    },
+    "seconds": 25.665658899997652,
+    "timings": {
+     "vector": 0.1371882999992522,
+     "bm25": 0.09076270000150544,
+     "rrf": 0.00014900000314810313,
+     "reranker": 1.9644607999980508,
+     "total": 2.3600103999997373,
+     "startup": {
+      "embedding": 5.159069100001943,
+      "reranker": 4.413624400000117,
+      "corpus": 3.9686542000017653,
+      "bm25": 0.826605299997027,
+      "total": 14.782391000000644
+     }
+    },
+    "passages": 3,
+    "result": {
+     "question": "Comment obtenir Mewtwo dans Pokémon Rouge et Bleu première génération sortie ?",
+     "pokemon": "Mewtwo",
+     "results": [
+      {
+       "text": "Article principal : Mewtwo (Pocket Monsters Special)\n|vignette|Mewtwo à la page 226 du Tome 1.\n\nMewtwo apparaît pour la première fois dans l'Arc Rouge, Bleu et Vert au chapitre 15, à la page 226 du Tome 1. On le voit en cours de conception, dans un tube au laboratoire de la Team Rocket.\nRouge parle de Mewtwo à la page 241 du Tome 1.\nL'image de Mewtwo apparaît à la page 290 du Tome 1 lorsque Rouge évoque la Team Rocket.",
+       "pokemon": "Mewtwo",
+       "source_file": "0150_mewtwo.md",
+       "section_path": "Apparitions dans PMS",
+       "chunk_number": 70
+      },
+      {
+       "text": "Mewtwo réapparaît dans le chapitre 34, à la première page du Tome 2, où il est vu en train de s'enfuir du laboratoire de la Team Rocket.\nÀ la page 18, Mewtwo réapparaît, au cœur d'une tornade créée grâce à la capacité Vague Psy, où il attaque Auguste et Rouge. À la page d'après, Auguste explique comment Mewtwo a été créé et révèle qu'il a utilisé son propre ADN afin de compléter le manque de données. Il explique aussi que si Mewtwo mourrait, il mourrait aussi.",
+       "pokemon": "Mewtwo",
+       "source_file": "0150_mewtwo.md",
+       "section_path": "Apparitions dans PMS",
+       "chunk_number": 71
+      },
+      {
+       "text": "Au chapitre 35, Rouge et Auguste retrouvent Mewtwo et le combattent tout le long du chapitre. On peut voir que lorsque Mewtwo se bat contre un seul adversaire, il se sert d'une cuillère géante pour combattre. À la fin du chapitre, Rouge capture Mewtwo avec une Master Ball et explique à Auguste qu'il est la seule personne à pouvoir montrer à Mewtwo que les humains ne sont pas tous ses ennemis.\n\nIl apparaît de nouveau dans l'Arc Jaune. Dans le chapitre 70, à la page 168, Auguste tient dans sa main la Master Ball dans laquelle Mewtwo est contenu. Au chapitre 79, Auguste fait appel à lui pour combattre Peter. Au chapitre 81, page 336, Mewtwo décide de ne plus combattre afin de ne pas tuer son Dresseur.",
+       "pokemon": "Mewtwo",
+       "source_file": "0150_mewtwo.md",
+       "section_path": "Apparitions dans PMS",
+       "chunk_number": 72
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:53:36.572840+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quels sont les 3 pseudo-légendaires avec le plus d'Attaque ?",
+  "outcome": "answered",
+  "answer": "Glaivodo (Attaque : 145), Drattak (Attaque : 135), Métalosse (Attaque : 135)",
+  "seconds": {
+   "total": 14.45604749999984,
+   "analysis": 10.413949099998717,
+   "tools": 0.2432626000008895,
+   "generation": 3.798830599998837
+  },
+  "tokens": {
+   "prompt": 4232,
+   "output": 82,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "subgroup": "Pseudo-légendaire",
+     "sort_by": "attack",
+     "sort_order": "desc",
+     "best_only": false,
+     "limit": 3,
+     "offset": 0
+    },
+    "start": 10.413949099998717,
+    "seconds": 0.2432626000008895,
+    "raw_bytes": 1232,
+    "execution_time": 0.016313599999193684,
+    "proposed_arguments": {
+     "subgroup": "pseudo-legendary",
+     "evolution_stage": "final",
+     "talent": "none"
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "attack",
+     "sort_order": "desc",
+     "best_only": false,
+     "stat_name_fr": "Attaque",
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Glaivodo",
+       "Attaque": 145
+      },
+      {
+       "name_fr": "Drattak",
+       "Attaque": 135
+      },
+      {
+       "name_fr": "Métalosse",
+       "Attaque": 135
+      }
+     ],
+     "total_count": 30,
+     "returned_count": 3,
+     "limit": 3,
+     "offset": 0,
+     "truncated": true,
+     "has_more": true,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-12T08:45:16.751571+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Quelle est la capacité signature d'Amphinobi ?",
+  "outcome": "answered",
+  "answer": "Les capacités signatures d'Amphinobi sont Sheauriken (G6) et Tatamigaeshi (G6).",
+  "seconds": {
+   "total": 19.937232100000074,
+   "analysis": 1.7857170000002043,
+   "tools": 0.181453799999872,
+   "generation": 17.970056300000124
+  },
+  "tokens": {
+   "prompt": 3736,
+   "output": 46,
+   "thinking": 0,
+   "output_limit_reached": true
+  },
+  "tools": [
+   {
+    "name": "pokemon_signature_moves",
+    "arguments": {
+     "pokemon": "Amphinobi"
+    },
+    "start": 1.7857170000002043,
+    "seconds": 0.181453799999872,
+    "raw_bytes": 274,
+    "execution_time": 0.054459700000279554,
+    "result": {
+     "operation": "get_signature_moves",
+     "pokemon": "Amphinobi",
+     "form": null,
+     "source": "Pokédex personnalisé",
+     "rows": [
+      {
+       "name_fr": "Amphinobi",
+       "signature_move_fr": "Sheauriken (G6) ; Tatamigaeshi (G6)",
+       "pseudo_signature_move_fr": null
+      }
+     ],
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:39:09.746323+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Terhal est-il difficile à capturer ?",
+  "outcome": "answered",
+  "answer": "Terhal a un taux de capture de **3 sur 255**, ce qui le rend **très difficile à capturer**.",
+  "seconds": {
+   "total": 13.361157700001058,
+   "analysis": 9.34473059999982,
+   "tools": 0.2784033999996609,
+   "generation": 3.7255634000011923
+  },
+  "tokens": {
+   "prompt": 4394,
+   "output": 54,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_particularities",
+    "arguments": {
+     "pokemon": "Terhal"
+    },
+    "start": 9.34473059999982,
+    "seconds": 0.2784033999996609,
+    "raw_bytes": 1119,
+    "execution_time": 0.11996040000121866,
+    "result": {
+     "operation": "get_particularities",
+     "pokemon": "Terhal",
+     "form": null,
+     "source": "Pokédex personnalisé",
+     "count": 1,
+     "rows": [
+      {
+       "name_fr": "Terhal",
+       "Type 1": "Acier",
+       "Type 2": "Psy",
+       "Talent 1": "Corps Sain",
+       "Talent caché": "Light Metal",
+       "Stade d'évolution": "Base · 2 évolutions possibles",
+       "Sous-groupe": "Pseudo-légendaire",
+       "Rencontre ou obtention à l'introduction": "Un seul Terhal est laissé dans la maison de Pierre après la Ligue.",
+       "Particularité du movepool": "Movepool naturel minimal à l’introduction : Bélier est sa seule capacité par montée de niveau.",
+       "Faiblesses de type": "Sol (×2), Spectre (×2), Feu (×2), Ténèbres (×2)",
+       "Résistances de type": "Normal (×½), Vol (×½), Roche (×½), Acier (×½), Plante (×½), Glace (×½), Dragon (×½), Fée (×½), Psy (×¼)",
+       "Immunités de type": "Poison",
+       "Objets tenus à l'état sauvage": "Peau Métal (5 %, G3–G7)",
+       "Jeux sans ce Pokémon depuis son introduction": "Pokémon Let's Go Pikachu et Évoli ; Légendes Pokémon : Arceus ; Pokémon Champions",
+       "Taille": "0,6 m",
+       "Poids": "95,2 kg",
+       "Taux de capture": "3 sur 255"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:02:46.065631+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Comment évolue Sepiatop ?",
+  "outcome": "answered",
+  "answer": "Sepiatop évolue en Sepiatroce lorsqu'il atteint le niveau 30, en tenant la console à l'envers au moment de l'évolution. Cette évolution se produit dans les jeux Pokémon X et Y.",
+  "seconds": {
+   "total": 12.80076850000114,
+   "analysis": 8.643302300000869,
+   "tools": 0.025475599999481346,
+   "generation": 4.131987200000367
+  },
+  "tokens": {
+   "prompt": 4182,
+   "output": 75,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_evolutions",
+    "arguments": {
+     "pokemon": "Sepiatop"
+    },
+    "start": 8.643302300000869,
+    "seconds": 0.025475599999481346,
+    "raw_bytes": 497,
+    "execution_time": 0.0189782000015839,
+    "result": {
+     "operation": "get_evolutions",
+     "pokemon": "Sepiatop",
+     "form": null,
+     "version_group": null,
+     "count": 1,
+     "evolutions": [
+      {
+       "evolution_id": 332,
+       "from": {
+        "species_id": 686,
+        "identifier": "inkay",
+        "name_fr": "Sepiatop",
+        "form": null
+       },
+       "to": {
+        "species_id": 687,
+        "identifier": "malamar",
+        "name_fr": "Sepiatroce",
+        "form": null
+       },
+       "trigger": "montée de niveau",
+       "version_group": "x-y",
+       "conditions": {
+        "niveau minimum": 30,
+        "console tenue à l'envers au moment de l'évolution": "oui"
+       },
+       "version_group_fr": "Pokémon X et Y"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:16:31.313745+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Comment Genesect a-t-il été créé ?",
+  "outcome": "answered",
+  "answer": "Genesect a été recréé à partir d’un fossile et a été technologiquement avancé par la Team Plasma, cherchant à créer le plus puissant Pokémon du monde. N a cependant annulé le projet et le Labo P2 a fermé, pensant que ce Pokémon, destiné à faire de grandes choses, perdrait de sa beauté s'il était modifié par la science. Cependant, un Scientifique nommé Dudley continua de travailler sur le projet, furieux que N ait dénigré leur talent. Il recréa le Pokémon et installa le canon sur son dos.\n\n*(Source : Poképédia, page Genesect)*",
+  "seconds": {
+   "total": 25.302798900000198,
+   "analysis": 8.82342830000016,
+   "tools": 3.2813908999996784,
+   "generation": 13.19797330000074
+  },
+  "tokens": {
+   "prompt": 4629,
+   "output": 188,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "Comment Genesect a-t-il été créé ?",
+     "pokemon": "Genesect"
+    },
+    "start": 8.82342830000016,
+    "seconds": 3.2813908999996784,
+    "raw_bytes": 2377,
+    "timings": {
+     "vector": 0.5378137999996397,
+     "bm25": 0.12211270000079821,
+     "rrf": 0.00010990000009769574,
+     "reranker": 2.4620002999999997,
+     "total": 3.247128500001054
+    },
+    "passages": 3,
+    "result": {
+     "question": "Comment Genesect a-t-il été créé ?",
+     "pokemon": "Genesect",
+     "results": [
+      {
+       "text": "Genesect est un Pokémon bipède et insectoïde avec une tête en forme de soucoupe. Il est principalement violet, avec cependant des marques grises. Il a deux larges yeux rouges avec entre les deux une petite partie blanche qui peut autant être sa bouche qu'un conduit. Il a des bras fins avec des segments en superposition. Chaque bras se termine par une unique griffe pointue. Il a un rond gris sur chaque épaule, et une bande grise autour de son abdomen. Ses jambes segmentées se terminent par une large épine qui pointe vers le haut.",
+       "pokemon": "Genesect",
+       "section_path": "À propos du Pokémon > Physionomie et attitudes",
+       "chunk_number": 3,
+       "source": "Poképédia, page Genesect"
+      },
+      {
+       "text": "Le puissant canon sur son dos, ainsi que d'autres éléments, ont été apparemment ajoutés pendant les modifications bizarres de la Team Plasma. Son attaque signature est Techno Buster, une attaque qui change de type en fonction du Module qu'il porte. Il est indiqué que même avant que la Team Plasma ne le modifie, Genesect était un Pokémon habile et impitoyable. En repliant ses membres et son canon contre son corps, il peut changer de forme et prendre celle d'une soucoupe, ce qui lui permet de voler. Cette forme est connue sous le nom de Vol à Grande Vitesse. Il peut également lancer un liquide poisseux de ses griffes.",
+       "pokemon": "Genesect",
+       "section_path": "À propos du Pokémon > Physionomie et attitudes",
+       "chunk_number": 4,
+       "source": "Poképédia, page Genesect"
+      },
+      {
+       "text": "Genesect a été recréé à partir d'un fossile et a été technologiquement avancé par la Team Plasma, cherchant à créer le plus puissant Pokémon du monde. N a cependant annulé le projet et le Labo P2 a fermé, pensant que ce Pokémon, destiné à faire de grandes choses, perdrait de sa beauté s'il était modifié par la science. Cependant, un Scientifique nommé Dudley continua de travailler sur le projet, furieux que N ait dénigré leur talent. Il recréa le Pokémon et installa le canon sur son dos.",
+       "pokemon": "Genesect",
+       "section_path": "À propos du Pokémon > Physionomie et attitudes",
+       "chunk_number": 5,
+       "source": "Poképédia, page Genesect"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:53:49.103023+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quel Pokémon a le moins de PV ?",
+  "outcome": "answered",
+  "answer": "Munja a le moins de PV, avec 1 PV.",
+  "seconds": {
+   "total": 12.531115300000238,
+   "analysis": 10.047530600000755,
+   "tools": 0.03882829999929527,
+   "generation": 2.4447511000016675
+  },
+  "tokens": {
+   "prompt": 4187,
+   "output": 49,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "sort_by": "hp",
+     "sort_order": "asc",
+     "limit": 30,
+     "best_only": true,
+     "offset": 0
+    },
+    "start": 10.047530600000755,
+    "seconds": 0.03882829999929527,
+    "raw_bytes": 776,
+    "execution_time": 0.030102400000032503,
+    "proposed_arguments": {
+     "sort_by": "hp",
+     "sort_order": "asc",
+     "limit": 1
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "hp",
+     "sort_order": "asc",
+     "best_only": true,
+     "stat_name_fr": "PV",
+     "matching_count": 1025,
+     "best_value": 1,
+     "tie": false,
+     "tie_count": 1,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Munja",
+       "PV": 1
+      }
+     ],
+     "total_count": 1,
+     "returned_count": 1,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:54:04.390870+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quelles sont les 3 Ultra-Chimères avec la meilleure Défense ?",
+  "outcome": "answered",
+  "answer": "Ama-Ama (Défense : 211), Mouscoto (Défense : 139), Katagami (Défense : 131)",
+  "seconds": {
+   "total": 15.280167999999321,
+   "analysis": 11.329212500000722,
+   "tools": 0.27656089999982214,
+   "generation": 3.6743913999998767
+  },
+  "tokens": {
+   "prompt": 4227,
+   "output": 84,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "subgroup": "Ultra-Chimère",
+     "sort_by": "defense",
+     "sort_order": "desc",
+     "best_only": false,
+     "limit": 3,
+     "offset": 0
+    },
+    "start": 11.329212500000722,
+    "seconds": 0.27656089999982214,
+    "raw_bytes": 1229,
+    "execution_time": 0.02082209999935003,
+    "proposed_arguments": {
+     "subgroup": "Ultra-Chimère",
+     "evolution_stage": "final",
+     "talent": "Défense"
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "defense",
+     "sort_order": "desc",
+     "best_only": false,
+     "stat_name_fr": "Défense",
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Ama-Ama",
+       "Défense": 211
+      },
+      {
+       "name_fr": "Mouscoto",
+       "Défense": 139
+      },
+      {
+       "name_fr": "Katagami",
+       "Défense": 131
+      }
+     ],
+     "total_count": 11,
+     "returned_count": 3,
+     "limit": 3,
+     "offset": 0,
+     "truncated": true,
+     "has_more": true,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:00:07.645987+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quel Pokémon porte le numéro 1000 du Pokédex ?",
+  "outcome": "answered",
+  "answer": "Gromago",
+  "seconds": {
+   "total": 10.10245980000036,
+   "analysis": 8.958943899999213,
+   "tools": 0.1472286999996868,
+   "generation": 0.9962838000010379
+  },
+  "tokens": {
+   "prompt": 4167,
+   "output": 29,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "pokedex_number": 1000
+    },
+    "start": 8.958943899999213,
+    "seconds": 0.1472286999996868,
+    "raw_bytes": 711,
+    "execution_time": 0.01804439999978058,
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "national_number",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": null,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Gromago",
+       "national_number": 1000
+      }
+     ],
+     "total_count": 1,
+     "returned_count": 1,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:39:38.843400+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Éthernatos est-il difficile à capturer ?",
+  "outcome": "answered",
+  "answer": "Éthernatos n’est pas difficile à capturer : son taux de capture est de **255 sur 255**, ce qui signifie qu’il est **facile à capturer** dans tous les jeux où il apparaît.",
+  "seconds": {
+   "total": 13.193515099999786,
+   "analysis": 8.632546200000434,
+   "tools": 0.08355010000013863,
+   "generation": 4.469030799999018
+  },
+  "tokens": {
+   "prompt": 4376,
+   "output": 77,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_particularities",
+    "arguments": {
+     "pokemon": "Éthernatos"
+    },
+    "start": 8.632546200000434,
+    "seconds": 0.08355010000013863,
+    "raw_bytes": 1066,
+    "execution_time": 0.067383499999778,
+    "result": {
+     "operation": "get_particularities",
+     "pokemon": "Éthernatos",
+     "form": null,
+     "source": "Pokédex personnalisé",
+     "count": 1,
+     "rows": [
+      {
+       "name_fr": "Éthernatos",
+       "Type 1": "Poison",
+       "Type 2": "Dragon",
+       "Talent 1": "Pression",
+       "Stade d'évolution": "Sans évolution",
+       "Sous-groupe": "Légendaire secondaire",
+       "Statistiques remarquables": "Parmi tous les Pokémon — Total : 7e plus haute (690) ; Anormalement haut pour son stade d’évolution — PV 140",
+       "Mise en avant à l'introduction": "Légendaire central de la Nuit Noire et du climax d’Épée/Bouclier.",
+       "Autre particularité": "Possède une ou plusieurs formes alternatives.",
+       "Faiblesses de type": "Sol (×2), Psy (×2), Glace (×2), Dragon (×2)",
+       "Résistances de type": "Combat (×½), Poison (×½), Insecte (×½), Feu (×½), Eau (×½), Électrik (×½), Plante (×¼)",
+       "Jeux sans ce Pokémon depuis son introduction": "Pokémon Diamant Étincelant et Perle Scintillante ; Légendes Pokémon : Arceus ; Pokémon Champions",
+       "Taille": "20,0 m",
+       "Poids": "950,0 kg",
+       "Taux de capture": "255 sur 255"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:12:15.619972+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "D'où vient le nom de Tutafeh ?",
+  "outcome": "answered",
+  "answer": "Le nom de Tutafeh pourrait venir de Toutânkhamon et de la déformation de fée, afin de faire référence à l'expression « tout à fait ».",
+  "seconds": {
+   "total": 13.687486400000125,
+   "analysis": 9.540332399999897,
+   "tools": 1.2065282000003208,
+   "generation": 2.9406173000006675
+  },
+  "tokens": {
+   "prompt": 4288,
+   "output": 77,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "D'où vient le nom de Tutafeh ?",
+     "pokemon": "Tutafeh"
+    },
+    "start": 9.540332399999897,
+    "seconds": 1.2065282000003208,
+    "raw_bytes": 951,
+    "timings": {
+     "vector": 0.0588010999999824,
+     "bm25": 0.06996570000046631,
+     "rrf": 7.440000081260223e-05,
+     "reranker": 0.9052540000011504,
+     "total": 1.1935772999986511
+    },
+    "passages": 1,
+    "result": {
+     "question": "D'où vient le nom de Tutafeh ?",
+     "pokemon": "Tutafeh",
+     "results": [
+      {
+       "text": "- Français : Tutafeh pourrait venir de Toutânkhamon et de la déformation de fée, afin de faire référence à l'expression « tout à fait ».\n- Anglais : Yamask pourrait venir de 闇 yami (ténèbres, en japonais) et de mask (masque).\n- Allemand : Makabaja pourrait venir de makaber (macabre) et de 闇 yami (ténèbres, en japonais).\n- Japonais : デスマス Desumasu pourrait venir de デス desu (décès) et マスク masuku (masque), afin de former deux jeux de mots : le premier avec desu (être, le verbe), et le deuxième avec arimasu (« exister » à la forme polie).",
+       "pokemon": "Tutafeh",
+       "section_path": "À propos du Pokémon > Étymologies",
+       "chunk_number": 8,
+       "source": "Poképédia, page Tutafeh"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:54:20.608251+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quels sont les 5 Pokémon avec le meilleur total de statistiques ?",
+  "outcome": "answered",
+  "answer": "1. Arceus — Total des statistiques : 720  \n2. Éthernatos — Total des statistiques : 690  \n3. Mewtwo — Total des statistiques : 680  \n4. Lugia — Total des statistiques : 680  \n5. Ho-Oh — Total des statistiques : 680",
+  "seconds": {
+   "total": 16.21532660000048,
+   "analysis": 9.997357599999305,
+   "tools": 0.14680140000018582,
+   "generation": 6.071164500001032
+  },
+  "tokens": {
+   "prompt": 4264,
+   "output": 115,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "sort_by": "base-stat-total",
+     "sort_order": "desc",
+     "limit": 5,
+     "best_only": false,
+     "offset": 0
+    },
+    "start": 9.997357599999305,
+    "seconds": 0.14680140000018582,
+    "raw_bytes": 1832,
+    "execution_time": 0.023992899999939254,
+    "proposed_arguments": {
+     "sort_by": "base-stat-total",
+     "sort_order": "desc",
+     "limit": 5
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "base-stat-total",
+     "sort_order": "desc",
+     "best_only": false,
+     "stat_name_fr": "Total des statistiques",
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Arceus",
+       "Total des statistiques": 720
+      },
+      {
+       "name_fr": "Éthernatos",
+       "Total des statistiques": 690
+      },
+      {
+       "name_fr": "Mewtwo",
+       "Total des statistiques": 680
+      },
+      {
+       "name_fr": "Lugia",
+       "Total des statistiques": 680
+      },
+      {
+       "name_fr": "Ho-Oh",
+       "Total des statistiques": 680
+      }
+     ],
+     "total_count": 1025,
+     "returned_count": 5,
+     "limit": 5,
+     "offset": 0,
+     "truncated": true,
+     "has_more": true,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T14:16:39.941281+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Quelles capacités Lucario apprend-il entre les niveaux 20 et 40 dans Pokémon Épée et Bouclier ?",
+  "outcome": "answered",
+  "answer": "Dans Pokémon Épée et Bouclier, Lucario apprend les capacités suivantes entre les niveaux 20 et 40 :\n\n- Poing Boost (niveau 20)\n- Plénitude (niveau 24)\n- Strido-Son (niveau 28)\n- Prévention (niveau 32)\n- Charge Os (niveau 36)\n- Danse Lames (niveau 40)",
+  "seconds": {
+   "total": 7.3614538999972865,
+   "analysis": 3.381270499998209,
+   "tools": 0.12631669999973383,
+   "generation": 3.8538307000017085
+  },
+  "tokens": {
+   "prompt": 4131,
+   "output": 141,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_level_up_moves",
+    "arguments": {
+     "max_level": 40,
+     "pokemon": "Lucario",
+     "version_group": "sword-shield",
+     "min_level": 20
+    },
+    "seconds": 0.12631669999973383,
+    "execution_time": 0.026381599996966543,
+    "proposed_arguments": {
+     "max_level": 40,
+     "pokemon": "Lucario",
+     "version_group": "epee-bouclier",
+     "min_level": 20
+    },
+    "result": {
+     "operation": "get_level_up_moves",
+     "pokemon": "Lucario",
+     "form": null,
+     "version_group": "sword-shield",
+     "version_selection": "explicit",
+     "min_level": 20,
+     "max_level": 40,
+     "count": 6,
+     "moves": [
+      {
+       "name_fr": "Poing Boost",
+       "level": 20
+      },
+      {
+       "name_fr": "Plénitude",
+       "level": 24
+      },
+      {
+       "name_fr": "Strido-Son",
+       "level": 28
+      },
+      {
+       "name_fr": "Prévention",
+       "level": 32
+      },
+      {
+       "name_fr": "Charge Os",
+       "level": 36
+      },
+      {
+       "name_fr": "Danse Lames",
+       "level": 40
+      }
+     ],
+     "context_compacted": true,
+     "version_group_fr": "Pokémon Épée et Bouclier"
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T17:09:09.572273+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Quels Pokémon ont le talent Absentéisme ?",
+  "outcome": "answered",
+  "answer": "Les Pokémon qui ont le talent Absentéisme sont :\n\n* Parecool\n* Monaflèmit\n* Fermite",
+  "seconds": {
+   "total": 4.232144800000242,
+   "analysis": 2.1738762999993924,
+   "tools": 0.13473999999769148,
+   "generation": 1.9234914000007848
+  },
+  "tokens": {
+   "prompt": 3886,
+   "output": 43,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "talent": "Absentéisme"
+    },
+    "seconds": 0.13473999999769148,
+    "execution_time": 0.030980100000306265,
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "national_number",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": null,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Parecool"
+      },
+      {
+       "name_fr": "Monaflèmit"
+      },
+      {
+       "name_fr": "Fermite"
+      }
+     ],
+     "total_count": 3,
+     "returned_count": 3,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T17:15:32.085526+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Quelles CT Anchwatt peut-il apprendre ?",
+  "outcome": "answered",
+  "answer": "Dans Pokémon Écarlate et Violet, Anchwatt peut apprendre les CT suivantes :\n\n- CT23 : Rayon Chargé\n- CT82 : Cage Éclair\n- CT171 : Téra Explosion\n- CT173 : Chargeur\n- CT181 : Sabotage",
+  "seconds": {
+   "total": 12.295893899998191,
+   "analysis": 8.655358199997863,
+   "tools": 0.22088650000296184,
+   "generation": 3.419623399997363
+  },
+  "tokens": {
+   "prompt": 4055,
+   "output": 83,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_machine_moves",
+    "arguments": {
+     "pokemon": "Anchwatt"
+    },
+    "seconds": 0.22088650000296184,
+    "execution_time": 0.026604099999531172,
+    "result": {
+     "operation": "get_machine_moves",
+     "pokemon": "Anchwatt",
+     "form": null,
+     "version_group": "scarlet-violet",
+     "version_selection": "latest_available",
+     "count": 5,
+     "moves": [
+      {
+       "name_fr": "Rayon Chargé",
+       "machine_item_fr": "CT23"
+      },
+      {
+       "name_fr": "Cage Éclair",
+       "machine_item_fr": "CT82"
+      },
+      {
+       "name_fr": "Téra Explosion",
+       "machine_item_fr": "CT171"
+      },
+      {
+       "name_fr": "Chargeur",
+       "machine_item_fr": "CT173"
+      },
+      {
+       "name_fr": "Sabotage",
+       "machine_item_fr": "CT181"
+      }
+     ],
+     "context_compacted": true,
+     "version_group_fr": "Pokémon Écarlate et Violet"
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:54:34.822252+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quels sont les Pokémon Méga les plus lents ?",
+  "outcome": "answered",
+  "answer": "Méga-Ténéfix : Vitesse 20  \nMéga-Camérupt : Vitesse 20",
+  "seconds": {
+   "total": 14.210173799998302,
+   "analysis": 10.745139099999506,
+   "tools": 0.1834366000002774,
+   "generation": 3.2815921000001254
+  },
+  "tokens": {
+   "prompt": 4227,
+   "output": 68,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "form_category": "mega",
+     "sort_by": "speed",
+     "sort_order": "asc",
+     "best_only": true,
+     "limit": 30,
+     "offset": 0
+    },
+    "start": 10.745139099999506,
+    "seconds": 0.1834366000002774,
+    "raw_bytes": 1110,
+    "execution_time": 0.012749199999234406,
+    "proposed_arguments": {
+     "form_category": "mega",
+     "sort_by": "speed",
+     "sort_order": "asc",
+     "best_only": true
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "category",
+     "form_category": "mega",
+     "sort_by": "speed",
+     "sort_order": "asc",
+     "best_only": true,
+     "stat_name_fr": "Vitesse",
+     "matching_count": 78,
+     "best_value": 20,
+     "tie": true,
+     "tie_count": 2,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Méga-Ténéfix",
+       "Vitesse": 20
+      },
+      {
+       "name_fr": "Méga-Camérupt",
+       "Vitesse": 20
+      }
+     ],
+     "total_count": 2,
+     "returned_count": 2,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:58:23.570138+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quels Pokémon ont le talent Momie ?",
+  "outcome": "answered",
+  "answer": "Tutafeh  \nTutankafer",
+  "seconds": {
+   "total": 11.025470700000369,
+   "analysis": 9.258310400000482,
+   "tools": 0.03593349999937345,
+   "generation": 1.731221900001401
+  },
+  "tokens": {
+   "prompt": 4152,
+   "output": 32,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "talent": "Momie"
+    },
+    "start": 9.258310400000482,
+    "seconds": 0.03593349999937345,
+    "raw_bytes": 934,
+    "execution_time": 0.023402299999361276,
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "national_number",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": null,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Tutafeh"
+      },
+      {
+       "name_fr": "Tutankafer"
+      }
+     ],
+     "total_count": 2,
+     "returned_count": 2,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:02:59.485774+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Comment évolue Léboulérou ?",
+  "outcome": "answered",
+  "answer": "Léboulérou évolue en Bérasca lorsqu'il gagne un niveau, quel que soit le niveau, dans les jeux Pokémon Écarlate et Violet. L'évolution nécessite un minimum de 1000 pas.",
+  "seconds": {
+   "total": 13.419362799999362,
+   "analysis": 8.890517600000749,
+   "tools": 0.13696129999880213,
+   "generation": 4.391878899999938
+  },
+  "tokens": {
+   "prompt": 4193,
+   "output": 81,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_evolutions",
+    "arguments": {
+     "pokemon": "Léboulérou"
+    },
+    "start": 8.890517600000749,
+    "seconds": 0.13696129999880213,
+    "raw_bytes": 521,
+    "execution_time": 0.013505000000805012,
+    "result": {
+     "operation": "get_evolutions",
+     "pokemon": "Léboulérou",
+     "form": null,
+     "version_group": null,
+     "count": 1,
+     "evolutions": [
+      {
+       "evolution_id": 494,
+       "from": {
+        "species_id": 953,
+        "identifier": "rellor",
+        "name_fr": "Léboulérou",
+        "form": null
+       },
+       "to": {
+        "species_id": 954,
+        "identifier": "rabsca",
+        "name_fr": "Bérasca",
+        "form": null
+       },
+       "trigger": "gain d'un niveau, quel que soit le niveau",
+       "version_group": "scarlet-violet",
+       "conditions": {
+        "nombre de pas minimum": 1000
+       },
+       "version_group_fr": "Pokémon Écarlate et Violet"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:54:50.226871+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quel Pokémon de type Glace pur a la meilleure Attaque Spéciale ?",
+  "outcome": "answered",
+  "answer": "Givrali  \nAttaque Spéciale : 130",
+  "seconds": {
+   "total": 15.4002758000006,
+   "analysis": 13.217377299999498,
+   "tools": 0.25595980000070995,
+   "generation": 1.9269347000008565
+  },
+  "tokens": {
+   "prompt": 4242,
+   "output": 73,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "types": [
+      "ice"
+     ],
+     "type_match": "exact",
+     "sort_by": "special-attack",
+     "sort_order": "desc",
+     "best_only": true,
+     "limit": 30,
+     "offset": 0
+    },
+    "start": 13.217377299999498,
+    "seconds": 0.25595980000070995,
+    "raw_bytes": 800,
+    "execution_time": 0.01542180000069493,
+    "proposed_arguments": {
+     "types": [
+      "glace"
+     ],
+     "type_match": "exact",
+     "sort_by": "special-attack",
+     "sort_order": "desc",
+     "best_only": true,
+     "limit": 1
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "special-attack",
+     "sort_order": "desc",
+     "best_only": true,
+     "stat_name_fr": "Attaque Spéciale",
+     "matching_count": 16,
+     "best_value": 130,
+     "tie": false,
+     "tie_count": 1,
+     "version_selection": null,
+     "type_match": "exact",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Givrali",
+       "Attaque Spéciale": 130
+      }
+     ],
+     "total_count": 1,
+     "returned_count": 1,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:12:29.050396+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "D'où vient le nom de Lewsor ?",
+  "outcome": "answered",
+  "answer": "Le nom de Lewsor vient probablement de Roswell, lu à l'envers, en référence à l'aspect extraterrestre de l'affaire.",
+  "seconds": {
+   "total": 13.425430599998435,
+   "analysis": 9.340075599999182,
+   "tools": 1.3014910999991116,
+   "generation": 2.7838604000007763
+  },
+  "tokens": {
+   "prompt": 4262,
+   "output": 74,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "D'où vient le nom de Lewsor ?",
+     "pokemon": "Lewsor"
+    },
+    "start": 9.340075599999182,
+    "seconds": 1.3014910999991116,
+    "raw_bytes": 875,
+    "timings": {
+     "vector": 0.06520950000049197,
+     "bm25": 0.060862999998789746,
+     "rrf": 8.569999954488594e-05,
+     "reranker": 0.9868238999988534,
+     "total": 1.2925568999999086
+    },
+    "passages": 1,
+    "result": {
+     "question": "D'où vient le nom de Lewsor ?",
+     "pokemon": "Lewsor",
+     "results": [
+      {
+       "text": "- Français : Lewsor pourrait venir de Roswell, lu à l'envers, en référence à l'aspect extraterrestre de l'affaire.\n- Anglais : Elgyem est la prononciation des initiales L.G.M, Little green men (petits hommes verts).\n- Allemand : Pygraulon pourrait venir de Pygmäe (pygmée), de grau (gris) et dEncephalon (encéphale).\n- Japonais : リグレー Ligray pourrait venir de little (petit, en anglais) et de grey (gris, en anglais), afin de faire référence à une espèce d'extraterrestre, les Petit-Gris.",
+       "pokemon": "Lewsor",
+       "section_path": "À propos du Pokémon > Étymologies",
+       "chunk_number": 10,
+       "source": "Poképédia, page Lewsor"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:08:50.578285+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quelles sont les faiblesses d'Ohmassacre ?",
+  "outcome": "answered",
+  "answer": "Ohmassacre n'a aucune faiblesse de type.\n\nIl résiste aux types Vol, Acier et Électrik (×½).\n\nIl est immunisé contre le type Sol grâce à son talent Lévitation.",
+  "seconds": {
+   "total": 12.339458399999785,
+   "analysis": 8.666738699999769,
+   "tools": 0.076146700001118,
+   "generation": 3.596567900000082
+  },
+  "tokens": {
+   "prompt": 4127,
+   "output": 71,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_particularities",
+    "arguments": {
+     "pokemon": "Ohmassacre"
+    },
+    "start": 8.666738699999769,
+    "seconds": 0.076146700001118,
+    "raw_bytes": 891,
+    "execution_time": 0.06981780000023718,
+    "result": {
+     "operation": "get_particularities",
+     "pokemon": "Ohmassacre",
+     "form": null,
+     "source": "Pokédex personnalisé",
+     "count": 1,
+     "rows": [
+      {
+       "name_fr": "Ohmassacre",
+       "Faiblesses de type": "aucune",
+       "Résistances de type": "Vol (×½), Acier (×½), Électrik (×½)",
+       "Immunités de type": "Sol (talent Lévitation)"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:58:37.012121+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quelles évolutions finales de starters sont de type Ténèbres ?",
+  "outcome": "answered",
+  "answer": "Amphinobi, Félinferno, Miascarade",
+  "seconds": {
+   "total": 13.437252499999886,
+   "analysis": 11.320177100000365,
+   "tools": 0.25813969999944675,
+   "generation": 1.8589320000010048
+  },
+  "tokens": {
+   "prompt": 4200,
+   "output": 57,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "subgroup": "Évolution de starter",
+     "evolution_stage": "final",
+     "types": [
+      "dark"
+     ],
+     "type_match": "all"
+    },
+    "start": 11.320177100000365,
+    "seconds": 0.25813969999944675,
+    "raw_bytes": 1191,
+    "execution_time": 0.02264840000134427,
+    "proposed_arguments": {
+     "subgroup": "starter",
+     "evolution_stage": "final",
+     "talent": "type: Ténèbres"
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "national_number",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": null,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Amphinobi"
+      },
+      {
+       "name_fr": "Félinferno"
+      },
+      {
+       "name_fr": "Miascarade"
+      }
+     ],
+     "total_count": 3,
+     "returned_count": 3,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T16:04:27.473962+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Comment Bulbizarre apprend-il Lance-Soleil ?",
+  "outcome": "answered",
+  "answer": "Bulbizarre apprend Lance-Soleil de deux manières :\n\n1. **Niveau 36** (via l'apprentissage par niveau).\n2. **Via une machine** (apprentissage par objet).\n\nCes informations sont disponibles dans les versions Pokémon Écarlate et Violet.",
+  "seconds": {
+   "total": 13.81902959999934,
+   "analysis": 9.190141700000822,
+   "tools": 0.1875928000008571,
+   "generation": 4.441275499997573
+  },
+  "tokens": {
+   "prompt": 4149,
+   "output": 100,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_move_learning_methods",
+    "arguments": {
+     "pokemon": "Bulbizarre",
+     "move": "Lance-Soleil"
+    },
+    "seconds": 0.1875928000008571,
+    "execution_time": 0.04364020000139135,
+    "result": {
+     "operation": "get_move_learning_methods",
+     "pokemon": "Bulbizarre",
+     "form": null,
+     "move": {
+      "move_id": 76,
+      "identifier": "solar-beam",
+      "name_fr": "Lance-Soleil"
+     },
+     "version_group": "scarlet-violet",
+     "version_selection": "latest_available",
+     "count": 2,
+     "methods": [
+      {
+       "level": 36,
+       "method": "level-up"
+      },
+      {
+       "method": "machine"
+      }
+     ],
+     "context_compacted": true,
+     "version_group_fr": "Pokémon Écarlate et Violet"
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:03:13.404756+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Comment évolue Pandespiègle ?",
+  "outcome": "answered",
+  "answer": "Pandespiègle évolue en Pandarbare lorsqu'il atteint au moins le niveau 32, à condition que l'équipe contienne un Pokémon de type Ténèbres. Cette évolution se produit via la montée de niveau, dans les versions Pokémon X et Y.",
+  "seconds": {
+   "total": 13.911541999999827,
+   "analysis": 8.849046900000758,
+   "tools": 0.026281599999492755,
+   "generation": 5.036210199999914
+  },
+  "tokens": {
+   "prompt": 4191,
+   "output": 90,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_evolutions",
+    "arguments": {
+     "pokemon": "Pandespiègle"
+    },
+    "start": 8.849046900000758,
+    "seconds": 0.026281599999492755,
+    "raw_bytes": 537,
+    "execution_time": 0.020591500000591623,
+    "result": {
+     "operation": "get_evolutions",
+     "pokemon": "Pandespiègle",
+     "form": null,
+     "version_group": null,
+     "count": 1,
+     "evolutions": [
+      {
+       "evolution_id": 349,
+       "from": {
+        "species_id": 674,
+        "identifier": "pancham",
+        "name_fr": "Pandespiègle",
+        "form": null
+       },
+       "to": {
+        "species_id": 675,
+        "identifier": "pangoro",
+        "name_fr": "Pandarbare",
+        "form": null
+       },
+       "trigger": "montée de niveau",
+       "version_group": "x-y",
+       "conditions": {
+        "niveau minimum": 32,
+        "type présent dans l'équipe": "Ténèbres"
+       },
+       "version_group_fr": "Pokémon X et Y"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:58:47.606823+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quel Pokémon est à la fois de type Feu et Eau ?",
+  "outcome": "answered",
+  "answer": "Volcanion",
+  "seconds": {
+   "total": 10.593971500000407,
+   "analysis": 9.531293399999413,
+   "tools": 0.022606600001381594,
+   "generation": 1.0400657999998657
+  },
+  "tokens": {
+   "prompt": 4157,
+   "output": 30,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "types": [
+      "fire",
+      "water"
+     ],
+     "type_match": "all"
+    },
+    "start": 9.531293399999413,
+    "seconds": 0.022606600001381594,
+    "raw_bytes": 705,
+    "execution_time": 0.015074299999469076,
+    "proposed_arguments": {
+     "types": [
+      "Feu",
+      "Eau"
+     ]
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "national_number",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": null,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Volcanion"
+      }
+     ],
+     "total_count": 1,
+     "returned_count": 1,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:58:58.903054+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quelles Méga-Évolutions ont le talent Coloforce ?",
+  "outcome": "answered",
+  "answer": "Méga-Staross  \nMéga-Mysdibule",
+  "seconds": {
+   "total": 11.289764000001014,
+   "analysis": 9.425842599999669,
+   "tools": 0.15129870000055234,
+   "generation": 1.7126195000000735
+  },
+  "tokens": {
+   "prompt": 4178,
+   "output": 45,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "form_category": "mega",
+     "talent": "Coloforce"
+    },
+    "start": 9.425842599999669,
+    "seconds": 0.15129870000055234,
+    "raw_bytes": 966,
+    "execution_time": 0.02085570000053849,
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "category",
+     "form_category": "mega",
+     "sort_by": "national_number",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": null,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Méga-Staross"
+      },
+      {
+       "name_fr": "Méga-Mysdibule"
+      }
+     ],
+     "total_count": 2,
+     "returned_count": 2,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:12:49.562238+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "D'où vient le nom de Bérasca ?",
+  "outcome": "answered",
+  "answer": "Le nom de Bérasca provient du verlan de \"scarabée\".  \nC'est une forme inversée ou déformée du mot \"scarabée\", utilisé dans plusieurs langues :  \n- En français : Bérasca (verlan de scarabée)  \n- En anglais : Rabsca (verlan de scarab)  \n- En allemand : Skarabaks (verlan de Skarabäus)  \n- En japonais : ベラカス (Berakasu, verlan de スカラベ — sukara be — scarabée)\n\nSource : Poképédia, page Bérasca.",
+  "seconds": {
+   "total": 20.5156709999992,
+   "analysis": 9.441485499999544,
+   "tools": 1.4195636000004015,
+   "generation": 9.65461779999896
+  },
+  "tokens": {
+   "prompt": 4211,
+   "output": 181,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "d'où vient le nom de Bérasca",
+     "pokemon": "Bérasca"
+    },
+    "start": 9.441485499999544,
+    "seconds": 1.4195636000004015,
+    "raw_bytes": 678,
+    "timings": {
+     "vector": 0.061419599998771446,
+     "bm25": 0.0627691000008781,
+     "rrf": 8.159999924828298e-05,
+     "reranker": 1.1124816999999894,
+     "total": 1.407952399998976
+    },
+    "passages": 1,
+    "result": {
+     "question": "d'où vient le nom de Bérasca",
+     "pokemon": "Bérasca",
+     "results": [
+      {
+       "text": "- Français : Bérasca pourrait venir du verlan de scarabée.\n- Anglais : Rabsca pourrait venir du verlan de scarab (scarabée).\n- Allemand : Skarabaks pourrait venir du verlan de Skarabäus (scarabée).\n- Japonais : ベラカス (Berakasu) pourrait venir du verlan de スカラベ (sukarabe), soit scarabée.",
+       "pokemon": "Bérasca",
+       "section_path": "À propos du Pokémon > Étymologies",
+       "chunk_number": 9,
+       "source": "Poképédia, page Bérasca"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:10:19.786600+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quels objets Leveinard peut-il tenir à l'état sauvage ?",
+  "outcome": "answered",
+  "answer": "Leveinard peut tenir à l'état sauvage les objets suivants :\n\n- **Pierre Ovale** (50 %, G4)\n- **Poing Chance** (50 %, G5–G7)\n- **Œuf Chance** (5 %, G3–G6)",
+  "seconds": {
+   "total": 14.769875500000126,
+   "analysis": 8.466009199999462,
+   "tools": 0.1922374999994645,
+   "generation": 6.111624799999845
+  },
+  "tokens": {
+   "prompt": 4471,
+   "output": 94,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_particularities",
+    "arguments": {
+     "pokemon": "Leveinard"
+    },
+    "start": 8.466009199999462,
+    "seconds": 0.1922374999994645,
+    "raw_bytes": 1283,
+    "execution_time": 0.06884060000083991,
+    "result": {
+     "operation": "get_particularities",
+     "pokemon": "Leveinard",
+     "form": null,
+     "source": "Pokédex personnalisé",
+     "count": 1,
+     "rows": [
+      {
+       "name_fr": "Leveinard",
+       "Type 1": "Normal",
+       "Talent 1": "Médic Nature",
+       "Talent 2": "Sérénité",
+       "Talent caché": "Cœur Soin",
+       "Stade d'évolution": "Intermédiaire · 1 évolution possible",
+       "Statistiques remarquables": "Parmi tous les Pokémon — PV : 2e plus haute (250) ; Parmi tous les Pokémon — Attaque : la plus basse (5), Défense : la plus basse (5) ; Plus haute valeur de la génération 1 — PV 250 ; Plus basse valeur de la génération 1 — Attaque 5, Défense 5 ; Parmi les 10 répartitions les plus déséquilibrées (tous les Pokémon) : 245 d’écart entre sa statistique la plus haute et la plus basse",
+       "Autre particularité": "Le Poing Chance est un objet propre à Leveinard qui augmente fortement son taux de coups critiques.",
+       "Faiblesses de type": "Combat (×2)",
+       "Immunités de type": "Spectre",
+       "Anciennes statistiques": "Spécial : 105 (G1 seulement)",
+       "Objets tenus à l'état sauvage": "Pierre Ovale (50 %, G4), Poing Chance (50 %, G5–G7), Œuf Chance (5 %, G3–G6)",
+       "Jeux sans ce Pokémon depuis son introduction": "Pokémon Champions",
+       "Taille": "1,1 m",
+       "Poids": "34,6 kg",
+       "Taux de capture": "30 sur 255"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T12:54:35.578374+00:00",
+  "model": "gemini-3.8-flash",
+  "question": "Quelles capacités spéciales de type Fée d'au moins 80 de puissance Nymphali peut-il apprendre ?",
+  "outcome": "answered",
+  "answer": "Dans Pokémon Champions, les capacités spéciales de type Fée d'au moins 80 de puissance que Nymphali peut apprendre sont :\n\n- Explo-Brume\n- Pouvoir Lunaire\n- Voix Envoûtante\n- Éclat Magique",
+  "seconds": {
+   "total": 8.067699100000027,
+   "analysis": 4.810457699999461,
+   "tools": 0.04177460000028077,
+   "generation": 3.212100599999758
+  },
+  "tokens": {
+   "prompt": 4417,
+   "output": 97
+  },
+  "tools": [
+   {
+    "name": "pokemon_moves",
+    "arguments": {
+     "min_power": 80,
+     "damage_class": "special",
+     "pokemon": "Nymphali",
+     "move_type": "fairy",
+     "max_power": null
+    },
+    "seconds": 0.04177460000028077,
+    "execution_time": 0.03866359999847191,
+    "proposed_arguments": {
+     "min_power": 80,
+     "damage_class": "special",
+     "pokemon": "Nymphali",
+     "move_type": "Fée"
+    },
+    "result": {
+     "operation": "get_pokemon_moves",
+     "pokemon": "Nymphali",
+     "form": null,
+     "version_group": "champions",
+     "movepool_available": true,
+     "results": [
+      {
+       "name_fr": "Explo-Brume",
+       "type_fr": "Fée",
+       "power": 100,
+       "accuracy": 100,
+       "pp": 5,
+       "damage_class_fr": "spéciale",
+       "learning": [
+        {
+         "method": "entraînement"
+        }
+       ]
+      },
+      {
+       "name_fr": "Pouvoir Lunaire",
+       "type_fr": "Fée",
+       "power": 95,
+       "accuracy": 100,
+       "pp": 15,
+       "damage_class_fr": "spéciale",
+       "learning": [
+        {
+         "method": "entraînement"
+        }
+       ]
+      },
+      {
+       "name_fr": "Voix Envoûtante",
+       "type_fr": "Fée",
+       "power": 80,
+       "accuracy": 100,
+       "pp": 10,
+       "damage_class_fr": "spéciale",
+       "learning": [
+        {
+         "method": "entraînement"
+        }
+       ]
+      },
+      {
+       "name_fr": "Éclat Magique",
+       "type_fr": "Fée",
+       "power": 80,
+       "accuracy": 100,
+       "pp": 10,
+       "damage_class_fr": "spéciale",
+       "learning": [
+        {
+         "method": "entraînement"
+        }
+       ]
+      }
+     ],
+     "total_count": 4,
+     "returned_count": 4,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true,
+     "version_group_fr": "Pokémon Champions"
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T16:49:49.912353+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "D'où vient le nom de Palarticho ?",
+  "outcome": "answered",
+  "answer": "Le nom de Palarticho provient d’un jeu de mots entre « paladin » et « artichaut », en référence à son légume, qui est un oignon japonais et non un artichaut. Il s'agit aussi d’une allusion à la phrase « Pas l’artichaut », en lien avec le fait que si son légume se flétrit, il est contraint d’arrêter les combats.\n\nSource : Poképédia, page Palarticho.",
+  "seconds": {
+   "total": 20.830701099999715,
+   "analysis": 9.19643929999802,
+   "tools": 2.192508700001781,
+   "generation": 9.441731799997797
+  },
+  "tokens": {
+   "prompt": 4440,
+   "output": 146,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "d'où vient le nom de Palarticho",
+     "pokemon": "Palarticho"
+    },
+    "seconds": 2.192508700001781,
+    "timings": {
+     "vector": 0.21388579999984358,
+     "bm25": 0.08319980000305804,
+     "rrf": 9.990000035031699e-05,
+     "reranker": 1.6266154000004462,
+     "total": 2.1748674000009487
+    },
+    "passages": 2,
+    "result": {
+     "question": "d'où vient le nom de Palarticho",
+     "pokemon": "Palarticho",
+     "results": [
+      {
+       "text": "- Français : Palarticho pourrait venir de paladin et d'artichaut, afin de former un jeu de mots avec « Pas l'artichaut », en référence à son légume qui est un oignon japonais, et non un artichaut, ainsi qu'au fait que si son légume se flétrit, il est forcé d'arrêter les combats.\n- Anglais : Sirfetch'd pourrait venir de sir (titre utilisé pour s'adresser à un chevalier) et de far-fetched (tiré par les cheveux).\n- Allemand : Lauchzelot pourrait venir de Lauch (poireau) et de Lanzelot (Lancelot).",
+       "pokemon": "Palarticho",
+       "section_path": "À propos du Pokémon > Étymologies",
+       "chunk_number": 10,
+       "source": "Poképédia, page Palarticho"
+      },
+      {
+       "text": "- Allemand : Lauchzelot pourrait venir de Lauch (poireau) et de Lanzelot (Lancelot).\n- Japonais : ネギガナイト Negigaknight pourrait venir de 葱 negi (oignon vert) et de ナイト knight (chevalier), afin de former ネギが無いと negi ga nai to (Ce n'est pas un oignon) ; dans ce cas-là, が無いと peut être pris au sens d'« être nécessaire », et la traduction devient « J'ai besoin de mon oignon ».",
+       "pokemon": "Palarticho",
+       "section_path": "À propos du Pokémon > Étymologies",
+       "chunk_number": 11,
+       "source": "Poképédia, page Palarticho"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:55:04.614606+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quels sont les 3 fossiles avec la meilleure Défense ?",
+  "outcome": "answered",
+  "answer": "Bastiodon (Défense : 168), Mégapagos (Défense : 133), Amonistar (Défense : 125)",
+  "seconds": {
+   "total": 14.383178099998986,
+   "analysis": 10.631957300000067,
+   "tools": 0.022875799999383162,
+   "generation": 3.72833940000055
+  },
+  "tokens": {
+   "prompt": 4219,
+   "output": 80,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "subgroup": "Fossile",
+     "sort_by": "defense",
+     "sort_order": "desc",
+     "best_only": false,
+     "limit": 3,
+     "offset": 0
+    },
+    "start": 10.631957300000067,
+    "seconds": 0.022875799999383162,
+    "raw_bytes": 1231,
+    "execution_time": 0.016255299999102135,
+    "proposed_arguments": {
+     "subgroup": "fossil",
+     "evolution_stage": "base",
+     "talent": "none"
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "defense",
+     "sort_order": "desc",
+     "best_only": false,
+     "stat_name_fr": "Défense",
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Bastiodon",
+       "Défense": 168
+      },
+      {
+       "name_fr": "Mégapagos",
+       "Défense": 133
+      },
+      {
+       "name_fr": "Amonistar",
+       "Défense": 125
+      }
+     ],
+     "total_count": 25,
+     "returned_count": 3,
+     "limit": 3,
+     "offset": 0,
+     "truncated": true,
+     "has_more": true,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:36:47.129258+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quel était l'ancien talent d'Ectoplasma ?",
+  "outcome": "answered",
+  "answer": "L'ancien talent d'Ectoplasma était **Lévitation**, présent jusqu'à la génération 6, avant d'être remplacé par **Corps Maudit** dans la génération 7.",
+  "seconds": {
+   "total": 13.538541399999303,
+   "analysis": 9.539732499999445,
+   "tools": 0.22641029999977036,
+   "generation": 3.7623978999999963
+  },
+  "tokens": {
+   "prompt": 4116,
+   "output": 73,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_particularities",
+    "arguments": {
+     "pokemon": "Ectoplasma"
+    },
+    "start": 9.539732499999445,
+    "seconds": 0.22641029999977036,
+    "raw_bytes": 1041,
+    "execution_time": 0.08696869999948831,
+    "result": {
+     "operation": "get_particularities",
+     "pokemon": "Ectoplasma",
+     "form": null,
+     "source": "Pokédex personnalisé",
+     "count": 1,
+     "rows": [
+      {
+       "name_fr": "Ectoplasma",
+       "Talent 1": "Corps Maudit",
+       "Ancien talent": "Lévitation (jusqu'à la G6, changé en G7)"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T12:00:17.535703+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quel Pokémon porte le numéro 666 du Pokédex ?",
+  "outcome": "answered",
+  "answer": "Prismillon",
+  "seconds": {
+   "total": 9.877276499999425,
+   "analysis": 8.845288499998787,
+   "tools": 0.020093200000701472,
+   "generation": 1.0118915999992169
+  },
+  "tokens": {
+   "prompt": 4163,
+   "output": 28,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "pokedex_number": 666
+    },
+    "start": 8.845288499998787,
+    "seconds": 0.020093200000701472,
+    "raw_bytes": 715,
+    "execution_time": 0.011462999998911982,
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "national_number",
+     "sort_order": "asc",
+     "best_only": false,
+     "stat_name_fr": null,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Prismillon",
+       "national_number": 666
+      }
+     ],
+     "total_count": 1,
+     "returned_count": 1,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-09T11:55:19.471313+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "Quel Pokémon a le plus faible total de statistiques ?",
+  "outcome": "answered",
+  "answer": "Froussardine a le plus faible total de statistiques, avec 175.",
+  "seconds": {
+   "total": 14.85440220000055,
+   "analysis": 12.142904100001033,
+   "tools": 0.1830575999993016,
+   "generation": 2.5284363999999186
+  },
+  "tokens": {
+   "prompt": 4217,
+   "output": 64,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_search",
+    "arguments": {
+     "sort_by": "base-stat-total",
+     "sort_order": "asc",
+     "best_only": true,
+     "limit": 30,
+     "offset": 0
+    },
+    "start": 12.142904100001033,
+    "seconds": 0.1830575999993016,
+    "raw_bytes": 842,
+    "execution_time": 0.021062100000563078,
+    "proposed_arguments": {
+     "sort_by": "base-stat-total",
+     "sort_order": "asc",
+     "best_only": true,
+     "limit": 1
+    },
+    "result": {
+     "operation": "search_pokemon",
+     "form_selection": "default",
+     "form_category": null,
+     "sort_by": "base-stat-total",
+     "sort_order": "asc",
+     "best_only": true,
+     "stat_name_fr": "Total des statistiques",
+     "matching_count": 1025,
+     "best_value": 175,
+     "tie": false,
+     "tie_count": 1,
+     "version_selection": null,
+     "type_match": "all",
+     "catalogue_complete": true,
+     "move_properties": null,
+     "results": [
+      {
+       "name_fr": "Froussardine",
+       "Total des statistiques": 175
+      }
+     ],
+     "total_count": 1,
+     "returned_count": 1,
+     "limit": 30,
+     "offset": 0,
+     "truncated": false,
+     "has_more": false,
+     "context_compacted": true
+    }
+   }
+  ]
+ },
+ {
+  "timestamp": "2026-10-08T16:50:08.873149+00:00",
+  "model": "qwen/qwen3-vl-8b",
+  "question": "D'où vient le nom d'Éthernatos ?",
+  "outcome": "answered",
+  "answer": "Le nom d'Éthernatos vient d'Éther (Dieu des Cieux) et de Thanatos (Dieu de la Mort), selon une interprétation en français. En anglais, il dérive d'« eternal » (éternel) et de « Thanatus » (forme latine de Thanatos). En allemand, il est issu de « endlos » (infini) et de « Dynamax ». En japonais, il provient de « mugendai » (infini, éternité), de « dai » (grand, géant) et de « Daimax » (Dynamax). Ces étymologies sont mentionnées sur Poképédia dans la section « À propos du Pokémon > Étymologies ».",
+  "seconds": {
+   "total": 18.95573879999938,
+   "analysis": 5.647468499999377,
+   "tools": 1.9881201999996847,
+   "generation": 11.320129300002009
+  },
+  "tokens": {
+   "prompt": 4280,
+   "output": 205,
+   "thinking": 0,
+   "output_limit_reached": false
+  },
+  "tools": [
+   {
+    "name": "pokemon_rag_search",
+    "arguments": {
+     "question": "d'où vient le nom d'Éthernatos ?",
+     "pokemon": "Éthernatos"
+    },
+    "seconds": 1.9881201999996847,
+    "timings": {
+     "vector": 0.17417329999807407,
+     "bm25": 0.04869490000055521,
+     "rrf": 7.91000020399224e-05,
+     "reranker": 1.5455757999989146,
+     "total": 1.9773126000000047
+    },
+    "passages": 1,
+    "result": {
+     "question": "d'où vient le nom d'Éthernatos ?",
+     "pokemon": "Éthernatos",
+     "results": [
+      {
+       "text": "- Français : Éthernatos pourrait venir d'Éther (Dieu des Cieux) et de Thanatos (Dieu de la Mort).\n- Anglais : Eternatus pourrait venir d'eternal (éternel) et de Thanatus (Thanatos, en latin).\n- Allemand : Endynalos pourrait venir d'endlos (infini) et de Dynamax (une fonctionnalité apparue en huitième génération).\n- Japonais : ムゲンダイナ Mugendina pourrait venir de 無限大 mugendai (infini, éternité), de 大 dai (grand, géant) et de ダイマックス Daimax (Dynamax, fonctionnalité apparue en huitième génération).",
+       "pokemon": "Éthernatos",
+       "section_path": "À propos du Pokémon > Étymologies",
+       "chunk_number": 12,
+       "source": "Poképédia, page Éthernatos"
+      }
+     ]
+    }
+   }
+  ]
+ }
+]
