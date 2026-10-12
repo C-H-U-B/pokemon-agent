@@ -423,6 +423,25 @@ def test_trace_keeps_tool_arguments_measures_results_and_names_abstentions(web):
         assert web._web_trace("Question", text, "answered", None, [], web.ActivityTiming(), 1.0)["outcome"] == outcome
 
 
+def test_parallel_calls_of_the_same_tool_keep_their_own_measure_when_the_second_finishes_first(web):
+    # ADK exécute en concurrence les appels d'un même tour : les mesures arrivent dans l'ordre de fin.
+    timing = web.ActivityTiming()
+    calls = [("pokemon_evolutions", {"pokemon": "Évoli"}), ("pokemon_evolutions", {"pokemon": "Aquali"})]
+    results = [{"pokemon": "Évoli", "count": 8}, {"pokemon": "Aquali", "count": 0}]
+    event = tool_event(measures=[
+        {"tool": "pokemon_evolutions", "call_id": "b", "executed_arguments": calls[1][1], "raw_bytes": 146},
+        {"tool": "pokemon_evolutions", "call_id": "a", "executed_arguments": calls[0][1], "raw_bytes": 4020}])
+    event.content = SimpleNamespace(parts=[
+        SimpleNamespace(function_response=SimpleNamespace(name="pokemon_evolutions", id=call_id, response=result))
+        for call_id, result in zip("ab", results)])
+    timing.observe(calls, [], 1.0)
+    timing.observe([], ["pokemon_evolutions"] * 2, 1.5, event)
+    tools = web._web_trace("Question", "Réponse", "answered", None, calls, timing, 2.0)["tools"]
+    assert [(tool["arguments"], tool["raw_bytes"], tool["result"]) for tool in tools] == [
+        (calls[0][1], 4020, results[0]), (calls[1][1], 146, results[1])]
+    assert not any("call_id" in tool or "proposed_arguments" in tool for tool in tools)
+
+
 def test_trace_goes_to_standard_output_only_when_the_host_has_no_persistent_disk(web, monkeypatch, capsys):
     import json
     trace = web._web_trace("Palmaval ?", "Réponse", "answered", None, [], web.ActivityTiming(), 1.0)

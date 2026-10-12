@@ -16,6 +16,13 @@ from pokemon_rag.agent.context_budget import (
 )
 
 
+@pytest.fixture(autouse=True)
+def catalogue(monkeypatch):
+    """Noms connus sans ouvrir pokemon.db : le refus de double demande compte les Pokémon nommés."""
+    monkeypatch.setattr("pokemon_rag.agent.context_budget.pokemon_name_catalogue", lambda: [
+        ("Évoli", "Évoli", None), ("Aquali", "Aquali", None)])
+
+
 def request(text="Question courte"):
     return LlmRequest(contents=[types.Content(role="user", parts=[types.Part(text=text)])])
 
@@ -611,6 +618,13 @@ def test_refused_structured_call_does_not_count_as_the_structured_part():
     left = compound_request("Parle-moi de Trépassable et de ses types",
                             ("pokemon_rag_search", LONG_PASSAGES), ("pokemon_types", REFUSAL))
     assert left == ["pokemon_types", "pokemon_base_stats", "pokemon_particularities"]
+
+
+def test_description_of_two_pokemon_is_refused_before_any_model_call():
+    # Régression : une recherche par Pokémon, puis des types inventés (« Eau et Psy »).
+    refusal = before_model_budget(SimpleNamespace(state={}), request("décrit moi évoli et aquali"))
+    assert refusal.content.parts[0].text == DOUBLE_REQUEST_REFUSAL
+    assert before_model_budget(SimpleNamespace(state={}), request("décrit moi évoli")) is None
 
 
 @pytest.mark.parametrize("question", [

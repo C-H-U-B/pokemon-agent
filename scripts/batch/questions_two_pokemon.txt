@@ -1,0 +1,8 @@
+# Questions qui nomment deux Pokémon, toutes refusées par le guard dans les traces Web du 6 au 12 octobre
+# (23 appels refusés, aucune réponse). Attendu : un appel par Pokémon nommé, puis une réponse sur les deux.
+Comment Évoli évolue-t-il en Aquali ?
+en quoi évolue salamèche et reptincel ?
+qui sont rayquaza et evoli ?
+donne moi l'attaque de évoli et gouroutan
+décrit moi évoli et aquali
+qui est le plus lourd entre ronflex et célébi ?

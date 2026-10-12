@@ -2044,3 +2044,41 @@ is the latest one where it learns it: the most recent game in the database only
 has a reduced movepool, and Thunder Shock passed there as not learned by
 Pikachu. Between two homonyms, the French name wins. An unknown Pokémon name is
 reported as such.
+
+## 103. [Feature] Questions naming two Pokémon get an answer
+
+The guard refused any question naming two Pokémon rather than picking one. In
+the interface traces, six such questions had received no answer: "what do
+Charmander and Charmeleon evolve into?", "how does Eevee evolve into Vaporeon?",
+"which is heavier, Snorlax or Celebi?". In four of them the model was already
+doing the right thing: one call per Pokémon, each with the right name.
+
+The guard now accepts one call per Pokémon named in the question, designated by
+its name or by its national number. Any other call is still refused: another
+Pokémon, a number that belongs to neither, or a misspelt name, which the guard
+no longer restores since nothing says which one to correct towards. Every
+executed call therefore still targets a Pokémon of the question.
+
+The model brings the two results together itself. For a comparison, it reads
+the two values and names the larger one: the rule that keeps computations in SQL
+does not cover this case, a limit accepted as long as no wrong comparison is
+observed. Two forms of the same species are still refused.
+
+Replayed with Qwen, five of the six questions get a correct answer, including
+the weight comparison. The interface guide no longer presents these questions
+as unavailable.
+
+The sixth, "décrit moi évoli et aquali" (describe Eevee and Vaporeon), received
+evolutions: "décrit" was not recognised as a request for a description. Once
+recognised, the model ran one search per Pokémon, each brought back passages
+where the two names sit side by side, lists of moves, and the answer invented
+the types. Questions naming two Pokémon are meant to compare facts, not
+descriptions: a description naming two Pokémon is now refused before any model
+call, with the message that already asks to separate a description from a
+precise fact.
+
+This replay showed a wrong trace: with two calls to the same tool, the call on
+Vaporeon carried the size and duration of Eevee's result. The two calls run at
+the same time and their measures arrive in the order they finish, while the
+interface attached them to the first call of the same name. Each measure now
+carries the identifier of its call.

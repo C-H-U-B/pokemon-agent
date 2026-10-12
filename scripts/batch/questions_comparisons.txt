@@ -1,0 +1,29 @@
+# Comparaisons entre deux Pokémon nommés, pour l'agent ADK. Le modèle lit les deux valeurs et désigne
+# lui-même la plus grande : aucun tri SQL. Attendu pour chacune : un appel par Pokémon, puis la réponse
+# donnée en commentaire. Valeurs lues dans pokemon.db le 12 octobre (fiche de particularités et
+# statistiques de base).
+
+# Écart serré. Attendu : Évoli (6,5 kg contre 6,0 kg).
+Qui est le plus lourd entre Pikachu et Évoli ?
+
+# Minimum demandé, pas maximum. Attendu : Salamèche (8,5 kg contre 9,0 kg).
+Lequel est le plus léger, Salamèche ou Carapuce ?
+
+# Taille, un décimètre d'écart. Attendu : Dracaufeu (1,7 m contre 1,6 m).
+Qui est le plus grand entre Dracaufeu et Tortank ?
+
+# Contre-intuitif et serré. Attendu : Onix (210,0 kg contre 206,5 kg).
+Qui est le plus lourd entre Onix et Rayquaza ?
+
+# « rapide » désigne la Vitesse. Attendu : Voltali (130 contre 120).
+Qui est le plus rapide entre Voltali et Alakazam ?
+
+# Statistique nommée, écart serré. Attendu : Mackogneur (Attaque 130 contre 125).
+Qui a la meilleure Attaque entre Mackogneur et Léviator ?
+
+# Égalité. Attendu : aucun des deux, total de 600 pour chacun.
+Qui a le plus gros total de statistiques entre Dracolosse et Tyranocif ?
+
+# Forme régionale d'un seul côté : elle ne doit pas être imposée à Pikachu.
+# Attendu : Raichu d'Alola (21,0 kg contre 6,0 kg ; le Raichu ordinaire pèse 30,0 kg).
+Qui est le plus lourd entre Raichu d'Alola et Pikachu ?

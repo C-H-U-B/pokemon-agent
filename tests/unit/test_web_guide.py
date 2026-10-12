@@ -76,8 +76,8 @@ def test_a_malformed_guide_is_refused_with_the_faulty_entry_named(tmp_path, old,
         load_guide(write(tmp_path, VALID.replace(old, new)))
 
 
-REFUSAL = {"name": "pokemon_evolutions", "arguments": {"pokemon": "Évoli"}, "result": {
-    "error": "invalid_explicit_constraints", "message": "Plusieurs Pokémon ou formes explicites : précisez une cible unique."}}
+REFUSAL = {"name": "pokemon_search", "arguments": {"best_only": True}, "result": {
+    "error": "invalid_explicit_constraints", "message": "Superlatif non reconnu : précisez la statistique."}}
 OTHER_REFUSAL = {"name": "pokemon_search", "arguments": {}, "result": {
     "error": "invalid_explicit_constraints", "message": "Classification ambiguë ou négative : précisez les filtres."}}
 
@@ -89,7 +89,7 @@ def failed(outcome, *tools):
 def test_a_known_failure_is_named_by_the_guard_message_before_the_outcome():
     guide = load_guide()
     # Le même code de refus couvre deux raisons : seul le message les distingue.
-    assert known_failure(guide, failed("tool_failure_abstention", REFUSAL)) == "Deux Pokémon dans la même question"
+    assert known_failure(guide, failed("tool_failure_abstention", REFUSAL)) == "Un avis, un conseil ou une stratégie"
     assert known_failure(guide, failed("budget_abstention", OTHER_REFUSAL)) == "Un critère que la recherche ne connaît pas encore"
     assert known_failure(guide, failed("budget_abstention")) == "Une réponse trop longue à rédiger"
     assert known_failure(guide, failed("double_request_refusal")) == "Deux demandes dans la même question"

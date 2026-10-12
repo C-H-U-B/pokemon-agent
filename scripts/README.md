@@ -81,6 +81,10 @@ conda run -n langgraph-agent python scripts/batch/run_questions.py scripts/batch
 de l'erreur qu'elle cherche. Y ajouter une question avec son erreur anticipée plutôt que de
 rejouer une liste entière.
 
+`questions_comparisons.txt` compare deux Pokémon nommés (poids, taille, statistiques) : chaque
+question est précédée de la réponse attendue, lue dans la base. Le modèle y désigne lui-même la
+plus grande des deux valeurs reçues.
+
 Deux autres fichiers servent les questions suggérées par l'interface, dont les critères sont dans le
 [guide de l'interface Web](../src/pokemon_rag/web/README.md) :
 

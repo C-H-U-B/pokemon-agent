@@ -159,8 +159,11 @@ def normalize(text: str | None) -> str:
     return re.sub(r"[^a-z0-9]+", "-", value).strip("-")
 
 
-def extract_named_pokemon(question: str, catalogue: list[tuple[str, str, str | None]]) -> dict | None:
-    """Mentions exactes avec frontières ; pas de nom déduit ou de matching flou."""
+def named_pokemon_mentions(question: str, catalogue: list[tuple[str, str, str | None]]) -> list[dict]:
+    """Espèces nommées dans l'ordre de la question, chacune avec sa forme ; deux formes d'une espèce sont refusées.
+
+    Mentions exactes avec frontières ; pas de nom déduit ou de matching flou.
+    """
     text = "-" + normalize(question) + "-"
     hits = []
     for alias, species, form in catalogue:
@@ -169,13 +172,20 @@ def extract_named_pokemon(question: str, catalogue: list[tuple[str, str, str | N
     # Un alias complet de forme contient souvent aussi le nom de l'espèce.
     hits = [hit for hit in hits if not any(other[0] <= hit[0] and hit[1] <= other[1]
             and other[1]-other[0] > hit[1]-hit[0] for other in hits)]
-    species = {hit[2] for hit in hits}
-    if not species:
-        return None
-    forms = {hit[3] for hit in hits if hit[3]}
-    if len(species) != 1 or len(forms) > 1:
+    mentions: dict[str, dict] = {}
+    for _, _, species, form in sorted(hits, key=lambda hit: hit[0]):
+        mention = mentions.setdefault(species, {"pokemon": species})
+        if form and mention.setdefault("form", form) != form:
+            raise ValueError("Plusieurs Pokémon ou formes explicites : précisez une cible unique.")
+    return list(mentions.values())
+
+
+def extract_named_pokemon(question: str, catalogue: list[tuple[str, str, str | None]]) -> dict | None:
+    """Le seul Pokémon nommé, ou None ; plusieurs espèces ou formes sont refusées."""
+    mentions = named_pokemon_mentions(question, catalogue)
+    if len(mentions) > 1:
         raise ValueError("Plusieurs Pokémon ou formes explicites : précisez une cible unique.")
-    return {"pokemon":species.pop(), **({"form":forms.pop()} if forms else {})}
+    return mentions[0] if mentions else None
 
 
 def is_named_identity_question(question: str) -> bool:
@@ -184,7 +194,7 @@ def is_named_identity_question(question: str) -> bool:
 
 
 DOCUMENTARY_PATTERN = (r"(?:^|-)(?:apparence|habitat|comportement|origine|histoire|description|"
-                       r"decris|decrire|decrivez|ressemble)(?:-|$)")
+                       r"decris|decrit|decrire|decrivez|ressemble)(?:-|$)")
 _STRUCTURED_CUES = (r"(?:^|-)(?:types?|numeros?|generations?|evolu[a-z]*|capacites?|attaques?|statistiques?|stats?|"
                     r"talents?|ct|cs|niveaux?|pv|vitesse|defense)(?:-|$)")
 

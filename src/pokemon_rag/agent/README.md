@@ -36,9 +36,17 @@ les limites de l’extracteur commun ; plusieurs régions ou formes reconnues
 sont refusées au lieu de devenir une absence de forme.
 Le guard ne modifie pas le catalogue d'outils de l'agent.
 Pour les outils structurés, il charge les alias via le moteur SQLite puis
-restaure une espèce explicitement nommée et sa forme reconnue. Il refuse
-plusieurs cibles au lieu d'en choisir une ; sans mention reconnue, il n'ajoute
-aucun Pokémon. Le nom proposé par le modèle n'est remplacé que s'il désigne la
+restaure une espèce explicitement nommée et sa forme reconnue ; sans mention
+reconnue, il n'ajoute aucun Pokémon. Quand la question nomme plusieurs espèces
+(« en quoi évoluent Salamèche et Reptincel ? », « le plus lourd entre Ronflex
+et Célébi »), il accepte un appel par Pokémon nommé, désigné par son nom ou, pour
+`pokemon_search`, par son numéro national, et refuse tout appel qui n'en désigne
+aucun (`other_pokemon_than_question`) : faute de frappe et mauvaise traduction
+ne sont alors plus rétablies, rien ne disant vers lequel corriger. Le modèle
+rapproche lui-même les résultats ; une comparaison entre deux valeurs lues n'est
+donc pas calculée en SQL, limite acceptée le 12 octobre et à reprendre à la
+première comparaison fausse observée. Deux formes d'une même espèce restent
+refusées. Le nom proposé par le modèle n'est remplacé que s'il désigne la
 même espèce (casse, forme, faute de frappe absente de la question) ou s'il est
 une mauvaise traduction (nom anglais d'une autre espèce) : un appel portant le
 nom français d'une autre espèce, ou un nom inconnu repris de la question, est
@@ -268,7 +276,7 @@ suffit à laisser passer la réponse. Le contrôle ne couvre pas une réponse
 donnée sans aucun appel d'outil. Le délai d'un appel d'outil est
 `MCP_TIMEOUT_SECONDS` dans `config.py` : la première recherche documentaire
 charge modèles et corpus, bien au-delà du défaut ADK de 5 secondes.
-Une question purement descriptive (« décris », « ressemble », apparence,
+Une question purement descriptive (« décris », « décrit », « ressemble », apparence,
 habitat, comportement, origine, histoire, sans demande structurée) n'admet que
 `pokemon_rag_search` : le guard refuse tout autre outil avec
 `documentary_question_requires_search` et désigne la recherche. Si le modèle
@@ -293,7 +301,9 @@ Une question qui contient à la fois un mot de description et un fait structuré
 (« décris X et donne ses types ») est refusée avant tout appel au modèle, par
 un message fixe demandant de poser les deux questions séparément, journalisé
 `double_request_refusal` : traitée en un seul échange, elle a donné des types
-inventés. La reconnaissance se fait par mots, donc « l'origine du talent de X »
+inventés. Une description qui nomme deux Pokémon (« décris Évoli et Aquali ») reçoit
+le même refus : chaque recherche ramenait des passages où les deux noms se
+côtoient, et la réponse inventait les types. La reconnaissance se fait par mots, donc « l'origine du talent de X »
 est refusée aussi. Les doubles demandes purement structurées restent traitées.
 Pour une double demande que ces mots ne signalent pas (« parle-moi de X et de
 ses types »), si aucun outil structuré n'a encore répondu, les outils qui prennent un
