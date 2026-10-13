@@ -14,6 +14,7 @@ initialize_retrieval = retrieval.initialize_retrieval
 
 def test_initialization_keeps_stdout_free_for_mcp(monkeypatch, capsys):
     collection = SimpleNamespace(
+        metadata={"hnsw:space": "cosine"},
         count=lambda: 1,
         get=lambda **kwargs: {
             "ids": ["pika-1"],

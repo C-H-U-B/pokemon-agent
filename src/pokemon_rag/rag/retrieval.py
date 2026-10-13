@@ -70,6 +70,18 @@ SECTION_TO_INDICES: dict[tuple[str, str], list[int]] = defaultdict(list)
 bm25 = None
 
 
+def check_index_model(metadata: dict | None) -> None:
+    """Refuse un index noté avec un autre modèle d'embedding : ses voisins seraient sans rapport, sans erreur.
+
+    Un index sans note (release v0.4.0 et antérieures) est accepté.
+    """
+    indexed_with = (metadata or {}).get("embedding_model")
+    if indexed_with not in (None, EMBEDDING_MODEL):
+        raise RuntimeError(
+            f"Index construit avec {indexed_with}, recherche configurée avec {EMBEDDING_MODEL} : réindexer."
+        )
+
+
 def initialize_retrieval() -> None:
     """Initialise les ressources une fois ; diagnostics sur stderr pour MCP stdio."""
     global _RETRIEVAL_INITIALIZED
@@ -88,6 +100,7 @@ def initialize_retrieval() -> None:
 
     client = chromadb.PersistentClient(path=str(CHROMA_PATH))
     collection = client.get_collection(COLLECTION_NAME)
+    check_index_model(collection.metadata)
 
     print(f"Collection Chroma : {COLLECTION_NAME}", file=sys.stderr)
     print(f"Chunks Chroma     : {collection.count():,}", file=sys.stderr)

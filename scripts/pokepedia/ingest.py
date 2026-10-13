@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import re
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import chromadb
@@ -16,12 +17,13 @@ from tqdm import tqdm
 # =============================================================================
 
 from pokemon_rag.config import CHROMA_PATH, POKEPEDIA_CLEANED_DIR
+# Le modèle qui indexe est celui qui interroge : défini une seule fois, côté recherche.
+from pokemon_rag.rag.retrieval import COLLECTION_NAME, EMBEDDING_MODEL
 
 CLEANED_DIR = POKEPEDIA_CLEANED_DIR
 
-COLLECTION_NAME = "pokemon_documents"
-
-EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+# Collection remplie à côté de celle en service, qu'elle ne remplace qu'une fois complète.
+BUILDING_COLLECTION = COLLECTION_NAME + "_building"
 
 # Taille cible pour les gros blocs à l'intérieur d'une même section Markdown.
 CHUNK_SIZE = 900
@@ -400,15 +402,24 @@ def main() -> None:
     chroma_start = time.perf_counter()
     client = chromadb.PersistentClient(path=CHROMA_PATH)
 
+    # Reste d'une ingestion interrompue.
     try:
-        client.delete_collection(COLLECTION_NAME)
-        print(f"Ancienne collection '{COLLECTION_NAME}' supprimée.")
+        client.delete_collection(BUILDING_COLLECTION)
     except Exception:
         pass
 
     collection = client.create_collection(
-        name=COLLECTION_NAME,
-        metadata={"hnsw:space": "cosine"},
+        name=BUILDING_COLLECTION,
+        metadata={
+            "hnsw:space": "cosine",
+            # Provenance : relue par le retrieval, qui refuse un index d'un autre modèle.
+            "embedding_model": EMBEDDING_MODEL,
+            "chunk_size": CHUNK_SIZE,
+            "chunk_overlap": CHUNK_OVERLAP,
+            "context_header": INJECT_CONTEXT_HEADER,
+            "source_files": len(files),
+            "ingested_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        },
     )
 
     progress = tqdm(total=len(documents), desc="Insertion Chroma", unit="chunk", dynamic_ncols=True)
@@ -452,8 +463,16 @@ def main() -> None:
     if stored_count != len(documents):
         raise RuntimeError(
             f"Ingestion incomplète : {stored_count:,} chunks dans Chroma "
-            f"pour {len(documents):,} chunks générés."
+            f"pour {len(documents):,} chunks générés. "
+            f"La collection '{COLLECTION_NAME}' en service n'a pas été modifiée."
         )
+
+    try:
+        client.delete_collection(COLLECTION_NAME)
+        print(f"Ancienne collection '{COLLECTION_NAME}' supprimée.")
+    except Exception:
+        pass
+    collection.modify(name=COLLECTION_NAME)
 
     print()
     print("✓ Ingestion terminée et vérifiée.")

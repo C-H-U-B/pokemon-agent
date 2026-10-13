@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import csv
+import hashlib
+import json
+import os
 import re
 import sqlite3
 import time
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from tqdm import tqdm
@@ -13,6 +18,8 @@ from pokemon_rag.config import POKEAPI_DB_PATH, POKEAPI_RAW_DIR
 
 RAW_DIR = POKEAPI_RAW_DIR
 DB_PATH = POKEAPI_DB_PATH
+# Écrit par download_pokeapi.py : commit PokéAPI de chaque CSV téléchargé.
+MANIFEST = RAW_DIR / "manifest.json"
 INSERT_BATCH_SIZE = 20_000
 
 CSV_FILES = [
@@ -73,8 +80,84 @@ INTEGER_NAMES = {
 }
 
 
+# Références entre tables (table, colonne, table visée, colonne visée) : aucune valeur renseignée
+# à gauche ne doit manquer à droite. Lue aussi par tests/integration/test_database.py.
+REFERENCES = [
+    ("pokemon", "species_id", "pokemon_species", "id"),
+    ("pokemon_forms", "pokemon_id", "pokemon", "id"),
+    ("pokemon_moves", "pokemon_id", "pokemon", "id"),
+    ("pokemon_moves", "move_id", "moves", "id"),
+    ("pokemon_moves", "version_group_id", "version_groups", "id"),
+    ("pokemon_moves", "pokemon_move_method_id", "pokemon_move_methods", "id"),
+    ("versions", "version_group_id", "version_groups", "id"),
+    ("machines", "move_id", "moves", "id"),
+    ("machines", "item_id", "items", "id"),
+    ("machines", "version_group_id", "version_groups", "id"),
+    ("pokemon_evolution", "evolved_species_id", "pokemon_species", "id"),
+    ("pokemon_evolution", "evolution_trigger_id", "evolution_triggers", "id"),
+    ("pokemon_evolution", "version_group_id", "version_groups", "id"),
+    ("pokemon_evolution", "trigger_item_id", "items", "id"),
+    ("pokemon_evolution", "held_item_id", "items", "id"),
+    ("pokemon_evolution", "known_move_id", "moves", "id"),
+    ("pokemon_evolution", "party_species_id", "pokemon_species", "id"),
+    ("pokemon_evolution", "trade_species_id", "pokemon_species", "id"),
+    ("pokemon_evolution", "required_pokemon_form_id", "pokemon_forms", "id"),
+    ("pokemon_evolution", "evolved_pokemon_form_id", "pokemon_forms", "id"),
+    ("pokemon_evolution", "used_move_id", "moves", "id"),
+    ("type_efficacy", "damage_type_id", "types", "id"),
+    ("type_efficacy", "target_type_id", "types", "id"),
+    ("pokemon_abilities_past", "pokemon_id", "pokemon", "id"),
+    ("pokemon_abilities_past", "ability_id", "ability_names", "ability_id"),
+    ("pokemon_stats_past", "pokemon_id", "pokemon", "id"),
+    ("pokemon_items", "pokemon_id", "pokemon", "id"),
+    ("pokemon_items", "item_id", "items", "id"),
+    ("pokemon_items", "version_id", "versions", "id"),
+]
+
+
 def log(message: str = "") -> None:
     print(message, flush=True)
+
+
+@contextmanager
+def replacing(target: Path):
+    """Donne un chemin voisin où construire ; la cible n'est remplacée que si le bloc se termine sans erreur.
+
+    Après un échec, la cible précédente est intacte et le fichier partiel reste à côté, pour examen.
+    """
+    building = target.with_name(target.name + ".tmp")
+    building.unlink(missing_ok=True)
+    yield building
+    os.replace(building, target)
+
+
+def record_sources(conn: sqlite3.Connection, sources: list[tuple[Path, str | None]]) -> None:
+    """Note dans build_info chaque fichier source : empreinte, taille, origine connue, date du build."""
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS build_info "
+        "(name TEXT, sha256 TEXT, bytes INTEGER, origin TEXT, built_at TEXT)"
+    )
+    built_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    conn.executemany(
+        "INSERT INTO build_info VALUES (?, ?, ?, ?, ?)",
+        [
+            (path.name, hashlib.sha256(path.read_bytes()).hexdigest(), path.stat().st_size, origin, built_at)
+            for path, origin in sources
+        ],
+    )
+
+
+def orphans(conn: sqlite3.Connection, references: list[tuple[str, str, str, str]]) -> list[str]:
+    """Références dont au moins une valeur renseignée n'existe pas dans la table visée."""
+    broken = []
+    for child, column, parent, parent_column in references:
+        count = conn.execute(
+            f'SELECT COUNT(*) FROM "{child}" c WHERE c."{column}" IS NOT NULL AND NOT EXISTS '
+            f'(SELECT 1 FROM "{parent}" p WHERE p."{parent_column}" = c."{column}")'
+        ).fetchone()[0]
+        if count:
+            broken.append(f"{child}.{column} -> {parent}.{parent_column} : {count}")
+    return broken
 
 
 def sql_identifier(value: str) -> str:
@@ -353,6 +436,10 @@ def validate(conn: sqlite3.Connection) -> None:
     if fr is None or en is None:
         raise RuntimeError("Langues FR/EN introuvables.")
 
+    broken = orphans(conn, REFERENCES)
+    if broken:
+        raise RuntimeError("Références orphelines : " + " ; ".join(broken))
+
     # Vérifie que la grosse table est réellement typée.
     info = {
         row[1]: row[2]
@@ -378,8 +465,7 @@ def main() -> None:
         )
 
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    if DB_PATH.exists():
-        DB_PATH.unlink()
+    commits = json.loads(MANIFEST.read_text(encoding="utf-8")) if MANIFEST.exists() else {}
 
     log("=" * 88)
     log("CONSTRUCTION OPTIMISÉE DE LA BASE SQLITE POKÉAPI")
@@ -389,49 +475,55 @@ def main() -> None:
     log("→ Les IDs/niveaux/flags sont importés directement en INTEGER.")
     log()
 
-    conn = sqlite3.connect(DB_PATH)
-
-    # Optimisations uniquement pendant la construction.
-    conn.execute("PRAGMA journal_mode=OFF")
-    conn.execute("PRAGMA synchronous=OFF")
-    conn.execute("PRAGMA temp_store=MEMORY")
-    conn.execute("PRAGMA cache_size=-200000")
-
     counts = {}
 
-    try:
-        for index, filename in enumerate(CSV_FILES, start=1):
-            table = table_name(filename)
-            log(f"[{index}/{len(CSV_FILES)}] Import de {filename}...")
+    with replacing(DB_PATH) as building:
+        conn = sqlite3.connect(building)
+
+        # Optimisations uniquement pendant la construction.
+        conn.execute("PRAGMA journal_mode=OFF")
+        conn.execute("PRAGMA synchronous=OFF")
+        conn.execute("PRAGMA temp_store=MEMORY")
+        conn.execute("PRAGMA cache_size=-200000")
+
+        try:
+            for index, filename in enumerate(CSV_FILES, start=1):
+                table = table_name(filename)
+                log(f"[{index}/{len(CSV_FILES)}] Import de {filename}...")
+                t0 = time.perf_counter()
+                count = import_csv(conn, RAW_DIR / filename)
+                conn.commit()
+                counts[table] = count
+                log(f"✓ {table}: {count:,} lignes en {time.perf_counter() - t0:.2f} s")
+
+            log()
+            log("→ Création des index...")
             t0 = time.perf_counter()
-            count = import_csv(conn, RAW_DIR / filename)
+            create_indexes(conn)
             conn.commit()
-            counts[table] = count
-            log(f"✓ {table}: {count:,} lignes en {time.perf_counter() - t0:.2f} s")
+            log(f"✓ Index créés en {time.perf_counter() - t0:.2f} s")
 
-        log()
-        log("→ Création des index...")
-        t0 = time.perf_counter()
-        create_indexes(conn)
-        conn.commit()
-        log(f"✓ Index créés en {time.perf_counter() - t0:.2f} s")
+            log("→ Création des vues FR/EN...")
+            create_views(conn)
+            conn.commit()
+            log("✓ Vues créées.")
 
-        log("→ Création des vues FR/EN...")
-        create_views(conn)
-        conn.commit()
-        log("✓ Vues créées.")
+            record_sources(conn, [(RAW_DIR / name, commits.get(name)) for name in CSV_FILES])
+            conn.commit()
+            unknown = sum(name not in commits for name in CSV_FILES)
+            log(f"✓ Provenance notée dans build_info ({unknown} CSV sans commit connu).")
 
-        log("→ ANALYZE...")
-        conn.execute("ANALYZE")
-        conn.commit()
-        log("✓ Statistiques SQLite calculées.")
+            log("→ ANALYZE...")
+            conn.execute("ANALYZE")
+            conn.commit()
+            log("✓ Statistiques SQLite calculées.")
 
-        log("→ Vérification de la base...")
-        validate(conn)
-        log("✓ Base valide.")
+            log("→ Vérification de la base...")
+            validate(conn)
+            log("✓ Base valide.")
 
-    finally:
-        conn.close()
+        finally:
+            conn.close()
 
     elapsed = time.perf_counter() - start
     size_mb = DB_PATH.stat().st_size / (1024 * 1024)

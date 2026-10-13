@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import runpy
 import sqlite3
+from pathlib import Path
 
 import pytest
 pytestmark = pytest.mark.real_data
 
 from pokemon_rag.config import DB_PATH
+
+_builder = runpy.run_path(str(Path(__file__).resolve().parents[2] / "scripts/pokeapi/build_pokeapi_db.py"))
+REFERENCES, orphans = _builder["REFERENCES"], _builder["orphans"]
 
 
 EXPECTED_OBJECTS = {
@@ -128,94 +133,10 @@ def test_custom_pokedex_source_rows_are_unique(
         assert duplicates == 0, f"source_row dupliqué dans {table}"
 
 
-@pytest.mark.parametrize(
-    ("child_table", "child_column", "parent_table", "parent_column"),
-    [
-        ("pokemon", "species_id", "pokemon_species", "id"),
-        ("pokemon_forms", "pokemon_id", "pokemon", "id"),
-        ("pokemon_moves", "pokemon_id", "pokemon", "id"),
-        ("pokemon_moves", "move_id", "moves", "id"),
-        ("pokemon_evolution", "evolved_species_id", "pokemon_species", "id"),
-    ],
-    ids=[
-        "pokemon-to-species",
-        "forms-to-pokemon",
-        "pokemon-moves-to-pokemon",
-        "pokemon-moves-to-moves",
-        "evolutions-to-species",
-    ],
-)
-def test_core_references_are_not_orphaned(
-    db: sqlite3.Connection,
-    child_table: str,
-    child_column: str,
-    parent_table: str,
-    parent_column: str,
-) -> None:
-    orphan_count = scalar(
-        db,
-        f"""
-        SELECT COUNT(*)
-        FROM "{child_table}" child
-        WHERE child."{child_column}" IS NOT NULL
-          AND NOT EXISTS (
-              SELECT 1
-              FROM "{parent_table}" parent
-              WHERE parent."{parent_column}" = child."{child_column}"
-          )
-        """,
-    )
-
-    assert orphan_count == 0
-
-
-@pytest.mark.parametrize(
-    ("column", "target_table"),
-    [
-        ("evolution_trigger_id", "evolution_triggers"),
-        ("version_group_id", "version_groups"),
-        ("trigger_item_id", "items"),
-        ("held_item_id", "items"),
-        ("known_move_id", "moves"),
-        ("party_species_id", "pokemon_species"),
-        ("trade_species_id", "pokemon_species"),
-        ("required_pokemon_form_id", "pokemon_forms"),
-        ("evolved_pokemon_form_id", "pokemon_forms"),
-        ("used_move_id", "moves"),
-    ],
-    ids=[
-        "evolution-trigger",
-        "version-group",
-        "trigger-item",
-        "held-item",
-        "known-move",
-        "party-species",
-        "trade-species",
-        "required-form",
-        "evolved-form",
-        "used-move",
-    ],
-)
-def test_evolution_references_are_not_orphaned(
-    db: sqlite3.Connection,
-    column: str,
-    target_table: str,
-) -> None:
-    orphan_count = scalar(
-        db,
-        f"""
-        SELECT COUNT(*)
-        FROM pokemon_evolution evolution
-        WHERE evolution."{column}" IS NOT NULL
-          AND NOT EXISTS (
-              SELECT 1
-              FROM "{target_table}" target
-              WHERE target.id = evolution."{column}"
-          )
-        """,
-    )
-
-    assert orphan_count == 0
+@pytest.mark.parametrize("reference", REFERENCES, ids=lambda r: f"{r[0]}.{r[1]}")
+def test_references_are_not_orphaned(db: sqlite3.Connection, reference: tuple) -> None:
+    # Même liste et même requête que le contrôle fait à la construction de la base.
+    assert orphans(db, [reference]) == []
 
 
 def test_default_pokemon_are_unique_per_species(
