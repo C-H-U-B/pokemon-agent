@@ -63,6 +63,7 @@ décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 | Client MCP | `integration/test_mcp_client.py`, puis `long/test_mcp_client_e2e.py` exécuté par l'utilisateur |
 | Contraintes MCP | `unit/test_mcp_constraint_preservation.py` : extraction et réconciliation sans LLM |
 | Fidélité des listes | `unit/test_list_fidelity.py`, puis `integration/test_adk_stat_rankings.py` (réponse simulée qui omet des lignes, remplacée) |
+| Constructeurs de données (`scripts/pokeapi/`, `scripts/pokepedia/ingest.py`) | `unit/test_data_build.py` : base précédente intacte après un build en échec, provenance notée, orphelin nommé, index d'un autre modèle refusé ; puis `integration/test_database.py` sur la vraie base (SQLite seul, lancé aussi par l'intégration continue sur la base publiée) |
 | Guard ADK | `unit/test_adk_tool_guard.py` : callback et vrais extracteurs, contexte et outils ADK simulés, sans LLM ni serveur MCP |
 | Extracteur de contraintes (jeux, formes) | `unit/test_structured_constraint_guard.py`, puis `integration/test_constraint_vocabulary.py` : tous les noms français de la base, aucun ne doit produire de jeu ni de forme |
 | Onglet « Observabilité » | `unit/test_web_observability.py` : rendu d'une trace Web sans interface ; quatre étapes par appel, arrêt au guard ou à l'outil, texte d'exception masqué, balises échappées, rendu stable pendant une question en cours |

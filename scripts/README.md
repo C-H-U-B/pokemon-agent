@@ -14,13 +14,13 @@ Exécuter les scripts depuis la racine, avec le paquet installé dans `langgraph
 
 Les données et index générés sont locaux. Leur absence ne se corrige pas en lançant automatiquement une reconstruction : le constructeur SQLite et l'ingestion peuvent remplacer les ressources existantes. Une modification du routeur, des tests ou de la documentation n'exige pas de reconstruire les données.
 
-Les scripts de construction sont des outils de préparation, pas une étape de démarrage quotidien. Vérifier leurs destinations et préserver les ressources actives avant une reconstruction volontaire : `build_pokeapi_db.py` et `build_pokemon_db.py` suppriment la base avant de la reconstruire et ne la valident qu'à la fin, et `ingest.py` supprime la collection avant de la remplir. Une interruption laisse une ressource partielle ; copier la base ou l'index avant de lancer. Nommer la copie `<fichier>.avant-<motif>` (`data/pokemon.db.avant-second-lot`) ou, pour le classeur, `pokedex_particularites.<date>.xlsx` : ces deux formes sont ignorées par Git, donc `git add -A` ne les embarque pas.
+Les scripts de construction sont des outils de préparation, pas une étape de démarrage quotidien. `build_pokeapi_db.py` et `build_pokemon_db.py` construisent la base dans un fichier voisin (`<base>.tmp`) et ne remplacent la précédente qu'après validation ; `ingest.py` remplit une collection voisine (`pokemon_documents_building`) et ne remplace celle en service qu'une fois complète. Un échec ou une interruption laisse donc la ressource précédente intacte, et le reste partiel est écrasé à l'exécution suivante. Le remplacement échoue si la base est ouverte par un autre processus (application, conteneur) : l'arrêter d'abord. Une reconstruction réussie remplace la ressource : pour garder l'ancienne, la copier avant de lancer. Nommer la copie `<fichier>.avant-<motif>` (`data/pokemon.db.avant-second-lot`) ou, pour le classeur, `pokedex_particularites.<date>.xlsx` : ces deux formes sont ignorées par Git, donc `git add -A` ne les embarque pas.
 
 ## Chaînes de préparation
 
 | Étape | Script canonique | Entrée → sortie |
 | --- | --- | --- |
-| Données PokéAPI | `pokeapi/download_pokeapi.py` | CSV distants → `data/pokeapi/raw/` |
+| Données PokéAPI | `pokeapi/download_pokeapi.py` | CSV distants → `data/pokeapi/raw/` et leur commit dans `manifest.json` |
 | Base intermédiaire | `pokeapi/build_pokeapi_db.py` | CSV → `data/pokeapi/pokeapi.db` |
 | Base applicative | `pokeapi/build_pokemon_db.py` | Base intermédiaire + `data/pokedex_particularites.xlsx` → `data/pokemon.db` et vue `custom_pokedex` |
 | Corpus brut | `pokepedia/download.py` | API Poképédia → `data/pokepedia/raw/` selon la configuration actuelle |
@@ -34,9 +34,24 @@ rubriques calculées de la fiche d'un Pokémon nommé : une base construite sans
 ces rubriques sont seulement omises. Ajouter un CSV demande de l'inscrire dans les deux listes,
 de typer ses colonnes numériques (`INTEGER_NAMES`) et d'indexer sa clé de recherche.
 
-Des fichiers locaux anciens peuvent encore être dans `data/raw/` : leur présence
-ne change pas les chemins attendus par les scripts actuels. Ne pas déplacer ni
-recréer ces données automatiquement pour réconcilier les emplacements.
+### Provenance
+
+Chaque ressource dit de quoi elle est faite, sans consulter la machine qui l'a construite :
+
+- `SELECT * FROM build_info` dans `pokeapi.db` ou `pokemon.db` : une ligne par fichier source (CSV,
+  puis tableur), avec son empreinte SHA-256, sa taille, la date du build et, dans `origin`, le
+  commit PokéAPI du CSV. `origin` est vide pour le tableur et pour un CSV téléchargé avant
+  l'existence du manifeste.
+- `download_pokeapi.py` résout le commit de `master` une fois par exécution et y télécharge tous les
+  fichiers manquants ; un fichier déjà présent garde le sien. Pour une base d'un seul instantané,
+  vider `data/pokeapi/raw/` avant de télécharger.
+- Les métadonnées de la collection Chroma portent le modèle d'embedding, la taille et le
+  recouvrement du découpage, le nombre de fichiers et la date d'ingestion. Le modèle est défini
+  une seule fois, dans `rag/retrieval.py`, qui refuse au chargement un index noté avec un autre.
+
+La construction refuse une base dont une référence entre tables a un orphelin : la liste
+`REFERENCES` de `build_pokeapi_db.py`, relue par `tests/integration/test_database.py`. Y ajouter
+les références d'un nouveau CSV.
 
 Ne jamais publier `chroma_db/` tel quel : ce dossier local peut contenir d'autres
 collections et les restes d'anciennes ingestions. `export_index.py` recopie la

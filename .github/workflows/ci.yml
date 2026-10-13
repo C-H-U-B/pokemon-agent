@@ -38,6 +38,18 @@ jobs:
       - name: Tests sans données locales ni modèle
         run: python -m pytest -m "not real_data and not llm and not models" -q
 
+      - name: Base publiée
+        # Adresse et somme lues dans le Dockerfile : la release contrôlée est celle que la démo embarque.
+        run: |
+          line=$(grep 'releases/download/.*/pokemon.db' Dockerfile)
+          mkdir -p data
+          curl -fsSL "$(echo "$line" | grep -o 'https://[^ ]*')" -o data/pokemon.db
+          echo "$(echo "$line" | grep -o 'sha256:[0-9a-f]*' | cut -d: -f2)  data/pokemon.db" | sha256sum -c -
+
+      - name: Intégrité et références de la base publiée
+        # SQLite seul : aucun modèle, aucun LLM.
+        run: python -m pytest tests/integration/test_database.py -q
+
       - name: Compteur de tests du README
         # Échoue si le nombre annoncé dans les README ne correspond plus aux tests lancés ci-dessus.
         run: python scripts/check_test_counts.py --ci

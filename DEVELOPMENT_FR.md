@@ -2204,3 +2204,31 @@ singulier et sans mot de capacité, « l'attaque » d'un Pokémon nommé est sa
 statistique : le guard refuse un outil de capacités et désigne les statistiques
 de base. Qwen répond alors 134 pour « dacolosse », 55 et 60 pour Évoli et
 Gouroutan, au milieu de la liste complète des statistiques.
+
+## 105. [Architecture] Des données qui disent d'où elles viennent
+
+Un audit de la chaîne de données a montré trois faiblesses. Rien dans la base ni
+dans l'index ne disait de quelles sources ils étaient faits : les CSV PokéAPI
+venaient de la branche principale sans que le commit soit noté, en deux
+téléchargements à dix-huit jours d'écart. Les constructeurs supprimaient la base
+ou la collection avant de la refaire, si bien qu'une interruption laissait une
+ressource partielle. Enfin les contrôles de cohérence entre tables n'existaient
+que dans des tests lancés à la main.
+
+La base porte désormais une table `build_info` : une ligne par fichier source,
+CSV et tableur, avec son empreinte, sa taille, la date de construction et le
+commit PokéAPI quand il est connu. Le téléchargement résout ce commit une fois
+par exécution et le note pour chaque fichier. La collection documentaire
+enregistre le modèle d'embedding et les paramètres de découpage ; ce modèle
+n'est plus défini qu'à un endroit, et la recherche refuse un index noté avec un
+autre, qui renverrait des passages sans rapport sans aucune erreur.
+
+Les deux bases se construisent dans un fichier voisin, qui ne remplace la
+précédente qu'après validation ; l'ingestion remplit de même une collection
+voisine. Un échec laisse la ressource en service intacte.
+
+La validation refuse une base dont une référence entre tables pointe vers une
+ligne absente. La liste des références contrôlées est unique, lue par le
+constructeur et par le test d'intégrité de la vraie base. Reconstruite ainsi, la
+base passe ce contrôle ; ses CSV, téléchargés avant ce changement, y figurent
+sans commit.

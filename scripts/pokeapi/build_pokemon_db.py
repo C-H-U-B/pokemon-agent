@@ -10,6 +10,9 @@ import xml.etree.ElementTree as ET
 
 from pokemon_rag.config import DB_PATH, POKEAPI_DB_PATH, SPREADSHEET_PATH
 
+# Module voisin : le dossier du script lancé est sur le chemin d'import.
+from build_pokeapi_db import record_sources, replacing
+
 POKEAPI_DB = POKEAPI_DB_PATH
 SPREADSHEET = SPREADSHEET_PATH
 OUTPUT_DB = DB_PATH
@@ -565,12 +568,6 @@ def main():
     log(f"Spreadsheet : {SPREADSHEET}")
     log(f"Sortie      : {OUTPUT_DB}")
 
-    log("\n→ Copie de pokeapi.db...")
-    if OUTPUT_DB.exists():
-        OUTPUT_DB.unlink()
-    shutil.copy2(POKEAPI_DB, OUTPUT_DB)
-    log("✓ Copie terminée.")
-
     log("\n→ Lecture du spreadsheet...")
     with zipfile.ZipFile(SPREADSHEET) as zf:
         strings = shared_strings(zf)
@@ -585,34 +582,43 @@ def main():
             data[sheet] = read_sheet(zf, paths[sheet], strings)
             log(f"  ✓ {sheet}")
 
-    conn = sqlite3.connect(OUTPUT_DB)
-    try:
-        log("\n→ Import dans SQLite...")
-        for sheet, table in SHEETS.items():
-            t0 = time.perf_counter()
-            count = import_sheet(conn, table, data[sheet])
+    with replacing(OUTPUT_DB) as building:
+        log("\n→ Copie de pokeapi.db...")
+        shutil.copy2(POKEAPI_DB, building)
+        log("✓ Copie terminée.")
+
+        conn = sqlite3.connect(building)
+        try:
+            log("\n→ Import dans SQLite...")
+            for sheet, table in SHEETS.items():
+                t0 = time.perf_counter()
+                count = import_sheet(conn, table, data[sheet])
+                conn.commit()
+                log(f"✓ {table}: {count:,} lignes ({time.perf_counter()-t0:.2f} s)")
+
+            log("\n→ Liaison avec les IDs PokéAPI...")
+            link_pokedex(conn, "custom_pokedex_fr", "fr")
+            link_pokedex(conn, "custom_pokedex_en", "en")
             conn.commit()
-            log(f"✓ {table}: {count:,} lignes ({time.perf_counter()-t0:.2f} s)")
+            log("✓ IDs liés.")
 
-        log("\n→ Liaison avec les IDs PokéAPI...")
-        link_pokedex(conn, "custom_pokedex_fr", "fr")
-        link_pokedex(conn, "custom_pokedex_en", "en")
-        conn.commit()
-        log("✓ IDs liés.")
+            log("→ Création de la vue bilingue custom_pokedex...")
+            create_view(conn)
+            conn.commit()
+            log("✓ Vue créée.")
 
-        log("→ Création de la vue bilingue custom_pokedex...")
-        create_view(conn)
-        conn.commit()
-        log("✓ Vue créée.")
+            # S'ajoute aux lignes des CSV, déjà dans la copie de pokeapi.db.
+            record_sources(conn, [(SPREADSHEET, None)])
+            conn.commit()
 
-        log("→ ANALYZE...")
-        conn.execute("ANALYZE")
-        conn.commit()
+            log("→ ANALYZE...")
+            conn.execute("ANALYZE")
+            conn.commit()
 
-        log("→ Validation...")
-        validate(conn)
-    finally:
-        conn.close()
+            log("→ Validation...")
+            validate(conn)
+        finally:
+            conn.close()
 
     log("\n" + "=" * 88)
     log("BUILD TERMINÉ")

@@ -2124,3 +2124,30 @@ move lists. In the singular and without a word about moves, "l'attaque" of a
 named Pokémon is its statistic: the guard refuses a move tool and points to the
 base statistics. Qwen then answers 134 for "dacolosse", 55 and 60 for Eevee and
 Oranguru, inside the full list of statistics.
+
+## 105. [Architecture] Data that says where it comes from
+
+An audit of the data pipeline showed three weaknesses. Nothing in the database
+or in the index said which sources they were made of: the PokéAPI CSV files came
+from the main branch without the commit being recorded, in two downloads
+eighteen days apart. The builders deleted the database or the collection before
+rebuilding it, so an interruption left a partial resource. And the consistency
+checks between tables existed only in tests run by hand.
+
+The database now carries a `build_info` table: one row per source file, CSV and
+spreadsheet, with its fingerprint, its size, the build date and the PokéAPI
+commit when it is known. The download resolves that commit once per run and
+records it for each file. The document collection stores the embedding model and
+the chunking parameters; that model is now defined in one place only, and the
+search refuses an index recorded with another one, which would return unrelated
+passages without any error.
+
+Both databases are built in a neighbouring file, which replaces the previous one
+only after validation; ingestion likewise fills a neighbouring collection. A
+failure leaves the resource in service untouched.
+
+Validation refuses a database in which a reference between tables points to a
+missing row. The list of checked references is unique, read by the builder and
+by the integrity test of the real database. Rebuilt this way, the database
+passes this check; its CSV files, downloaded before this change, appear in it
+without a commit.

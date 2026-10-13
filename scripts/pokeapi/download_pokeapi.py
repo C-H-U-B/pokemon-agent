@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import time
 import urllib.error
 import urllib.request
@@ -10,7 +11,12 @@ from tqdm import tqdm
 from pokemon_rag.config import POKEAPI_RAW_DIR
 
 RAW_DIR = POKEAPI_RAW_DIR
-BASE_URL = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv"
+BASE_URL = "https://raw.githubusercontent.com/PokeAPI/pokeapi/{commit}/data/v2/csv"
+COMMIT_URL = "https://api.github.com/repos/PokeAPI/pokeapi/commits/master"
+# Commit PokéAPI de chaque CSV téléchargé, relu par build_pokeapi_db.py. Un fichier absent du
+# manifeste a été téléchargé avant son existence : son commit est inconnu.
+MANIFEST = RAW_DIR / "manifest.json"
+USER_AGENT = "pokemon-local-rag/1.0"
 
 # Premier lot : gameplay structuré absent du tableur.
 CSV_FILES = [
@@ -50,20 +56,36 @@ TIMEOUT_SECONDS = 60
 CHUNK_BYTES = 1024 * 1024
 
 
-def download_file(filename: str) -> tuple[bool, int]:
+def is_cached(filename: str) -> bool:
+    destination = RAW_DIR / filename
+    return destination.exists() and destination.stat().st_size > 0
+
+
+def resolve_commit() -> str:
+    """Commit actuel de master : tous les CSV d'une exécution viennent du même instantané."""
+    request = urllib.request.Request(
+        COMMIT_URL,
+        # Ce type de réponse réduit le corps à l'identifiant du commit.
+        headers={"User-Agent": USER_AGENT, "Accept": "application/vnd.github.sha"},
+    )
+    with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+        return response.read().decode("ascii").strip()
+
+
+def download_file(filename: str, commit: str | None) -> tuple[bool, int]:
     """Télécharge un CSV officiel PokéAPI. Un fichier déjà présent est conservé."""
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     destination = RAW_DIR / filename
 
-    if destination.exists() and destination.stat().st_size > 0:
+    if is_cached(filename):
         return False, destination.stat().st_size
 
-    url = f"{BASE_URL}/{filename}"
+    url = f"{BASE_URL.format(commit=commit)}/{filename}"
     temporary = destination.with_suffix(destination.suffix + ".part")
 
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "pokemon-local-rag/1.0"},
+        headers={"User-Agent": USER_AGENT},
     )
 
     try:
@@ -103,6 +125,13 @@ def main() -> None:
     print(f"Fichiers    : {len(CSV_FILES)}")
     print()
 
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8")) if MANIFEST.exists() else {}
+    # Résolu seulement s'il reste un fichier à télécharger.
+    commit = None if all(map(is_cached, CSV_FILES)) else resolve_commit()
+    if commit:
+        print(f"Commit      : {commit}")
+        print()
+
     downloaded = 0
     cached = 0
     total_bytes = 0
@@ -113,10 +142,12 @@ def main() -> None:
     for filename in progress:
         progress.set_postfix(file=filename[:28])
         try:
-            was_downloaded, size = download_file(filename)
+            was_downloaded, size = download_file(filename, commit)
             total_bytes += size
             if was_downloaded:
                 downloaded += 1
+                manifest[filename] = commit
+                MANIFEST.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
                 tqdm.write(f"[OK] {filename} téléchargé ({size / 1024:.1f} KiB)")
             else:
                 cached += 1
