@@ -21,6 +21,12 @@ def forbid_project_database_in_light_tests(request, monkeypatch):
     # Le guard lit ce vocabulaire à chaque appel d'outil : vide ici, un test le remplace s'il en dépend.
     import pokemon_rag.structured.query_engine as query_engine
     monkeypatch.setattr(query_engine, "_vocabulary_words", lambda path, modified: frozenset())
+    # Catalogue des noms vide quand il vise la vraie base ; une base de test (DB_PATH remplacé) est lue.
+    # Sans cela, son cache rempli par un test real_data lancé avant masque l'accès à la base, qui
+    # n'échoue alors que sur une machine sans base.
+    read_names = query_engine._name_catalogue
+    monkeypatch.setattr(query_engine, "_name_catalogue", lambda path, modified: (
+        () if Path(path).resolve() == DB_PATH.resolve() else read_names(path, modified)))
 
 
 @pytest.fixture(autouse=True)
