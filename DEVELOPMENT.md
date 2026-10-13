@@ -2150,4 +2150,10 @@ Validation refuses a database in which a reference between tables points to a
 missing row. The list of checked references is unique, read by the builder and
 by the integrity test of the real database. Rebuilt this way, the database
 passes this check; its CSV files, downloaded before this change, appear in it
-without a commit.
+without a commit. Continuous integration downloads the published database,
+verifies its checksum and applies that same test to it.
+
+The first continuous integration run failed elsewhere: two tests meant to run
+without the database read the Pokémon name catalogue from it. Locally, the cache
+of that catalogue, filled by an earlier test, hid the access. Tests without the
+database now receive an empty catalogue.
