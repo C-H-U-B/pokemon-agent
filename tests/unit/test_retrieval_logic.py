@@ -313,6 +313,44 @@ def test_rerank_candidates_orders_crossencoder_scores(monkeypatch) -> None:
     assert results[0]["reranker_score"] == pytest.approx(0.9)
 
 
+@pytest.mark.parametrize("question, first", [
+    ("quel est l'origine et l'étymologie du nom Tutafeh", "ety"),
+    ("quel est etymologie du nom de tutafeh", "ety"),
+    ("Quelles sont les ÉTYMOLOGIES de Tutafeh ?", "ety"),
+    ("À quoi ressemble Tutafeh ?", "phy"),  # section non nommée : le score seul décide
+])
+def test_section_named_in_the_question_is_ranked_first(monkeypatch, question, first) -> None:
+    # Régression : le titre de section n'est pas dans le texte noté par le CrossEncoder,
+    # la physionomie de Tutafeh passait devant son étymologie (trace Web du 13 octobre 2026).
+    class FakeReranker:
+        def predict(self, pairs, **kwargs):
+            return np.asarray([4.5, 1.1])
+
+    monkeypatch.setattr(retrieval, "reranker_model", FakeReranker())
+    candidates = [
+        {"id": "phy", "document": "P", "metadata": {"section_path": "À propos du Pokémon > Physionomie et attitudes"}},
+        {"id": "ety", "document": "E", "metadata": {"section_path": "À propos du Pokémon > Étymologies"}},
+    ]
+    results, _ = retrieval.rerank_candidates(question, candidates)
+    assert results[0]["id"] == first
+
+
+def test_named_section_enters_the_pool_only_from_the_scoped_pokemon(monkeypatch) -> None:
+    # Sur une longue page, le fragment peut manquer dans le Top RRF : le mot n'est pas dans son texte.
+    monkeypatch.setattr(retrieval, "CORPUS_IDS", ["tuta-ety", "tuta-phy", "pika-ety"])
+    monkeypatch.setattr(retrieval, "CORPUS_DOCUMENTS", ["E", "P", "E2"])
+    monkeypatch.setattr(retrieval, "CORPUS_METADATAS", [
+        {"section_path": "À propos du Pokémon > Étymologies"},
+        {"section_path": "À propos du Pokémon > Physionomie et attitudes"},
+        {"section_path": "À propos du Pokémon > Étymologies"},
+    ])
+    monkeypatch.setattr(retrieval, "POKEMON_TO_INDICES", {"Tutafeh": [0, 1], "Pikachu": [2]})
+    found = retrieval.named_section_candidates("étymologie de Tutafeh", "Tutafeh")
+    assert [item["id"] for item in found] == ["tuta-ety"]
+    assert retrieval.named_section_candidates("étymologie", None) == []
+    assert retrieval.named_section_candidates("d'où vient le nom de Tutafeh", "Tutafeh") == []
+
+
 @pytest.mark.parametrize("asked, indexed", [
     ("reshiram", "Reshiram"), ("RESHIRAM", "Reshiram"), ("Reshiram", "Reshiram"),
     ("mimiqui", "Mimiqui"), ("evoli", "Évoli"), ("m. mime", "M. Mime"),

@@ -21,6 +21,13 @@ Le top de résultats sert au diagnostic. Le premier résultat porte aussi
 et les passages retournés par MCP. Ne pas remplacer cette section reconstruite
 par les seuls premiers chunks classés sans vérifier le contrat.
 
+Exception au classement par score : quand la question nomme une section par son
+titre (`SECTIONS_NAMED_IN_QUESTIONS`, aujourd'hui « étymologie » seulement), les
+fragments de cette section dans la page du Pokémon ciblé entrent dans le pool et
+passent devant les autres. Le titre n'est pas dans le texte noté par le
+CrossEncoder. N'ajouter un titre qu'après mesure : « forme » ou « évolution »
+sont aussi des mots courants des questions.
+
 Les passages conservent leur texte documentaire. L'ingestion enrichit séparément
 la représentation servant aux embeddings avec le Pokémon et la hiérarchie de
 sections ; BM25 utilise les documents stockés, pas cette représentation enrichie.

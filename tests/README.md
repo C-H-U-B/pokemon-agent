@@ -236,7 +236,7 @@ vérifie les jeux récents, anciens et historiques, sans LLM.
 Les tests du vrai runner simulant le modèle couvrent également les listes de
 huit et neuf résultats ainsi que les CT d'un Pokémon substitué par Qwen.
 
-La campagne structurée compte 44 cas : types, identité, évolutions (dont deux
+La campagne structurée compte 48 cas : types, identité, évolutions (dont deux
 gains de niveau sans seuil : une capacité connue, un nombre de pas), capacités,
 recherche et classements (statistiques, taille et poids), statistiques et particularités d'un Pokémon nommé,
 recherche par sous-groupe, talent et stade d'évolution, un comptage, un
@@ -244,8 +244,10 @@ Pokémon inconnu dont la réponse attendue est l'abstention, et des mots
 ordinaires qui ne doivent pas devenir des contraintes (nom de jeu dans un nom
 de capacité ou d'espèce, « dans la », région citée comme lieu, valeur de
 remplissage proposée par le modèle), les trois catégories de starters (stade
-de base, évolutions, starters spéciaux), et une liste dont la question demande
-un champ (les types des starters). Elle évite les
+de base, évolutions, starters spéciaux), une liste dont la question demande
+un champ (les types des starters), et quatre noms écrits avec une faute de frappe
+(seul, à côté d'un second Pokémon, avec « l'attaque » au singulier lue comme la
+statistique). Elle évite les
 listes longues, qui allongent la génération sans rien vérifier de plus. Le
 rapport et chaque ligne JSONL nomment le modèle et le serveur utilisés.
 Pour une évolution, chaque condition renvoyée par l'outil (nombre, nom

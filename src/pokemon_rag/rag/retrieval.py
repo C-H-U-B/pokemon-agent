@@ -720,6 +720,34 @@ def expand_best_section(
 
 
 
+# Sections qu'une question désigne par leur titre, au singulier et sans accent. Le titre
+# n'est pas dans le texte du fragment : le CrossEncoder, qui ne lit que ce texte, classait
+# l'étymologie de Tutafeh quatrième pour « quelle est l'étymologie du nom Tutafeh ».
+# N'ajouter un titre qu'après mesure : « forme » ou « évolution » sont aussi des mots courants.
+SECTIONS_NAMED_IN_QUESTIONS = {"etymologie"}
+
+
+def sections_named_in(question: str) -> set[str]:
+    return {word.removesuffix("s") for word in normalize(question).split("-")} & SECTIONS_NAMED_IN_QUESTIONS
+
+
+def in_named_section(metadata: dict | None, named: set[str]) -> bool:
+    title = metadata_section_path(metadata).rsplit(" > ", 1)[-1]
+    return normalize(title).removesuffix("s") in named
+
+
+def named_section_candidates(question: str, pokemon: str | None) -> list[dict]:
+    """Fragments de la section nommée dans la question, dans la page du Pokémon ciblé uniquement."""
+    named = sections_named_in(question)
+    if not named or not pokemon:
+        return []
+    return [
+        {"id": CORPUS_IDS[idx], "document": CORPUS_DOCUMENTS[idx], "metadata": CORPUS_METADATAS[idx]}
+        for idx in POKEMON_TO_INDICES.get(pokemon, [])
+        if in_named_section(CORPUS_METADATAS[idx], named)
+    ]
+
+
 def rerank_candidates(
     question: str,
     candidates: list[dict],
@@ -731,6 +759,9 @@ def rerank_candidates(
     La structure sert désormais à garantir la présence de bons seeds dans le
     pool de candidats. Le CrossEncoder n'a plus à "deviner" la pertinence d'un
     chemin de section via un second score artificiellement pondéré.
+
+    Exception : les fragments d'une section nommée dans la question
+    (SECTIONS_NAMED_IN_QUESTIONS) passent devant les autres, classés entre eux par score.
     """
     ensure_retrieval_initialized()
     start = time.perf_counter()
@@ -745,9 +776,10 @@ def rerank_candidates(
         convert_to_numpy=True,
     )
 
+    named = sections_named_in(question)
     ranked = sorted(
         zip(candidates, scores),
-        key=lambda item: float(item[1]),
+        key=lambda item: (in_named_section(item[0].get("metadata"), named), float(item[1])),
         reverse=True,
     )
 
@@ -826,7 +858,7 @@ def retrieve(
         question,
         pokemon=pokemon,
     )
-    rerank_pool = merge_candidates(rrf_results, section_results)
+    rerank_pool = merge_candidates(rrf_results, section_results + named_section_candidates(question, pokemon))
 
     reranker_time = 0.0
 
