@@ -46,7 +46,10 @@ de frappe d'un seul nom français d'espèce la désigne (« mimigale », « ronf
 doit tenir en un mot d'au moins cinq lettres et garder son initiale ; le mot ne
 doit être ni un alias, ni un nom de jeu, ni un mot de `known_words`, le
 vocabulaire que l'appelant sait ne pas être une faute (« Mimique » n'est pas
-Mimiqui, « armure » pas Airmure). Deux fautes (« dracofeu »), un nom court
+Mimiqui, « armure » pas Airmure). Le guard y met les capacités, les types et les
+talents, pas les objets : « cosmo » (Lettre Cosmo) désigne Cosmog, et seize mots
+d'objets peuvent être lus comme un Pokémon (« galet » pour Gaulet, « limonade »
+pour Limonde). Deux fautes (« dracofeu »), un nom court
 (« Mew ») ou composé (« M. Mime ») et un mot proche de deux espèces ne sont pas
 rapprochés. Mesure du 12 octobre sur les 492 questions des traces Web, de
 `scripts/batch/` et du guide : seules « mimigale » et « écoli » sont rapprochées,

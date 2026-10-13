@@ -56,6 +56,7 @@ def test_every_subgroup_of_the_spreadsheet_is_recognised_by_its_own_name():
     ("en quoi évoluent carmache et mimigale ?", ["Carmache", "Mimigal"]),   # traces Web, six fois
     ("donne moi l'attaque de écoli et gouroutan", ["Évoli", "Gouroutan"]),  # traces Web, deux fois
     ("quel est le poids de ronflexx ?", ["Ronflex"]),
+    ("en quoi évolue cosmo ?", ["Cosmog"]),              # mot de l'objet Lettre Cosmo : les objets ne protègent pas
     ("Quels Pokémon apprennent Mimique ?", []),          # capacité, pas Mimiqui
     ("Qui a le talent Armure Miroir ?", []),             # talent, pas Airmure
     ("Capacités de type Eau dans Pokémon Diamant", []),  # jeu, pas Diamat

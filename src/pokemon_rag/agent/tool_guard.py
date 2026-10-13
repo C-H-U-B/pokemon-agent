@@ -41,6 +41,8 @@ FORM_TOOLS = {
 }
 
 MOVE_FILTER_TOOLS = {"pokemon_moves", "pokemon_search"}
+MOVEPOOL_TOOLS = {"pokemon_moves", "pokemon_level_up_moves", "pokemon_machine_moves",
+                  "pokemon_move_learning_methods", "pokemon_signature_moves"}
 LEVEL_TOOLS = MOVE_FILTER_TOOLS | {"pokemon_level_up_moves"}
 # Catégories que la fiche de particularités renvoie pour un Pokémon nommé (sous-groupe du tableur).
 CATEGORY_FIELDS = {"legendary", "mythical", "subgroup"}
@@ -94,7 +96,17 @@ def _unsupported(tool_name: str, required: dict[str, Any]) -> dict[str, Any] | N
     return None
 
 
-def _call_target(question: str, tool_name: str, args: dict[str, Any]) -> dict[str, Any] | None:
+def _mentions(question: str, tool_context: Any) -> list[dict]:
+    """Pokémon nommés dans la question ; les mots mal écrits sont notés dans l'état pour la rédaction."""
+    misspelt: dict[str, str] = {}
+    mentions = named_pokemon_mentions(question, pokemon_name_catalogue(), vocabulary_words(), misspelt)
+    state = getattr(tool_context, "state", None)
+    if misspelt and state is not None:
+        state["temp:misspelt_pokemon"] = misspelt
+    return mentions
+
+
+def _call_target(question: str, tool_name: str, args: dict[str, Any], tool_context: Any = None) -> dict[str, Any] | None:
     """Pokémon de la question visé par cet appel, None si elle n'en nomme aucun, ou un refus.
 
     Un seul Pokémon nommé : c'est lui, quel que soit l'argument proposé (la suite rétablit ou refuse).
@@ -103,7 +115,7 @@ def _call_target(question: str, tool_name: str, args: dict[str, Any]) -> dict[st
     lequel rétablir. Le rapprochement des résultats est laissé au modèle.
     """
     catalogue = pokemon_name_catalogue()
-    mentions = named_pokemon_mentions(question, catalogue, vocabulary_words())
+    mentions = _mentions(question, tool_context)
     if len(mentions) < 2:
         return mentions[0] if mentions else None
     proposed = args.get("pokemon")
@@ -196,7 +208,17 @@ def before_tool_guard(
         # « Ectoplasma craint-il les attaques de type Normal ? » : le type d'attaque est interrogé lui aussi, mais
         # seulement avec un mot de sensibilité. « Quelles attaques de type Feu Dracaufeu apprend-il ? » reste un filtre.
         asked = ASKED_FIELDS | ({"move_type"} if is_type_matchup_question(question) else set())
-        target = _call_target(question, tool_name, corrected) if (
+        if tool_name == "pokemon_rag_search":
+            # « une anecdote sur rouflex » : la recherche partait avec pokemon="Rouflex" et ne trouvait aucun
+            # passage. Un seul Pokémon nommé : son nom exact filtre la recherche et remplace le mot mal écrit.
+            mentions = _mentions(question, tool_context)
+            if len(mentions) == 1:
+                corrected["pokemon"] = mentions[0]["pokemon"]
+                misspelt = (getattr(tool_context, "state", None) or {}).get("temp:misspelt_pokemon") or {}
+                if isinstance(corrected.get("question"), str):
+                    corrected["question"] = re.sub(
+                        r"\w+", lambda word: misspelt.get(normalize(word.group()), word.group()), corrected["question"])
+        target = _call_target(question, tool_name, corrected, tool_context) if (
             tool_name in FORM_TOOLS or asked.intersection(required)) else None
         if target and "error" in target:
             return target
@@ -241,6 +263,14 @@ def before_tool_guard(
                 if entity.get("form"):
                     required["form"] = entity["form"]
             else:
+                if tool_name in MOVEPOOL_TOOLS and is_named_stat_question(question) and not re.search(
+                        r"(?:^|-)(?:appren[a-z]*|capacites?|attaques|ct|cs)(?:-|$)", normalize(question)):
+                    # « Quelle est l'attaque de Dracolosse ? » : au singulier et sans mot de capacité, c'est la
+                    # statistique. Qwen appelait pokemon_moves et répondait par une liste de capacités (traces
+                    # Web : 3 questions de statistique sur 16, toutes « l'attaque de … »).
+                    return {"error": "unsupported_named_pokemon_constraint", "selected_tool": tool_name,
+                            "required_tool": "pokemon_base_stats", "required_arguments": entity,
+                            "message": "La question nomme une statistique, pas une capacité : elle se lit dans les statistiques de base."}
                 # Le nom proposé est remplacé s'il désigne la même espèce (casse, forme, faute de frappe du
                 # modèle) ou s'il est une mauvaise traduction (« Gourgeist » pour Gouroutan). Le nom français
                 # d'une autre espèce, ou un nom inconnu repris de la question, était exécuté sur le Pokémon
