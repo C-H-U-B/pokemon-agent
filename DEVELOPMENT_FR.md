@@ -2231,4 +2231,10 @@ La validation refuse une base dont une référence entre tables pointe vers une
 ligne absente. La liste des références contrôlées est unique, lue par le
 constructeur et par le test d'intégrité de la vraie base. Reconstruite ainsi, la
 base passe ce contrôle ; ses CSV, téléchargés avant ce changement, y figurent
-sans commit.
+sans commit. L'intégration continue télécharge la base publiée, vérifie sa somme
+et lui applique ce même test.
+
+Le premier passage en intégration continue a échoué ailleurs : deux tests censés
+se passer de la base y lisaient le catalogue des noms de Pokémon. En local, le
+cache de ce catalogue, rempli par un test précédent, masquait l'accès. Les tests
+sans base reçoivent désormais un catalogue vide.
