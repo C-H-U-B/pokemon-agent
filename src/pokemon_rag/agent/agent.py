@@ -7,7 +7,7 @@ from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams
 from mcp import StdioServerParameters
 from pokemon_rag.agent.tool_guard import before_tool_guard
 from pokemon_rag.agent.context_budget import after_model_abstention, after_tool_budget, before_model_budget
-from pokemon_rag.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, MCP_TIMEOUT_SECONDS
+from pokemon_rag.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_REASONING_EFFORT, MCP_TIMEOUT_SECONDS
 
 
 AGENT_INSTRUCTION = """Réponds en français avec les seuls faits demandés et prouvés par les outils, jamais de mémoire, même pour compléter ou contredire. Valeur/condition absente : inconnue ; n'invente aucun niveau, jeu, type ou capacité. Erreur technique ≠ Pokémon absent.
@@ -30,6 +30,7 @@ os.environ.setdefault("OPENAI_API_BASE", LLM_BASE_URL)
 
 model = LiteLlm(
     model=MODEL_NAME,
+    **({"reasoning_effort": LLM_REASONING_EFFORT} if LLM_REASONING_EFFORT else {}),
 )
 
 
