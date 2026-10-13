@@ -681,3 +681,55 @@ def test_word_of_the_vocabulary_is_not_a_misspelt_pokemon(catalogue, monkeypatch
     args = {"pokemon": "Dracolosse"}
     assert before_tool_guard(_tool("pokemon_types"), args, _context(question)) is None
     assert args == {"pokemon": "Dracolosse"}
+
+
+@pytest.mark.parametrize("tool", ["pokemon_moves", "pokemon_level_up_moves", "pokemon_signature_moves"])
+@pytest.mark.parametrize("question", ["quelle est l'attaque de dracolosse ?", "Vitesse de Dracolosse ?",
+                                      "donne moi l'attaque de Carabaffe et Dracolosse"])
+def test_statistic_of_a_named_pokemon_is_not_read_in_its_moves(catalogue, tool, question):
+    # Régression (trace du 12 octobre) : « l'attaque de dacolosse » recevait 30 capacités au lieu de la statistique.
+    args = {"pokemon": "Dracolosse"}
+    refusal = before_tool_guard(_tool(tool), args, _context(question))
+    assert refusal["error"] == "unsupported_named_pokemon_constraint"
+    assert refusal["required_tool"] == "pokemon_base_stats"
+    assert refusal["required_arguments"] == {"pokemon": "Dracolosse"}
+    assert before_tool_guard(_tool("pokemon_base_stats"), args, _context(question)) is None
+
+
+@pytest.mark.parametrize("question", [
+    "Quelles sont les attaques de Dracolosse ?",                       # pluriel : les capacités
+    "Dracolosse apprend-il une attaque puissante ?",                   # verbe d'apprentissage
+    "Quelle capacité de Dracolosse baisse la Défense ?",               # mot de capacité
+    "Quelle est l'attaque de type Dragon de Dracolosse ?",             # filtre de capacité
+])
+def test_move_question_naming_a_statistic_word_keeps_the_move_tool(catalogue, question):
+    args = {"pokemon": "Dracolosse"}
+    assert before_tool_guard(_tool("pokemon_moves"), args, _context(question)) is None
+
+
+def test_misspelt_word_is_noted_for_the_answer(catalogue):
+    context = _context("donne moi l'attaque de carabafe et Dracolosse")
+    context.state = {}
+    assert before_tool_guard(_tool("pokemon_base_stats"), {"pokemon": "Carabafe"}, context) is None
+    assert context.state == {"temp:misspelt_pokemon": {"carabafe": "Carabaffe"}}
+
+
+@pytest.mark.parametrize("question, proposed", [
+    ("donne moi une anecdote sur dracolose", {"question": "anecdote sur Dracolose", "pokemon": "Dracolose"}),
+    ("donne moi une anecdote sur dracolose", {"question": "anecdote sur Dracolose", "pokemon": "Dracogoulosse"}),
+    ("donne moi une anecdote sur Dracolosse", {"question": "anecdote sur Dracolosse"}),
+])
+def test_search_is_filtered_by_the_exact_name_of_the_only_named_pokemon(catalogue, question, proposed):
+    # Traces du 12 octobre : « anecdote sur rouflex » cherchait pokemon="Rouflex", « goroutan » un « Gorogoutan »
+    # inventé ; aucun passage, abstention.
+    context = _context(question)
+    context.state = {}
+    assert before_tool_guard(_tool("pokemon_rag_search"), proposed, context) is None
+    assert proposed == {"question": "anecdote sur Dracolosse", "pokemon": "Dracolosse"}
+
+
+def test_search_naming_no_pokemon_or_two_keeps_its_arguments(catalogue):
+    for question in ("Une anecdote sur les dresseurs ?", "anecdote sur Dracolosse et Carabaffe"):
+        args = {"question": question, "pokemon": "Carabaffe"}
+        assert before_tool_guard(_tool("pokemon_rag_search"), args, _context(question)) is None
+        assert args == {"question": question, "pokemon": "Carabaffe"}

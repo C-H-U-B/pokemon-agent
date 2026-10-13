@@ -746,3 +746,13 @@ def test_evolution_rows_reach_the_model_without_internal_identifiers_and_all_fit
     # Une forme non par défaut reste lisible : sans elle, Raichu d'Alola passait pour Raichu.
     assert seen["evolutions"][-1]["to"] == {"name_fr": "Raichu", "form": "alola"}
     assert "evolution_id" not in seen["evolutions"][0]
+
+
+def test_answer_names_the_pokemon_the_misspelt_word_was_read_as():
+    # Trace du 12 octobre : « Écoli : … » dans la réponse, données d'Évoli ; l'interface n'affichait que Gouroutan.
+    ctx = SimpleNamespace(state={"temp:misspelt_pokemon": {"ecoli": "Évoli"}})  # noté par le guard
+    response = LlmResponse(content=types.Content(role="model", parts=[types.Part(
+        text="**Écoli** : Attaque 55. L'attaque d'écoli est plus basse que celle de Gouroutan (60).")]))
+    assert after_model_abstention(ctx, response) is None
+    assert response.content.parts[0].text == (
+        "**Évoli** : Attaque 55. L'attaque d'Évoli est plus basse que celle de Gouroutan (60).")

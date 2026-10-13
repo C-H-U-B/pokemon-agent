@@ -2103,7 +2103,9 @@ Airmure, "nombre" (number) is one letter away from Lombre, "Diamant" from
 Diamat. A list question would then be forced onto one Pokémon. The matching is
 therefore narrow: the name is a single word of at least five letters, keeps its
 initial, and the word is close to one species only. Words from the names of
-moves, items, types, abilities and games are never read as a typo. Over the 492
+moves, types, abilities and games are never read as a typo. Words from item
+names are not protected, since no tool filters by item: "cosmo", a word of the
+item Lettre Cosmo, otherwise stayed unknown instead of meaning Cosmog. Over the 492
 questions of the traces, the replay files and the guide, only "mimigale" and
 "écoli" are matched.
 
@@ -2112,6 +2114,13 @@ not corrected. The graph and the MCP client keep the exact comparison.
 
 Replayed with Qwen, the four misspelt questions get an answer about the right
 Pokémon: Migalos (Ariados) at level 22 for "mimigale", 460 kg for "ronflexx".
-The answer often keeps the visitor's spelling. On "l'attaque de écoli et
-gouroutan", Qwen added a Normal-type filter of its own, which the guard does not
-remove: both lists are correct but partial.
+The answer often kept the visitor's spelling, so the visitor could not see what
+had been understood and the Pokémon was not illustrated: the misspelt word is
+now replaced there by the exact name. The same name filters the documentary
+search, which was sent with "Rouflex" and found no passage.
+
+"L'attaque de écoli et gouroutan" (the attack of Eevee and Oranguru) received
+move lists. In the singular and without a word about moves, "l'attaque" of a
+named Pokémon is its statistic: the guard refuses a move tool and points to the
+base statistics. Qwen then answers 134 for "dacolosse", 55 and 60 for Eevee and
+Oranguru, inside the full list of statistics.

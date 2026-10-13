@@ -530,4 +530,11 @@ def after_model_abstention(callback_context: Any, llm_response: Any) -> LlmRespo
         if missing:
             logger.warning("list_fidelity_replacement missing=%d rows=%d", len(missing), len(listing["names"]))
             return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=render(listing))]))
+    # « Écoli : 55 d'Attaque » : le modèle reprend l'orthographe du visiteur alors que les données portent sur Évoli.
+    # Le nom exact dit au visiteur ce qui a été compris, et l'interface n'illustre que les noms qu'elle lit.
+    misspelt = callback_context.state.get("temp:misspelt_pokemon")  # noté par le guard à l'appel d'outil
+    if misspelt:
+        for part in parts:
+            if part.text and not getattr(part, "thought", False):
+                part.text = re.sub(r"\w+", lambda word: misspelt.get(normalize(word.group()), word.group()), part.text)
     return None

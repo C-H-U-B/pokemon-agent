@@ -170,13 +170,14 @@ def _one_edit(word: str, name: str) -> bool:
 
 
 def named_pokemon_mentions(question: str, catalogue: list[tuple[str, str, str | None]],
-                           known_words: frozenset[str] | None = None) -> list[dict]:
+                           known_words: frozenset[str] | None = None, misspelt: dict[str, str] | None = None) -> list[dict]:
     """Espèces nommées dans l'ordre de la question, chacune avec sa forme ; deux formes d'une espèce sont refusées.
 
     Mentions exactes avec frontières ; pas de nom déduit. Avec known_words, un mot à une faute de frappe
     d'un seul nom français d'espèce la désigne aussi (« mimigale », « ronflexx », « ecoli ») : nom d'un seul
     mot d'au moins cinq lettres, même initiale, et mot absent de known_words, le vocabulaire que l'appelant
     sait ne pas être une faute (« Mimique » n'est pas Mimiqui, « armure » n'est pas Airmure).
+    misspelt, s'il est fourni, reçoit chaque mot mal écrit, normalisé, et l'espèce qu'il désigne.
     """
     text = "-" + normalize(question) + "-"
     hits = []
@@ -195,6 +196,8 @@ def named_pokemon_mentions(question: str, catalogue: list[tuple[str, str, str | 
                      and name[0] == token[0] and _one_edit(token, name)]
             if len(close) == 1:
                 hits.append((word.start() - 1, word.end(), close[0], None))
+                if misspelt is not None:
+                    misspelt[token] = close[0]
     # Un alias complet de forme contient souvent aussi le nom de l'espèce.
     hits = [hit for hit in hits if not any(other[0] <= hit[0] and hit[1] <= other[1]
             and other[1]-other[0] > hit[1]-hit[0] for other in hits)]

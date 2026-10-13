@@ -67,6 +67,8 @@ class Case:
     refused: bool = False
     # Aucun passage n'existe : la réponse attendue est l'abstention déterministe.
     abstention: bool = False
+    # Nom exact que la recherche exécutée doit porter, quand la question l'écrit avec une faute.
+    pokemon: str = ""
 
 
 CASES = [
@@ -79,6 +81,8 @@ CASES = [
     Case("double-request-trepassable", "Décris Trépassable et donne ses types",
          "Double demande : refusée avec une consigne claire, aucun outil appelé, aucun type inventé.",
          refused=True),
+    Case("misspelt-pokemon", "donne moi une anecdote sur rouflex",
+         "Faute de frappe : la recherche partait avec « Rouflex », aucun passage, abstention.", pokemon="Ronflex"),
     Case("unknown-pokemon", "Décris Fauxkémon",
          "Aucun passage : abstention, jamais une description inventée.", abstention=True),
 ]
@@ -113,6 +117,10 @@ def _checks(case: Case, calls: list[dict], responses: list[dict], answer: str) -
     checks += [(any(call["name"] == SEARCH for call in calls), "recherche documentaire appelée"),
                (bool(passages), "au moins un passage trouvé"),
                (bool(answer) and answer != TOOL_FAILURE_ABSTENTION, "réponse rédigée à partir des passages")]
+    if case.pokemon:
+        checks += [(any(r["response"].get("pokemon") == case.pokemon for r in passages),
+                    f"recherche exécutée sur {case.pokemon}"),
+                   (case.pokemon in answer, f"réponse au nom de {case.pokemon}")]
     return checks
 
 

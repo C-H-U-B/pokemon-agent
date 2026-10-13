@@ -412,6 +412,44 @@ CASES = [
         ("Bulbizarre", "Salamèche", "Carapuce", "Plante", "Poison", "Feu", "Eau"),
         note="Champ demandé sur une liste : les types doivent atteindre le modèle, pas venir de sa mémoire.",
     ),
+
+    # --- Nom mal écrit par le visiteur, statistique nommée au singulier (traces Web du 6 au 12 octobre) ---
+    Case(
+        "typo-single-pokemon",
+        "en quoi évolue mimigale ?",
+        "pokemon_evolutions",
+        {"pokemon": "Mimigal"},
+        ("Mimigal", "Migalos", "22"),
+        ("Mimigale",),
+        note="Une faute de frappe : le nom exact est rétabli dans l'appel et dans la réponse.",
+    ),
+    Case(
+        "typo-next-to-a-second-pokemon",
+        "en quoi évoluent carmache et mimigale ?",
+        "pokemon_evolutions",
+        {},
+        ("Carchacrok", "Migalos"),
+        ("Mimigale",),
+        note="L'appel sur le Pokémon mal écrit était refusé comme visant une autre espèce que Carmache.",
+    ),
+    Case(
+        "typo-singular-attack-is-the-statistic",
+        "quelle est l'attaque de dacolosse ?",
+        "pokemon_base_stats",
+        {"pokemon": "Dracolosse"},
+        ("Dracolosse", "134"),
+        ("dacolosse",),
+        note="« l'attaque » au singulier est la statistique : la réponse était une liste de 30 capacités.",
+    ),
+    Case(
+        "typo-attack-of-two-pokemon",
+        "donne moi l'attaque de écoli et gouroutan",
+        "pokemon_base_stats",
+        {},
+        ("Évoli", "55", "Gouroutan", "60"),
+        ("Écoli",),
+        note="Deux statistiques, un appel par Pokémon ; « Écoli » dans la réponse privait Évoli de son illustration.",
+    ),
 ]
 
 
@@ -599,8 +637,12 @@ def _evolution_condition_checks(result, answer):
     return checks
 
 
-def _factual_checks(result, answer):
-    """Contrôles typés limités, pas un juge général de toute formulation libre."""
+def _factual_checks(result, answer, results=None):
+    """Contrôles typés limités, pas un juge général de toute formulation libre.
+
+    results : toutes les réponses de l'outil attendu, quand la question nomme plusieurs Pokémon ;
+    un niveau cité est prouvé par n'importe laquelle, les autres contrôles portent sur result.
+    """
     checks = []
     answer = re.sub(r"[*_`]", "", answer)
     def values(value, keys):
@@ -610,9 +652,11 @@ def _factual_checks(result, answer):
         if isinstance(value,list):
             return [item for nested in value for item in values(nested,keys)]
         return []
-    levels = values(result.get("moves",[]), {"level"}) + values(result.get("methods",[]),{"level"})
-    levels += values(result.get("results",[]), {"level"})  # pokemon_moves : niveaux dans learning
-    levels += values(result.get("evolutions",[]), {"minimum_level", "niveau minimum"})
+    levels = []
+    for item in results or [result]:
+        levels += values(item.get("moves",[]), {"level"}) + values(item.get("methods",[]),{"level"})
+        levels += values(item.get("results",[]), {"level"})  # pokemon_moves : niveaux dans learning
+        levels += values(item.get("evolutions",[]), {"minimum_level", "niveau minimum"})
     for match in re.finditer(r"\bniveau\s*(?:de\s*)?(\d+)\b",answer,re.I):
         level = int(match.group(1))
         checks.append((level in levels,f"Niveau {level} prouvé",f"Niveau {level} absent du résultat outil"))
@@ -730,7 +774,8 @@ def _semantic_checks(case, calls, responses, answer, executions, raw_responses=(
             total = tool_response.get("total_count") or 0
             checks.append((bool(tool_response.get("results")) or not total,"Lignes du résultat transmises au modèle",
                            f"Aucune ligne transmise pour {total} résultats : réponse invérifiable"))
-        checks.extend(_factual_checks(tool_response,answer))
+        checks.extend(_factual_checks(tool_response, answer, [
+            r["response"] for r in responses if r["name"] == case.expected_tool and isinstance(r["response"], dict)]))
     raw = next((r["response"] for r in reversed(raw_responses)
                 if r["name"] == case.expected_tool and r.get("origin") == "mcp"),None)
     if raw:

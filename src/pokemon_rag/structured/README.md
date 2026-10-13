@@ -42,8 +42,8 @@ de Tonnerre vers l'identifiant interne `thunderbolt`. L'interface reste françai
   n'est remplacée par défaut, et plusieurs entrées possibles restent une erreur.
 - La protection contre certaines mentions de jeux inconnus appartient au parseur de questions. Ne pas supposer que les appels directs aux fonctions SQL bénéficient de ce contrôle de langage naturel.
 
-`vocabulary_words()` fournit au guard les mots des noms de capacités, d'objets, de
-types et de talents, qu'il écarte du rapprochement des fautes de frappe.
+`vocabulary_words()` fournit au guard les mots des noms de capacités, de types et de
+talents (pas des objets), qu'il écarte du rapprochement des fautes de frappe.
 `pokemon_name_catalogue()` fournit au guard les alias d'espèces et d'entrées
 de formes réellement présents dans `pokemon.db`, avec l'espèce canonique et
 l'identifiant éventuel de forme. L'extraction des mentions se fait ensuite

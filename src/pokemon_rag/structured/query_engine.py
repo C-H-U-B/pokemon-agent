@@ -1525,9 +1525,11 @@ def _talent_names(path: str, modified: int | None) -> frozenset[str]:
 
 
 def vocabulary_words() -> frozenset[str]:
-    """Mots des noms de capacités, d'objets, de types et de talents, normalisés, lus une fois par état de la base.
+    """Mots des noms de capacités, de types et de talents, normalisés, lus une fois par état de la base.
 
     Le guard ADK les écarte du rapprochement des fautes de frappe : « Mimique » est une capacité, pas Mimiqui.
+    Les objets n'en font pas partie : aucun outil ne filtre par objet, et « Lettre Cosmo » empêchait de lire
+    « cosmo » comme Cosmog.
     """
     modified = DB_PATH.stat().st_mtime_ns if DB_PATH.exists() else None
     return _vocabulary_words(str(DB_PATH), modified)
@@ -1538,7 +1540,7 @@ def _vocabulary_words(path: str, modified: int | None) -> frozenset[str]:
     """path et modified ne servent que de clé : une base reconstruite est relue."""
     with closing(_connect()) as conn:
         names = [alias for table, names_table, column in (
-            ("moves", "move_names", "move_id"), ("items", "item_names", "item_id"), ("types", "type_names", "type_id"))
+            ("moves", "move_names", "move_id"), ("types", "type_names", "type_id"))
             for _, alias in _fast_db_names(conn, table, names_table, column)]
     return frozenset(word for name in (*names, *talent_names()) for word in _normalize(name).split("-"))
 

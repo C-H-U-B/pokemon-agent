@@ -50,14 +50,22 @@ première comparaison fausse observée. Deux formes d'une même espèce restent
 refusées. Un Pokémon écrit avec une faute de frappe dans la question
 (« mimigale », « écoli ») est nommé comme les autres : le guard rétablit le nom
 exact, que le modèle ait recopié la faute ou l'ait corrigée. Les mots des noms de
-capacités, d'objets, de types et de talents (`vocabulary_words`) ne sont jamais
+capacités, de types et de talents (`vocabulary_words`), pas des objets, ne sont jamais
 lus comme une faute ; règle et limites dans les
-[contraintes](../constraints/README.md). Le nom proposé par le modèle n'est remplacé que s'il désigne la
+[contraintes](../constraints/README.md). Dans la réponse, le mot mal écrit est remplacé par
+le nom exact (`after_model_abstention`, à partir des mots notés par le guard) : le modèle reprenait l'orthographe du
+visiteur, qui ne voyait pas ce qui avait été compris, et l'interface n'illustrait
+pas ce Pokémon. Le nom proposé par le modèle n'est remplacé que s'il désigne la
 même espèce (casse, forme, faute de frappe absente de la question) ou s'il est
 une mauvaise traduction (nom anglais d'une autre espèce) : un appel portant le
 nom français d'une autre espèce, ou un nom inconnu repris de la question, est
 refusé (`other_pokemon_than_question`) au lieu d'être exécuté sur le Pokémon
-nommé. Une question qui demande un second Pokémon (« une sélection incluant
+nommé. Pour `pokemon_rag_search`, quand la question nomme un seul Pokémon, son nom exact
+filtre la recherche (« anecdote sur rouflex » cherchait le Pokémon « Rouflex » et ne
+trouvait aucun passage) et remplace le mot mal écrit dans la requête. Une statistique demandée sur un Pokémon nommé (« quelle est l'attaque de
+Dracolosse ? », au singulier et sans mot de capacité : « apprend », « capacité »,
+« attaques », CT, CS) n'est pas lue dans ses capacités : un outil de capacités
+est refusé et `pokemon_base_stats` désigné. Une question qui demande un second Pokémon (« une sélection incluant
 Dracaufeu », « efficace contre Dracaufeu ») reste donc sans chemin. `pokemon_search` ne filtre pas par nom : pour un numéro national
 d'une espèce nommée, le refus indique `pokemon_pokedex_identity` et les arguments
 requis. Qwen reste responsable du choix et de la reprise de l'outil.

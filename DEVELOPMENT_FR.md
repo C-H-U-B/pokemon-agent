@@ -2183,8 +2183,10 @@ d'Airmure, « nombre » est à une lettre de Lombre, « Diamant » de Diamat. Un
 question de liste serait alors ramenée de force à un Pokémon. Le rapprochement
 est donc étroit : le nom tient en un mot d'au moins cinq lettres, garde son
 initiale, et le mot n'est proche que d'une seule espèce. Les mots des noms de
-capacités, d'objets, de types, de talents et de jeux ne sont jamais lus comme une
-faute. Sur les 492 questions des traces, des fichiers de rejeu et du guide, seuls
+capacités, de types, de talents et de jeux ne sont jamais lus comme une faute.
+Les mots d'objets ne sont pas protégés, aucun outil ne filtrant par objet :
+« cosmo », mot de l'objet Lettre Cosmo, restait sinon inconnu au lieu de désigner
+Cosmog. Sur les 492 questions des traces, des fichiers de rejeu et du guide, seuls
 « mimigale » et « écoli » sont rapprochés.
 
 Deux fautes (« dracofeu »), un nom court (« Mew ») ou composé (« M. Mime ») ne
@@ -2192,6 +2194,13 @@ sont pas corrigés. Le graphe et le client MCP gardent la comparaison exacte.
 
 Rejouées avec Qwen, les quatre questions à faute reçoivent une réponse sur le
 bon Pokémon : Migalos au niveau 22 pour « mimigale », 460 kg pour « ronflexx ».
-La réponse reprend souvent l'orthographe du visiteur. Sur « l'attaque de écoli
-et gouroutan », Qwen a ajouté de lui-même un filtre de type Normal, que le guard
-ne retire pas : les deux listes sont justes mais partielles.
+La réponse reprenait souvent l'orthographe du visiteur, qui ne voyait pas ce qui
+avait été compris et dont le Pokémon n'était pas illustré : le mot mal écrit y
+est maintenant remplacé par le nom exact. Le même nom filtre la recherche
+documentaire, qui partait avec « Rouflex » et ne trouvait aucun passage.
+
+« L'attaque de écoli et gouroutan » recevait des listes de capacités. Au
+singulier et sans mot de capacité, « l'attaque » d'un Pokémon nommé est sa
+statistique : le guard refuse un outil de capacités et désigne les statistiques
+de base. Qwen répond alors 134 pour « dacolosse », 55 et 60 pour Évoli et
+Gouroutan, au milieu de la liste complète des statistiques.
