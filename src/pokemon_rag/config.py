@@ -13,6 +13,10 @@ LLM_API_KEY = os.environ.get("LLM_API_KEY", "lm-studio")
 # un modèle distant qui compte sa réflexion dans cette limite (Gemini) coupe la réponse visible avant.
 LLM_MAX_OUTPUT_TOKENS = int(os.environ.get("LLM_MAX_OUTPUT_TOKENS", "1024"))
 
+# Effort de réflexion transmis par l'agent ADK, absent par défaut. « none » coupe la réflexion d'un modèle
+# local qui pense avant chaque réponse (Gemma 4 sur LM Studio : 44 s par appel avec, 8 s sans).
+LLM_REASONING_EFFORT = os.environ.get("LLM_REASONING_EFFORT")
+
 # Délai réseau par appel et reprises de transport du client LLM.
 LLM_TIMEOUT_SECONDS = 120.0
 LLM_MAX_RETRIES = 0
