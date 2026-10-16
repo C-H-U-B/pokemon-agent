@@ -57,7 +57,7 @@ décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 | Routage ou parsing | `unit/test_router.py`, `unit/test_query_parser.py`, `unit/test_query_validation.py` |
 | Opération Pokédex | `unit/test_pokedex_queries.py`, puis tests d'intégration de données concernés |
 | Rubrique calculée de la fiche (types, talents d'immunité, historique, objets, jeux) | `unit/test_particularity_derived_facts.py`, puis `integration/test_particularity_derived_facts_real_db.py` |
-| Reprises ou erreurs terminales | `integration/test_graph_retry_policy.py`, `integration/test_graph_errors.py` |
+| Reprises ou erreurs terminales | `integration/test_graph.py`, `integration/test_graph_errors.py` |
 | Retrieval ou grounding | `unit/test_retrieval_logic.py` (dont nom de scope normalisé, initialisation unique, mesures de l'outil de recherche), `unit/test_grounding_logic.py` |
 | Traces et coûts | `unit/test_metrics.py`, `unit/test_tracing.py` |
 | Client MCP | `integration/test_mcp_client.py`, puis `long/test_mcp_client_e2e.py` exécuté par l'utilisateur |
@@ -107,12 +107,10 @@ disponible à chaque tour, dans le budget de requête.
 `unit/test_adk_context_budget.py` couvre la projection : champs techniques
 retirés, faits conservés, réduction aux faits demandés avant toute coupe,
 valeur de classement nommée par sa statistique, vue simplifiée des schémas,
-balisage ADK fermé et journalisation des abstentions. Le test stdio officiel
-reste une validation distincte du protocole. Les E2E de `long/test_adk_agent.py`
-vérifient le routage vers types, identité, CT avec version et capacités avec
-intervalle ; ils nécessitent Qwen local avec un contexte de 16384 tokens et
-les données SQLite. Les function calls enregistrés ne suffisent pas à vérifier
-les arguments effectivement corrigés par le guard et envoyés au serveur.
+balisage ADK fermé et journalisation des abstentions. Le routage réel de Qwen
+vers les outils se vérifie dans la campagne structurée (`long/`), qui juge les
+arguments après le guard : les function calls proposés ne suffisent pas à
+vérifier les arguments effectivement corrigés et envoyés au serveur.
 
 `integration/test_mcp_client.py` couvre le parcours question → découverte des
 outils → sélection → exécution → réponse. Les tests isolés simulent les frontières

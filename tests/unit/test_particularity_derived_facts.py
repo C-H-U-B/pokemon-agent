@@ -138,13 +138,14 @@ def test_an_unknown_second_type_is_not_computed_as_a_single_type(conn):
     assert engine._type_matchups(conn, "Feu", "Inconnu") == {}
 
 
-@pytest.mark.parametrize("type_1, type_2", [(fr, None) for _, fr, _ in TYPES]
-                         + list(itertools.permutations([fr for _, fr, _ in TYPES], 2)))
-def test_every_type_combination_matches_an_independent_computation(conn, type_1, type_2):
-    facts = engine._type_matchups(conn, type_1, type_2)
-    assert facts == _expected_matchups(type_1, type_2)
-    listed = [entry.split(" (")[0] for value in facts.values() for entry in value.split(", ")]
-    assert len(listed) == len(set(listed))  # un type attaquant n'est jamais dans deux rubriques
+def test_every_type_combination_matches_an_independent_computation(conn):
+    # Une boucle et non 81 cas : l'oracle refait le calcul, il garde l'exhaustivité, pas la preuve.
+    names = [fr for _, fr, _ in TYPES]
+    for type_1, type_2 in [(name, None) for name in names] + list(itertools.permutations(names, 2)):
+        facts = engine._type_matchups(conn, type_1, type_2)
+        assert facts == _expected_matchups(type_1, type_2), (type_1, type_2)
+        listed = [entry.split(" (")[0] for value in facts.values() for entry in value.split(", ")]
+        assert len(listed) == len(set(listed)), (type_1, type_2)  # un type attaquant n'est jamais dans deux rubriques
 
 
 def test_type_headings_are_left_out_when_the_database_predates_the_type_chart(conn):
@@ -194,11 +195,6 @@ def test_past_abilities_of_another_pokemon_are_not_returned(conn):
 
 
 # --- Anciennes statistiques ---
-
-def test_past_stat_names_follow_the_pokeapi_identifiers():
-    assert engine.PAST_STAT_NAMES == {1: "PV", 2: "Attaque", 3: "Défense", 4: "Attaque Spéciale", 5: "Défense Spéciale",
-                                      6: "Vitesse", 9: "Spécial"}
-
 
 def test_past_stat_gives_the_old_value_and_its_last_generation(conn):
     conn.executemany("INSERT INTO pokemon_stats_past VALUES (25,?,?,?,0)", [(5, 5, 40), (5, 3, 30)])
@@ -274,7 +270,7 @@ def _learns_in(conn, pokemon_id, *groups):
 
 def test_a_pokemon_in_every_game_since_its_introduction_says_none(conn):
     _learns_in(conn, 25, "red-blue", "ruby-sapphire", "firered-leafgreen", "sun-moon", "sword-shield", "scarlet-violet", "champions")
-    assert engine._pokeapi_history(conn, 25)[MISSING_GAMES] == "aucun"
+    assert engine._pokeapi_history(conn, 25)[MISSING_GAMES] == "aucun"  # ni XD, ni Isolarmure, ni Légendes Z-A
 
 
 def test_games_without_any_move_after_the_introduction_are_listed_in_release_order(conn):
@@ -293,12 +289,6 @@ def test_release_order_is_used_not_the_group_identifier(conn):
     # un Pokémon apparu dans Rouge Feu n'est pas « absent » de Rubis et Saphir.
     _learns_in(conn, 386, "firered-leafgreen", "sun-moon", "sword-shield", "scarlet-violet", "champions")
     assert engine._pokeapi_history(conn, 386)[MISSING_GAMES] == "aucun"
-
-
-def test_side_games_expansions_and_games_without_movepool_are_never_listed(conn):
-    _learns_in(conn, 25, "red-blue", "ruby-sapphire", "firered-leafgreen", "sun-moon", "sword-shield", "scarlet-violet", "champions")
-    value = engine._pokeapi_history(conn, 25)[MISSING_GAMES]  # ni XD, ni Isolarmure, ni Légendes Z-A
-    assert value == "aucun"
 
 
 def test_a_pokemon_known_only_in_a_side_game_gets_no_heading(conn):

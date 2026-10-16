@@ -2157,3 +2157,26 @@ The first continuous integration run failed elsewhere: two tests meant to run
 without the database read the Pokémon name catalogue from it. Locally, the cache
 of that catalogue, filled by an earlier test, hid the access. Tests without the
 database now receive an empty catalogue.
+
+## 106. [Architecture] Tests that each check something
+
+An audit of the whole suite looked for tests that would never fail for a reason
+no other test detects. The test counter had grown mostly through
+parametrisation, and part of that growth checked nothing more: a type weakness
+oracle that redid the engine's computation on every combination, a guard refusal
+multiplied by four tools although it depends on a single criterion (is the tool
+the document search?), a parameter left over from an old branch that the test no
+longer read, and exact duplicates across files.
+
+The type oracle now runs as a single loop, which keeps its exhaustiveness without
+passing for a proof: it recomputes the algorithm, and only the hand-written values
+establish correctness. Duplicates are removed. The graph retry rules are gathered
+in one file. The checks matching the spreadsheet to PokéAPI join the database
+integrity test, the only one continuous integration runs on the published
+database. Two long routing tests, repeated as such by the structured campaign,
+are deleted; one of them judged Qwen's proposal before the guard, so it failed
+when the guard repaired the call as intended.
+
+The audit also found document search tests that were skipped instead of failing
+when run alone: they checked for a Pokémon in an index not yet loaded. The module
+now loads the index before its tests, and an absence is a failure.

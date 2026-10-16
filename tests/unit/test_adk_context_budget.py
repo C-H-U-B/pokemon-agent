@@ -116,18 +116,12 @@ def test_oversized_question_short_circuits_before_model():
     assert ctx.state == {}
 
 
-@pytest.mark.parametrize("best,total,returned,cut,disable", [
-    (True,2,2,False,True), (True,2,1,False,False),
-    (False,20,10,False,True), (False,20,8,True,False), (False,0,0,False,True),
-])
-def test_ranking_result_keeps_the_catalogue_and_the_history_untouched(best,total,returned,cut,disable):
+def test_ranking_result_keeps_the_catalogue_and_the_history_untouched():
     # Régression Gemini : sans outil déclaré après un résultat complet, le modèle émettait encore un appel,
     # filtré par l'API (réponse vide), alors qu'une question peut demander un second outil.
-    data = {"operation":"search_pokemon", "stat_name_fr":"Défense", "best_only":best,
-            "total_count":total,"returned_count":returned,"limit":10,"offset":0,
-            "results":[{"name_fr":f"Pokémon {i}","base_stat_value":40} for i in range(returned)]}
-    if cut:
-        data["context_truncated"] = True
+    data = {"operation":"search_pokemon", "stat_name_fr":"Défense", "best_only":False,
+            "total_count":20,"returned_count":10,"limit":10,"offset":0,
+            "results":[{"name_fr":f"Pokémon {i}","base_stat_value":40} for i in range(10)]}
     req = request()
     req.contents.append(types.Content(role="user",parts=[types.Part(
         function_response=types.FunctionResponse(name="pokemon_search",response=data))]))

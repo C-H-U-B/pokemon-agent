@@ -6,6 +6,12 @@ pytestmark = [pytest.mark.real_data, pytest.mark.models]
 import pokemon_rag.rag.retrieval as retrieval
 
 
+@pytest.fixture(scope="module", autouse=True)
+def loaded_index():
+    # Sans chargement préalable, un test lancé seul trouvait l'index vide et était ignoré au lieu d'échouer.
+    retrieval.ensure_retrieval_initialized()
+
+
 def test_real_corpus_is_loaded() -> None:
     retrieval.ensure_retrieval_initialized()
 
@@ -23,8 +29,7 @@ def test_real_corpus_indexes_are_available() -> None:
 
 def test_bm25_scope_is_strict_for_real_pokemon() -> None:
     pokemon = "Pikachu"
-    if pokemon not in retrieval.POKEMON_TO_INDICES:
-        pytest.skip(f"{pokemon} absent de l'index réel")
+    assert pokemon in retrieval.POKEMON_TO_INDICES, f"{pokemon} absent de l'index réel"
 
     results = retrieval.bm25_retrieve(
         "capacités évolution statistiques",
@@ -41,8 +46,7 @@ def test_bm25_scope_is_strict_for_real_pokemon() -> None:
 
 def test_vector_scope_is_strict_for_real_pokemon() -> None:
     pokemon = "Pikachu"
-    if pokemon not in retrieval.POKEMON_TO_INDICES:
-        pytest.skip(f"{pokemon} absent de l'index réel")
+    assert pokemon in retrieval.POKEMON_TO_INDICES, f"{pokemon} absent de l'index réel"
 
     results = retrieval.vector_retrieve(
         "Comment Pikachu évolue-t-il ?",
@@ -75,8 +79,7 @@ def test_unknown_pokemon_scope_returns_no_results() -> None:
 
 def test_structural_candidates_are_strictly_scoped_on_real_corpus() -> None:
     pokemon = "Pikachu"
-    if pokemon not in retrieval.POKEMON_TO_INDICES:
-        pytest.skip(f"{pokemon} absent de l'index réel")
+    assert pokemon in retrieval.POKEMON_TO_INDICES, f"{pokemon} absent de l'index réel"
 
     results = retrieval.section_structural_candidates(
         "Quelles capacités Pikachu peut-il apprendre ?",
@@ -92,8 +95,7 @@ def test_structural_candidates_are_strictly_scoped_on_real_corpus() -> None:
 
 def test_retrieve_without_reranker_preserves_scope() -> None:
     pokemon = "Pikachu"
-    if pokemon not in retrieval.POKEMON_TO_INDICES:
-        pytest.skip(f"{pokemon} absent de l'index réel")
+    assert pokemon in retrieval.POKEMON_TO_INDICES, f"{pokemon} absent de l'index réel"
 
     results = retrieval.retrieve(
         "Comment Pikachu évolue-t-il ?",
@@ -120,8 +122,7 @@ def test_retrieve_without_reranker_preserves_scope() -> None:
 
 def test_retrieve_with_reranker_preserves_scope() -> None:
     pokemon = "Pikachu"
-    if pokemon not in retrieval.POKEMON_TO_INDICES:
-        pytest.skip(f"{pokemon} absent de l'index réel")
+    assert pokemon in retrieval.POKEMON_TO_INDICES, f"{pokemon} absent de l'index réel"
 
     results = retrieval.retrieve(
         "Comment Pikachu évolue-t-il ?",
@@ -160,8 +161,7 @@ def test_real_section_expansion_stays_in_exact_section() -> None:
             expected_key = key
             break
 
-    if candidate is None:
-        pytest.skip("Aucune section multi-chunks dans l'index réel")
+    assert candidate is not None, "Aucune section multi-chunks dans l'index réel"
 
     expanded = retrieval.expand_exact_section(candidate)
 

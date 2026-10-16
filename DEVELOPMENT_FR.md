@@ -2238,3 +2238,29 @@ Le premier passage en intégration continue a échoué ailleurs : deux tests cen
 se passer de la base y lisaient le catalogue des noms de Pokémon. En local, le
 cache de ce catalogue, rempli par un test précédent, masquait l'accès. Les tests
 sans base reçoivent désormais un catalogue vide.
+
+## 106. [Architecture] Des tests qui vérifient chacun quelque chose
+
+Un audit de toute la suite cherchait les tests qui n'échoueraient jamais pour
+une raison qu'un autre ne détecte pas. Le compteur de tests avait grossi
+surtout par la paramétrisation, et une partie de cette croissance ne vérifiait
+rien de plus : un oracle des faiblesses de type qui refaisait le calcul du
+moteur sur chaque combinaison, un refus du guard multiplié par quatre outils
+alors qu'il ne dépend que d'un seul critère (l'outil est-il la recherche
+documentaire ?), un paramètre resté d'une ancienne branche et que le test ne
+lisait plus, des doublons exacts entre fichiers.
+
+L'oracle des types tourne désormais en une seule boucle, qui garde son
+exhaustivité sans se présenter comme une preuve : il recalcule l'algorithme, et
+seules les valeurs écrites à la main établissent la justesse. Les doublons sont
+retirés. Les règles de reprise du graphe sont réunies dans un seul fichier. Les
+contrôles de correspondance entre le tableur et PokéAPI rejoignent le test
+d'intégrité de la base, le seul que l'intégration continue lance sur la base
+publiée. Deux tests longs de routage, repris tels quels par la campagne
+structurée, sont supprimés ; l'un d'eux jugeait la proposition de Qwen avant le
+guard, donc échouait quand le guard réparait l'appel comme prévu.
+
+L'audit a aussi trouvé des tests de la recherche documentaire qui étaient
+ignorés au lieu d'échouer lorsqu'ils étaient lancés seuls : ils vérifiaient la
+présence d'un Pokémon dans un index pas encore chargé. Le module charge
+désormais l'index avant ses tests, et une absence est un échec.

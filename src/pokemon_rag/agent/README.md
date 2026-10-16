@@ -363,24 +363,15 @@ appelle réellement Qwen. Vérifier une réponse en français et transmettre la
 sortie ou l'erreur pour valider le parcours complet. Importer ou construire
 l'agent ne constitue pas une validation de l'inférence.
 
-Le smoke test existant est également réservé à une exécution manuelle, dans
-le même environnement avec LM Studio et Qwen disponibles :
-
-```powershell
-python -m pytest tests/long/test_adk_agent.py -q -p no:cacheprovider
-```
-
-Ces tests portent les marqueurs `llm`, `long` et `models` et utilisent
-`asyncio.run` sans plugin pytest asynchrone. Ils vérifient le témoin `ADK_OK`
-et le routage vers les outils de types, d'identité Pokédex, de CT avec version
-et de capacités par niveau avec intervalle, avec la base locale disponible.
+Le routage vers les outils (types, identité Pokédex, CT avec version, capacités
+par niveau avec intervalle) est vérifié par la campagne structurée de
+`tests/long/`, également réservée à l'utilisateur.
 `tests/long/test_adk_tool_calling.py` isole le function calling avec un outil
-Python sans MCP. Transmettre la sortie pytest ; ces contrôles techniques ne
-garantissent pas la qualité factuelle des réponses Pokémon.
+Python sans MCP. Ces contrôles portent les marqueurs `llm`, `long` et `models`
+et ne garantissent pas la qualité factuelle des réponses Pokémon.
 
-Les tests `tests/integration/test_adk_mcp_toolset.py` et
-`tests/integration/test_mcp_stdio.py` découvrent les outils sans appeler de LLM
-ni exécuter de recherche. Le serveur importe le module RAG uniquement lors
+Le test `tests/integration/test_adk_mcp_toolset.py` découvre les outils sans
+appeler de LLM ni exécuter de recherche. Le serveur importe le module RAG uniquement lors
 d'un appel à `pokemon_rag_search`, pour ne pas retarder l'initialisation MCP.
 Le test de découverte ADK vérifie exactement le catalogue des douze outils.
 

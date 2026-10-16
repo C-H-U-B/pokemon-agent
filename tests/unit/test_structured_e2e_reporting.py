@@ -173,7 +173,8 @@ def evolution(conditions, count=1):
 def test_every_returned_evolution_condition_must_reach_the_answer(reporting, conditions, answer, passes):
     checks = reporting["_evolution_condition_checks"](evolution(conditions), answer)
     assert all(ok for ok, _, _ in checks) is passes
-    assert reporting["_factual_checks"](evolution(conditions), answer)[-len(checks) or len(checks):] == checks or not checks
+    if checks:  # les contrôles de conditions terminent les contrôles factuels de la campagne
+        assert reporting["_factual_checks"](evolution(conditions), answer)[-len(checks):] == checks
 
 
 def test_condition_check_is_limited_to_short_evolution_results(reporting):
