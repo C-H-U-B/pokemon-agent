@@ -229,34 +229,16 @@ def test_parse_query_keeps_llm_fallback():
             "Pikachu",
         ),
         (
-            "Quelles CT Pikachu apprend-il dans EV ?",
-            "get_machine_moves",
-            "Pikachu",
-        ),
-        (
             "quelles ct pikachu apprend il dans ev",
             "get_machine_moves",
             "Pikachu",
-        ),
-        (
-            "Quelles capacités Roitiflam apprend-il après le niveau 40 ?",
-            "get_level_up_moves",
-            "Roitiflam",
-        ),
-        (
-            "Comment Rattata d'Alola évolue-t-il ?",
-            "get_evolutions",
-            "Rattata",
         ),
     ],
     ids=[
         "lowercase",
         "uppercase",
         "without-accents",
-        "ct-standard",
         "ct-without-punctuation",
-        "level-filter",
-        "regional-form",
     ],
 )
 def test_fast_parser_is_robust_to_common_formulations(

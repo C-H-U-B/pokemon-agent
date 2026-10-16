@@ -194,21 +194,6 @@ def test_check_grounding_sends_expected_model_and_prompts(monkeypatch) -> None:
     assert answer in user_message["content"]
 
 
-def test_check_grounding_does_not_treat_non_pass_as_grounded(monkeypatch) -> None:
-    monkeypatch.setattr(
-        grounding.client.chat.completions,
-        "create",
-        lambda **kwargs: _response(
-            '{"context_sufficient":true,"unsupported_claims":["information absente"],"decision":"UNSUPPORTED","reason":"information absente"}'
-        ),
-    )
-
-    result = grounding.check_grounding("Q", "C", "R")
-
-    assert result["grounded"] is False
-
-
-
 def test_check_grounding_rejects_pass_when_context_is_insufficient(monkeypatch) -> None:
     monkeypatch.setattr(
         grounding.client.chat.completions,

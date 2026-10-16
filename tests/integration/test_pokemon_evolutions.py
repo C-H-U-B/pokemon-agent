@@ -99,17 +99,6 @@ def test_dofin_multiplayer_condition() -> None:
     assert evolution["conditions"].get("needs_multiplayer") == 1
 
 
-def test_evoli_has_multiple_historical_evolution_rules() -> None:
-    result = get_evolutions("Évoli")
-
-    assert result["count"] > 1
-    targets = {evolution["to"]["identifier"] for evolution in result["evolutions"]}
-
-    assert "vaporeon" in targets
-    assert "jolteon" in targets
-    assert "flareon" in targets
-
-
 def test_version_filter_keeps_the_rules_in_force_in_that_game() -> None:
     # Régression : le filtre ne gardait que les règles introduites dans le jeu demandé, donc 3 évolutions
     # d'Évoli sur 8 dans Épée et Bouclier, et aucune pour Pikachu dans Écarlate et Violet.

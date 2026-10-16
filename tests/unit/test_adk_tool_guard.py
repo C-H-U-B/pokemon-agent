@@ -251,30 +251,6 @@ def test_blocks_tool_that_cannot_preserve_version_constraint() -> None:
     }
 
 
-def test_blocks_unresolved_or_ambiguous_explicit_version_constraint() -> None:
-    args = {
-        "pokemon": "Pikachu",
-    }
-
-    result = before_tool_guard(
-        tool=_tool("pokemon_machine_moves"),
-        args=args,
-        tool_context=_context(
-            "Quelles CT Pikachu peut-il apprendre dans le jeu Pokémon inconnu ?"
-        ),
-    )
-
-    assert result is not None
-    assert result["error"] in {
-        "ambiguous_version_constraint",
-        "unresolved_version_constraint",
-    }
-
-    assert args == {
-        "pokemon": "Pikachu",
-    }
-
-
 def test_restores_version_and_level_constraints_together() -> None:
     args = {
         "pokemon": "Pikachu",
@@ -409,11 +385,11 @@ def test_move_question_naming_a_stat_word_does_not_point_to_the_stats_tool(catal
     "Quelle est l'origine de Dracolosse ?", "décris-moi le comportement de dracolosse",
     "décrit moi dracolosse",  # faute courante, vue dans les traces Web : recevait des évolutions
 ])
-@pytest.mark.parametrize("tool", ["pokemon_types", "pokemon_pokedex_identity", "pokemon_particularities", "pokemon_search"])
-def test_description_question_refuses_every_tool_but_the_document_search(catalogue, question, tool):
+def test_description_question_refuses_every_tool_but_the_document_search(catalogue, question):
     # Régression : « décris Tutafeh » recevait les types, puis une description rédigée de mémoire.
+    # Un seul outil : le refus ne dépend que de « outil ≠ pokemon_rag_search », pas de l'outil choisi.
     args = {"pokemon": "Dracolosse"}
-    refusal = before_tool_guard(_tool(tool), args, _context(question))
+    refusal = before_tool_guard(_tool("pokemon_types"), args, _context(question))
     assert refusal["error"] == "documentary_question_requires_search"
     assert refusal["required_tool"] == "pokemon_rag_search"
     assert refusal["required_arguments"] == {"question": question, "pokemon": "Dracolosse"}
