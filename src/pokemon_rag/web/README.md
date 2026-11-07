@@ -426,8 +426,9 @@ python -m pokemon_rag.web.app
 ```
 
 - La tête de page dit « Simulation : réponses enregistrées de … » à la place du modèle servi.
-- Les trois boutons ne proposent que les questions enregistrées ; toute autre question, y compris celles de
-  l'onglet « Guide », reçoit un message fixe (`SIMULATION_ONLY`).
+- Le champ de question n'accepte pas la saisie : les trois boutons le remplissent et ne proposent que les
+  questions enregistrées. Toute autre question qui l'atteindrait, y compris celles de l'onglet « Guide »,
+  reçoit un message fixe (`SIMULATION_ONLY`).
 - Rien n'est écrit dans les traces, et le serveur d'outils n'est pas démarré à l'ouverture. Les illustrations
   lisent encore `pokemon.db` ; sans base, la réponse s'affiche sans image.
 
@@ -452,14 +453,26 @@ inclus, aucun accès à Hugging Face au démarrage. Le serveur de modèle reste 
 au déploiement : `LLM_BASE_URL`, `LLM_MODEL`, `LLM_MAX_OUTPUT_TOKENS`, et `LLM_API_KEY` fournie par
 le gestionnaire de secrets de l'hébergeur.
 
-Déploiement actuel : Cloud Run, service `pokemon-agent`, projet `pokemon-agent-demo`, région
-`europe-west1`, 4 Gio et 2 vCPU, une instance au plus et aucune au repos, compte de service
-`pokemon-demo`, secret `gemini-api-key`, modèle `gemini-3.8-flash`. Une nouvelle version se publie
-en trois temps : construire (`docker build --target demo`), envoyer l'image dans le dépôt
+La cible `simulation` sert la même interface en [simulation](#simulation) : ni modèles de recherche,
+ni index, ni base (réponses sans illustrations, exemples fixes dans le Guide). L'image pèse 2,3 Go et
+l'interface occupe environ 205 Mio en mémoire (mesuré le 7 novembre 2026, conteneur local).
+
+Déploiement actuel, depuis le 7 novembre 2026 : image `simulation`, Cloud Run, service `pokemon-agent`,
+projet `pokemon-agent-demo`, région `europe-west1`, 1 Gio et 1 vCPU, une instance au plus et aucune au
+repos. Le secret `gemini-api-key` et les variables du modèle restent attachés au service sans être lus,
+pour revenir à l'image `demo` (Gemini 3.8 Flash, 4 Gio et 2 vCPU, dernière image `demo:006460b`) par un
+seul `gcloud run deploy`. Une nouvelle version se publie en trois temps : construire
+(`docker build --target simulation`), envoyer l'image dans le dépôt
 `europe-west1-docker.pkg.dev/pokemon-agent-demo/pokemon-agent`, puis
 `gcloud run deploy pokemon-agent --image=<image> --region=europe-west1`, qui garde les autres réglages.
 
-Le fichier de traces du conteneur disparaît avec l'instance. L'image pose `WEB_TRACE_STDOUT=1` :
+Hugging Face Spaces écarté le 7 novembre 2026 : la création d'un Space Docker ou Gradio est refusée
+(402) sans abonnement PRO, même sur le processeur gratuit ; seuls les Spaces statiques restent gratuits.
+Une image construite pour un Space doit lire ses fichiers sous l'utilisateur 1000 : un `ADD` depuis une
+URL crée le fichier en 600, illisible pour lui (base introuvable lors de l'essai).
+
+Le fichier de traces du conteneur disparaît avec l'instance (la simulation n'en écrit pas). L'image
+`demo` pose `WEB_TRACE_STDOUT=1` :
 les traces se lisent dans le journal de l'hébergeur, sous `jsonPayload.web_trace`
 (`gcloud logging read "resource.labels.service_name=pokemon-agent AND jsonPayload.web_trace.question:*"`).
 Les questions des visiteurs y sont donc conservées.

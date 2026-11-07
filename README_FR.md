@@ -10,14 +10,14 @@ Le projet tourne entièrement en local : SQLite, ChromaDB et un modèle Qwen 8B 
 
 ## Démo en ligne
 
-**[Essayer l'agent dans le navigateur](https://pokemon-agent-592924290447.europe-west1.run.app)** : l'interface Web, hébergée sur Cloud Run. Le modèle local y est remplacé par Gemini 3.8 Flash, appelé par son API ; les données, les outils et le contrôle des appels sont ceux de ce dépôt.
+**[Essayer l'agent dans le navigateur](https://pokemon-agent-592924290447.europe-west1.run.app)** : l'interface Web, hébergée sur Cloud Run, en simulation. Elle rejoue des réponses réelles enregistrées (Gemini 3.8 Flash et Qwen3-VL 8B en local), avec leur graphe d'outils, leur onglet d'observabilité et leurs durées mesurées, sans appeler de modèle.
 
-Ce qu'il faut savoir avant de poser une question :
+Ce qu'il faut savoir avant de l'essayer :
 
-- Le service s'arrête quand personne ne l'utilise et redémarre à la visite suivante. Les questions sur les descriptions ne répondent qu'une fois la base documentaire chargée, environ une minute et demie après l'ouverture de la page (une mesure, 8 octobre 2026).
-- Chaque question est indépendante : l'agent ne garde pas la conversation en mémoire.
-- Le modèle distant s'abstient sur certaines questions que le modèle local réussit : il lance parfois deux outils à la fois, et l'échec du second lui fait abandonner la réponse.
-- Les questions posées sont enregistrées pour améliorer l'outil.
+- Seules les questions proposées par les boutons « Débutant », « Joueur » et « Expert » ont une réponse ; la saisie d'une question est désactivée. Pour poser vos propres questions, lancez le projet en local.
+- Les réponses s'affichent sans les illustrations des Pokémon, qui demanderaient la base.
+- Le service s'arrête quand personne ne l'utilise et redémarre à la visite suivante.
+- Rien n'est enregistré.
 
 Le déploiement et ses réglages sont décrits dans le [guide de l'interface Web](src/pokemon_rag/web/README.md).
 
