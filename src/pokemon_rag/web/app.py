@@ -958,7 +958,10 @@ def build_app() -> gr.Blocks:
                         message = gr.Textbox(
                             # Sans exemple affiché, la première question reste proposée dans le champ.
                             value="" if opening else FIRST_QUESTION,
-                            placeholder="Posez une question sur les Pokémon",
+                            placeholder=("Choisissez une question avec « Débutant », « Joueur » ou « Expert »"
+                                         if SIMULATION else "Posez une question sur les Pokémon"),
+                            # Simulation : saisie fermée, seules les suggestions ont une réponse enregistrée.
+                            interactive=not SIMULATION,
                             label="Votre question",
                             max_length=MAX_QUESTION_CHARS,
                             show_label=False,
