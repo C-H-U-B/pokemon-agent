@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
-# Deux images, une par cible :
+# Trois images, une par cible :
 #   api (par défaut)  moteur SQL servi en HTTP, sans modèle ni données   docker build .
 #   demo              interface Web autonome, données et modèles inclus  docker build --target demo .
+#   simulation        interface Web rejouant des réponses enregistrées   docker build --target simulation .
 FROM python:3.11-slim AS base
 
 WORKDIR /app
@@ -36,6 +37,16 @@ RUN tar -xzf /tmp/chroma_db.tar.gz -C /app && rm /tmp/chroma_db.tar.gz
 # dès l'ouverture de la page, pas pendant la première question.
 # Traces aussi sur la sortie standard : sans volume, le fichier de traces disparaît avec l'instance.
 ENV GRADIO_SERVER_NAME=0.0.0.0 POKEMON_RAG_PRELOAD=1 WEB_TRACE_STDOUT=1
+EXPOSE 7860
+CMD ["python", "-m", "pokemon_rag.web.app"]
+
+
+# Démo en simulation : réponses enregistrées rejouées, aucun appel au modèle ni aux outils, donc ni modèles
+# de recherche, ni index, ni base. Sans base, les réponses s'affichent sans illustrations et le Guide garde
+# ses exemples fixes (avertissements answer_images_failed et guide_names_failed au journal).
+FROM base AS simulation
+
+ENV GRADIO_SERVER_NAME=0.0.0.0 POKEMON_RAG_SIMULATION=1 HF_HUB_OFFLINE=1
 EXPOSE 7860
 CMD ["python", "-m", "pokemon_rag.web.app"]
 
