@@ -2264,3 +2264,24 @@ L'audit a aussi trouvé des tests de la recherche documentaire qui étaient
 ignorés au lieu d'échouer lorsqu'ils étaient lancés seuls : ils vérifiaient la
 présence d'un Pokémon dans un index pas encore chargé. Le module charge
 désormais l'index avant ses tests, et une absence est un échec.
+
+## 107. [Feature] Une démo en ligne qui n'appelle plus de modèle
+
+La démo publique appelait Gemini, un modèle payant, à chaque question d'un
+visiteur. Le mode simulation existait déjà : il rejoue les réponses enregistrées
+des questions suggérées, sans modèle ni outils. Il lisait encore la base pour les
+illustrations, et le champ de question acceptait n'importe quelle saisie, qui ne
+recevait qu'un message fixe.
+
+En simulation, le champ n'accepte plus la saisie : les boutons « Débutant »,
+« Joueur » et « Expert » le remplissent avec les seules questions enregistrées.
+Une nouvelle cible `simulation` du `Dockerfile` construit cette interface sans
+modèles de recherche, sans index et sans base ; les réponses s'affichent alors
+sans illustrations, et le Guide garde ses exemples fixes. Le service Cloud Run de
+la démo sert désormais cette image, avec 1 Gio de mémoire et un processeur au
+lieu de 4 Gio et deux : l'interface en occupe environ 205 Mio.
+
+Hugging Face Spaces avait d'abord été essayé. La création d'un Space Docker ou
+Gradio y demande désormais un abonnement payant, et l'essai local sous
+l'utilisateur non privilégié des Spaces a montré que la base, ajoutée depuis une
+URL, restait illisible pour lui. La démo reste donc sur Cloud Run.

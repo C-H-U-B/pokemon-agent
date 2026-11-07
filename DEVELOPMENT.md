@@ -2180,3 +2180,23 @@ when the guard repaired the call as intended.
 The audit also found document search tests that were skipped instead of failing
 when run alone: they checked for a Pokémon in an index not yet loaded. The module
 now loads the index before its tests, and an absence is a failure.
+
+## 107. [Feature] An online demo that no longer calls a model
+
+The public demo called Gemini, a paid model, for every visitor question. The
+simulation mode already existed: it replays the recorded answers of the
+suggested questions, without a model or tools. It still read the database for
+the illustrations, and the question field accepted any input, which only
+received a fixed message.
+
+In simulation, the field no longer accepts typing: the "Débutant", "Joueur" and
+"Expert" buttons fill it with the recorded questions only. A new `simulation`
+target of the `Dockerfile` builds this interface without search models, index or
+database; answers are then shown without illustrations, and the Guide keeps its
+fixed examples. The demo's Cloud Run service now serves this image, with 1 GiB of
+memory and one CPU instead of 4 GiB and two: the interface uses about 205 MiB.
+
+Hugging Face Spaces was tried first. Creating a Docker or Gradio Space there now
+requires a paid subscription, and the local trial under the unprivileged user of
+Spaces showed that the database, added from a URL, stayed unreadable to it. The
+demo therefore stays on Cloud Run.

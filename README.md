@@ -10,14 +10,14 @@ Everything runs locally: SQLite, ChromaDB and an 8B Qwen model served by LM Stud
 
 ## Live demo
 
-**[Try the agent in the browser](https://pokemon-agent-592924290447.europe-west1.run.app)**: the web interface, hosted on Cloud Run. The local model is replaced there by Gemini 3.8 Flash, called through its API; the data, the tools and the control of tool calls are those of this repository. The interface and the answers are in French.
+**[Try the agent in the browser](https://pokemon-agent-592924290447.europe-west1.run.app)**: the web interface, hosted on Cloud Run, in simulation. It replays real recorded answers (Gemini 3.8 Flash and Qwen3-VL 8B run locally), with their tool graph, their observability tab and their recorded durations, without calling any model. The interface and the answers are in French.
 
-What to know before asking a question:
+What to know before trying it:
 
-- The service stops when nobody uses it and restarts at the next visit. Questions about descriptions only answer once the document base is loaded, about a minute and a half after the page opens (one measurement, 8 October 2026).
-- Each question is independent: the agent does not keep the conversation in memory.
-- The remote model abstains on some questions the local model answers: it sometimes calls two tools at once, and the failure of the second makes it give up the answer.
-- The questions asked are recorded to improve the tool.
+- Only the questions offered by the "Débutant", "Joueur" and "Expert" buttons have an answer; typing a question is disabled. To ask your own questions, run the project locally.
+- The answers are shown without the Pokémon illustrations, which would require the database.
+- The service stops when nobody uses it and restarts at the next visit.
+- Nothing is recorded.
 
 The deployment and its settings are described in the [web interface guide](src/pokemon_rag/web/README.md).
 
