@@ -112,6 +112,19 @@ Qwen choisit la suite ; le guard ne remplace pas automatiquement l'outil.
 Ces protections appartiennent aux clients : un appel direct au serveur ne les
 applique pas. Le guard ne remplace pas le grounding du graphe.
 
+Le serveur parle stdio par défaut. `python -m pokemon_rag.mcp.server --http` le sert
+en HTTP streamable sur `/mcp`, sans état, pour un client distant ; le port vient de
+`PORT` (8000 par défaut), l'hôte de `MCP_HOST` (127.0.0.1, avec la protection du SDK
+contre le DNS rebinding ; `0.0.0.0` dans un conteneur). Aucun guard dans ce mode : le
+client distant pilote seul les outils.
+
+Claude.ai refuse un connecteur sans authentification (il tente toujours une inscription
+OAuth dynamique). `open_oauth.py` lui fournit une façade OAuth qui approuve tout le monde :
+l'accès reste public. Tout jeton est accepté et n'expire pas, pour survivre à l'arrêt de
+l'instance ; un client oublié n'est reconstitué qu'avec les adresses de retour de Claude.ai,
+jamais vers un autre site. `MCP_PUBLIC_URL` (adresse https du service, sans `/mcp`) est
+l'émetteur annoncé ; un client HTTP direct envoie `Authorization: Bearer <n'importe quoi>`.
+
 Après installation du projet dans l'environnement :
 
 ```powershell
