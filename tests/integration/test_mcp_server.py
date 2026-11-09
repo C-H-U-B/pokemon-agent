@@ -199,3 +199,50 @@ def test_guard_constraints_reach_real_mcp_and_sql_without_model():
                 assert form["rows"][0]["type_1_fr"] == "Électrik"
                 assert form["rows"][0]["type_2_fr"] == "Eau"
     asyncio.run(run())
+
+
+@pytest.mark.real_data
+def test_mcp_server_over_streamable_http() -> None:
+    """Même serveur servi en HTTP streamable (--http), comme pour un connecteur distant."""
+    import os
+    import socket
+    import subprocess
+    import time
+
+    from mcp.client.streamable_http import streamable_http_client
+    from mcp.shared._httpx_utils import create_mcp_http_client
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    process = subprocess.Popen(
+        [sys.executable, "-m", SERVER_MODULE, "--http"],
+        env={**os.environ, "PORT": str(port)},
+    )
+    try:
+        deadline = time.monotonic() + 60
+        while True:
+            assert process.poll() is None, "le serveur HTTP s'est arrêté au démarrage"
+            try:
+                socket.create_connection(("127.0.0.1", port), timeout=1).close()
+                break
+            except OSError:
+                assert time.monotonic() < deadline, "le serveur HTTP n'écoute pas après 60 s"
+                time.sleep(0.2)
+
+        async def check() -> None:
+            # La façade OAuth accepte tout jeton : le flux complet est vérifié dans unit/test_mcp_open_oauth.py.
+            client = create_mcp_http_client(headers={"Authorization": "Bearer jeton-quelconque"})
+            async with streamable_http_client(f"http://127.0.0.1:{port}/mcp", http_client=client) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    tools = await session.list_tools()
+                    assert {tool.name for tool in tools.tools} == EXPECTED_TOOLS
+                    stats = await session.call_tool("pokemon_base_stats", arguments={"pokemon": "Dracolosse"})
+                    assert not stats.is_error
+                    assert stats.structured_content["rows"][0]["Attaque"] == 134
+
+        asyncio.run(check())
+    finally:
+        process.terminate()
+        process.wait(timeout=10)

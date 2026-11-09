@@ -7,6 +7,7 @@ Les diagnostics du serveur doivent utiliser stderr pour préserver le stdio MCP.
 
 from __future__ import annotations
 
+import os
 import sys
 import threading
 import time
@@ -16,8 +17,10 @@ from typing import Annotated, Any, Literal
 from pydantic import Field
 
 from mcp.server import MCPServer
+from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
 from mcp.server.mcpserver.exceptions import ToolError
 
+from pokemon_rag.mcp.open_oauth import OpenAccessProvider
 from pokemon_rag.structured.query_engine import (
     get_base_stats,
     get_evolutions,
@@ -32,7 +35,18 @@ from pokemon_rag.structured.query_engine import (
     search_pokemon,
 )
 
-mcp = MCPServer("Pokémon Agent")
+# Adresse publique du serveur HTTP, émetteur de la façade OAuth (open_oauth.py) ; stdio l'ignore.
+PUBLIC_URL = os.environ.get("MCP_PUBLIC_URL", f"http://127.0.0.1:{os.environ.get('PORT', '8000')}").rstrip("/")
+mcp = MCPServer(
+    "Pokémon Agent",
+    auth=AuthSettings(
+        issuer_url=PUBLIC_URL,
+        resource_server_url=f"{PUBLIC_URL}/mcp",
+        validate_token_resource=False,
+        client_registration_options=ClientRegistrationOptions(enabled=True),
+    ),
+    auth_server_provider=OpenAccessProvider(),
+)
 
 
 class EngineRefusal(ToolError, ValueError):
@@ -446,4 +460,12 @@ def start_preload() -> threading.Thread:
 if __name__ == "__main__":
     if "--preload" in sys.argv:
         start_preload()
-    mcp.run()
+    if "--http" in sys.argv:
+        # HTTP streamable sur /mcp, pour un client distant (connecteur Claude.ai). Sans état : une
+        # instance recyclée ne casse aucune session. PORT est fourni par Cloud Run ; MCP_HOST=0.0.0.0
+        # dans un conteneur, et à 127.0.0.1 le SDK active sa protection contre le DNS rebinding.
+        # MCP_PUBLIC_URL : adresse https du service, sans /mcp, annoncée par la façade OAuth.
+        mcp.run("streamable-http", host=os.environ.get("MCP_HOST", "127.0.0.1"),
+                port=int(os.environ.get("PORT", "8000")), stateless_http=True)
+    else:
+        mcp.run()
