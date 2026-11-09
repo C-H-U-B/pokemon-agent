@@ -29,8 +29,8 @@ The deployment and its settings are described in the [web interface guide](src/p
 | Relational database | 35 tables, 56 indexes, 8 views; 638,000 move-learning rows across 26 game groups |
 | Reference data | 1,025 species, 1,351 Pokémon, 1,579 forms, 937 moves |
 | Document index | 36,280 embedded chunks |
-| Tests | 1,648 tests, 1,514 of which need no model |
-| End-to-end campaign | 41 of 42 questions passed with a local 8-billion-parameter model; the one failure, fixed since, then passed 2 of 2 |
+| Tests | 1,653 tests, 1,519 of which need no model |
+| End-to-end campaign | 46 of 48 questions passed with Qwen3-VL 8B running locally, over 2 runs on 13 October 2026 (structured campaign) |
 
 ## Data flow
 
@@ -80,7 +80,7 @@ Each chunk keeps the Pokémon, source file and section path it comes from, which
 - **Tests on real data.** Matching, default forms, evolutions and moves are checked against the built database.
 - **Tests on a controlled catalogue.** The SQL logic is tested on small SQLite databases created for each test, with adversarial cases: out-of-order identifiers, null values, ties, missing forms.
 - **Isolation.** Light tests fail if they open the project databases or load a model. The SQL engine imports no model client, which a test verifies.
-- **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the 1,243 tests that depend on neither local data nor a model.
+- **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the 1,247 tests that depend on neither local data nor a model.
 
 One data anomaly met along the way shows why these checks matter: the most recent game uses a single learning method, so a search for moves by level returned an empty list for more than 300 Pokémon. Game selection now takes the requested method into account.
 
@@ -103,7 +103,7 @@ Three ways of answering a question rely on the same data. The ADK agent and its 
 
 An 8-billion-parameter model often gets arguments wrong: it forgets a filter, invents a bound, replaces a rare name with a more common one. Rather than trusting it, a deterministic check extracts the constraints from the question and compares them with the proposed call before it runs. The answer is checked the same way: when the model omits or denies a row of a list it received in full, the answer is replaced by the list built from the data.
 
-Results of the 31-question campaign, before and after the latest reliability work:
+Results of the campaign when it had 31 questions (2 October 2026, Qwen3-VL 8B, one run on each side), before and after the reliability work:
 
 | Measure | Before | After |
 | --- | --- | --- |
@@ -111,7 +111,7 @@ Results of the 31-question campaign, before and after the latest reliability wor
 | Calls correct as proposed by the model | 15 | 30 |
 | Answers dropped for exceeding the context budget | 5 | 0 |
 
-The campaign now has 42 questions, including ordinary words that must not become constraints and lists whose answer is checked. With Qwen served by LM Studio, the model proposes 31 correct calls outright; the check repairs 10 of the other 11 before execution, and 41 questions pass. The answer check replaced one answer, which denied that three of the returned Pokémon were legendary. The failure, an ability formed from the words "type Feu" of the question, was fixed and the question then passed in both runs.
+The campaign then grew with ordinary words that must not become constraints, lists whose answer is checked and misspelt names; its latest result is in the "At a glance" table, recomputed from the recorded runs by `scripts/campaign_result.py`.
 
 Each cause was isolated before being fixed, telling data errors, test errors and orchestration errors apart. The full account is in the [development history](DEVELOPMENT.md).
 
