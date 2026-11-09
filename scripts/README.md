@@ -10,6 +10,7 @@ Exécuter les scripts depuis la racine, avec le paquet installé dans `langgraph
 | `use_gemini.ps1` | Pointer un terminal PowerShell vers le modèle distant de la démo |
 | `use_qwen.ps1` | Ramener ce terminal au modèle local, après `use_gemini.ps1` |
 | `check_test_counts.py` | Comparer les compteurs de tests des deux README à la collecte pytest ; `--write` les met à jour, `--ci` est lancé par l'intégration continue |
+| `campaign_result.py` | Recalculer depuis `test_results/` le résultat de la campagne structurée cité par les deux README ; `--write` les met à jour. Local seulement : les résultats ne sont pas versionnés |
 | `observability/` | Analyser les traces enregistrées |
 
 Les données et index générés sont locaux. Leur absence ne se corrige pas en lançant automatiquement une reconstruction : le constructeur SQLite et l'ingestion peuvent remplacer les ressources existantes. Une modification du routeur, des tests ou de la documentation n'exige pas de reconstruire les données.

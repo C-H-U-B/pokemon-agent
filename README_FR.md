@@ -29,8 +29,8 @@ Le déploiement et ses réglages sont décrits dans le [guide de l'interface Web
 | Base relationnelle | 35 tables, 56 index, 8 vues ; 638 000 lignes d'apprentissage de capacités sur 26 groupes de jeux |
 | Référentiel | 1 025 espèces, 1 351 Pokémon, 1 579 formes, 937 capacités |
 | Index documentaire | 36 280 fragments vectorisés |
-| Tests | 1 648 tests, dont 1 514 sans aucun modèle |
-| Campagne de bout en bout | 41 questions sur 42 réussies avec un modèle local de 8 milliards de paramètres ; l'échec, corrigé depuis, a ensuite réussi 2 fois sur 2 |
+| Tests | 1 653 tests, dont 1 519 sans aucun modèle |
+| Campagne de bout en bout | 46 questions sur 48 réussies avec Qwen3-VL 8B en local, sur 2 exécutions le 13 octobre 2026 (campagne structurée) |
 
 ## Flux de données
 
@@ -80,7 +80,7 @@ Chaque fragment garde le Pokémon, le fichier source et le chemin de section don
 - **Tests sur les données réelles.** Le rapprochement, les formes par défaut, les évolutions et les capacités sont vérifiés sur la base construite.
 - **Tests sur catalogue contrôlé.** La logique SQL est testée sur de petites bases SQLite créées pour chaque test, avec des cas adverses : identifiants dans le désordre, valeurs nulles, égalités, formes manquantes.
 - **Isolation.** Les tests légers échouent s'ils ouvrent les bases du projet ou chargent un modèle. Le moteur SQL n'importe aucun client de modèle, ce qu'un test vérifie.
-- **Intégration continue.** À chaque push, GitHub Actions installe le projet sur une machine vierge, lance le contrôle statique et les 1 243 tests qui ne dépendent ni des données locales ni d'un modèle.
+- **Intégration continue.** À chaque push, GitHub Actions installe le projet sur une machine vierge, lance le contrôle statique et les 1 247 tests qui ne dépendent ni des données locales ni d'un modèle.
 
 Une anomalie de données rencontrée en cours de route illustre l'intérêt de ces contrôles : le jeu le plus récent n'utilise qu'une seule méthode d'apprentissage, si bien qu'une recherche de capacités par niveau y renvoyait une liste vide pour plus de 300 Pokémon. La sélection du jeu tient désormais compte de la méthode demandée.
 
@@ -103,7 +103,7 @@ Trois façons de répondre à une question s'appuient sur ces mêmes données. L
 
 Un modèle de 8 milliards de paramètres se trompe souvent sur les arguments : il oublie un filtre, invente une borne, remplace un nom rare par un nom plus courant. Plutôt que de lui faire confiance, un contrôle déterministe extrait les contraintes de la question et les compare à l'appel proposé avant son exécution. La réponse est contrôlée de la même façon : quand le modèle omet ou nie une ligne d'une liste reçue en entier, la réponse est remplacée par la liste construite depuis les données.
 
-Résultats de la campagne de 31 questions, avant et après les derniers travaux de fiabilité :
+Résultats de la campagne quand elle comptait 31 questions (2 octobre 2026, Qwen3-VL 8B, une exécution de chaque côté), avant et après les travaux de fiabilité :
 
 | Mesure | Avant | Après |
 | --- | --- | --- |
@@ -111,7 +111,7 @@ Résultats de la campagne de 31 questions, avant et après les derniers travaux 
 | Appels corrects dès la proposition du modèle | 15 | 30 |
 | Réponses abandonnées pour dépassement de contexte | 5 | 0 |
 
-La campagne compte désormais 42 questions, dont des mots ordinaires qui ne doivent pas devenir des contraintes et des listes dont la réponse est contrôlée. Avec Qwen servi par LM Studio, le modèle propose 31 appels corrects d'emblée ; le contrôle en corrige 10 des 11 autres avant exécution, et 41 questions passent. Le contrôle des réponses en a remplacé une, qui niait que trois des Pokémon renvoyés soient légendaires. L'échec, un talent formé par les mots « type Feu » de la question, a été corrigé, et la question a ensuite réussi lors des deux exécutions.
+La campagne s'est ensuite enrichie de mots ordinaires qui ne doivent pas devenir des contraintes, de listes dont la réponse est contrôlée et de noms mal orthographiés ; son dernier résultat est dans le tableau « En bref », recalculé depuis les runs enregistrés par `scripts/campaign_result.py`.
 
 Chaque cause a été isolée avant d'être corrigée, en distinguant erreur de données, erreur de test et erreur d'orchestration. Le récit complet est dans [l'historique de développement](DEVELOPMENT_FR.md).
 
