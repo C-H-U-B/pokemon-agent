@@ -14,12 +14,22 @@ Everything runs locally: SQLite, ChromaDB and an 8B Qwen model served by LM Stud
 
 What to know before trying it:
 
-- Only the questions offered by the "Débutant", "Joueur" and "Expert" buttons have an answer; typing a question is disabled. To ask your own questions, run the project locally.
+- Only the questions offered by the "Débutant", "Joueur" and "Expert" buttons have an answer; typing a question is disabled. To ask your own questions, use the Claude connector below or run the project locally.
 - The answers are shown without the Pokémon illustrations, which would require the database.
 - The service stops when nobody uses it and restarts at the next visit.
 - Nothing is recorded.
 
 The deployment and its settings are described in the [web interface guide](src/pokemon_rag/web/README.md).
+
+### With your Claude account
+
+The project's twelve tools (SQL engine and Poképédia search) are also served as a remote MCP connector. With your Claude account, free plan included, you ask your own questions: Claude chooses the tools and writes the answer from the project's data.
+
+1. In Claude.ai, open Settings → Connectors → "Add custom connector".
+2. Give it a name and the URL `https://pokemon-mcp-592924290447.europe-west1.run.app/mcp`, then click "Connect": authorization is immediate, no account is asked for.
+3. Enable the connector in a conversation and ask a question, for example "Quel starter a la meilleure Défense Spéciale ?" (the data and tool descriptions are in French).
+
+Good to know: the service stops when idle, and the first document search that wakes it up can take one to two minutes; later ones take a few seconds. The deterministic argument check described below protects the local agent, not this connector. Details in the [MCP guide](src/pokemon_rag/mcp/README.md).
 
 ## At a glance
 
