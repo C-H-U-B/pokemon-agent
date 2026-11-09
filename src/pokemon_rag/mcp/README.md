@@ -125,6 +125,14 @@ l'instance ; un client oublié n'est reconstitué qu'avec les adresses de retour
 jamais vers un autre site. `MCP_PUBLIC_URL` (adresse https du service, sans `/mcp`) est
 l'émetteur annoncé ; un client HTTP direct envoie `Authorization: Bearer <n'importe quoi>`.
 
+Déploiement : service Cloud Run `pokemon-mcp` (`europe-west1`), image `demo` du `Dockerfile`
+dont la commande est remplacée par `python -m pokemon_rag.mcp.server --http --preload`, avec
+`MCP_HOST=0.0.0.0` et `MCP_PUBLIC_URL`. 4 Gio et 4 vCPU : à 2 Gio, l'instance dépassait sa
+limite (2 058 Mio) à la fin du préchargement ; à 1 vCPU, une recherche documentaire prenait
+17 à 19 s modèles chargés, 6,5 s à 4 vCPU. Le premier appel documentaire après le repos
+prend 60 à 90 s, presque insensible au nombre de processeurs. Une instance au plus, aucune
+au repos. `scripts/mcp_http_probe.py <url>/mcp` vérifie le service sans modèle de langage.
+
 Après installation du projet dans l'environnement :
 
 ```powershell

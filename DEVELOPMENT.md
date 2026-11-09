@@ -2200,3 +2200,34 @@ Hugging Face Spaces was tried first. Creating a Docker or Gradio Space there now
 requires a paid subscription, and the local trial under the unprivileged user of
 Spaces showed that the database, added from a URL, stayed unreadable to it. The
 demo therefore stays on Cloud Run.
+
+## 108. [Feature] The project's tools usable from a Claude account
+
+The online demo only replays recorded answers: a visitor cannot ask their own
+question without installing the project. The MCP server, which exposes the
+twelve tools, only spoke stdio, so only to a client started on the same machine.
+The intended audience often has a Claude account, and the free plan of Claude.ai
+accepts a remote MCP connector.
+
+The server can now also be served over HTTP (`--http`), without session state, so
+that an instance stopped and restarted cuts off no client. Claude.ai still refused
+to connect: it always attempts an OAuth registration, even with a server without
+authentication, which is a known defect on its side. The server therefore offers
+an OAuth facade that approves everyone: access stays public, any token is accepted
+and never expires, and a client forgotten after a restart is restored with the
+Claude.ai callback addresses only, so it never redirects to another site. Tests
+replay the full flow, from discovery to a tool call, and check these two
+protections.
+
+The service runs on Cloud Run with the standalone demo image, only its command
+changed. Its settings come from measurements: at 2 GiB, the instance exceeded its
+memory at the end of loading and cut off the call in progress; with one CPU, a
+document search took 17 to 19 seconds against 6.5 with four. The first document
+call after idling stays long, one to two minutes, almost insensitive to the
+number of CPUs.
+
+In Claude.ai, Claude chooses the tools and writes the answer: the local agent's
+deterministic argument check does not apply. On six verification questions,
+including a game with a level bound, a Mega form, a tied superlative and data
+specific to the custom Pokédex, Claude called the expected tool and gave the
+exact answer.

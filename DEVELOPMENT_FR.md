@@ -2285,3 +2285,34 @@ Hugging Face Spaces avait d'abord été essayé. La création d'un Space Docker 
 Gradio y demande désormais un abonnement payant, et l'essai local sous
 l'utilisateur non privilégié des Spaces a montré que la base, ajoutée depuis une
 URL, restait illisible pour lui. La démo reste donc sur Cloud Run.
+
+## 108. [Feature] Les outils du projet utilisables depuis un compte Claude
+
+La démo en ligne ne rejoue que des réponses enregistrées : un visiteur ne peut
+pas poser sa propre question sans installer le projet. Le serveur MCP, qui expose
+les douze outils, ne parlait que stdio, donc seulement à un client lancé sur la
+même machine. Le public visé a souvent un compte Claude, et le plan gratuit de
+Claude.ai accepte un connecteur MCP distant.
+
+Le serveur se sert désormais aussi en HTTP (`--http`), sans état de session, pour
+qu'une instance arrêtée puis relancée ne coupe aucun client. Claude.ai refusait
+pourtant de s'y connecter : il tente toujours une inscription OAuth, même auprès
+d'un serveur sans authentification, ce qui est un défaut connu de sa part. Le
+serveur offre donc une façade OAuth qui approuve tout le monde : l'accès reste
+public, tout jeton est accepté et n'expire pas, et un client oublié après un
+redémarrage n'est reconstitué qu'avec les adresses de retour de Claude.ai, pour
+ne jamais rediriger vers un autre site. Des tests rejouent le parcours complet,
+de la découverte à l'appel d'un outil, et vérifient ces deux protections.
+
+Le service tourne sur Cloud Run avec l'image de la démo autonome, dont seule la
+commande change. Ses réglages viennent des mesures : à 2 Gio, l'instance dépassait
+sa mémoire en fin de chargement et coupait l'appel en cours ; à un processeur, une
+recherche documentaire prenait 17 à 19 secondes contre 6,5 à quatre. Le premier
+appel documentaire après le repos reste long, une à deux minutes, presque
+insensible au nombre de processeurs.
+
+Dans Claude.ai, c'est Claude qui choisit les outils et rédige : le contrôle
+déterministe des arguments de l'agent local ne s'applique pas. Sur six questions
+de vérification, dont un jeu avec une borne de niveau, une forme Méga, un
+superlatif à égalité et des données propres au Pokédex personnalisé, Claude a
+appelé l'outil attendu et donné la réponse exacte.
