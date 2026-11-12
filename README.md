@@ -98,7 +98,7 @@ One data anomaly met along the way shows why these checks matter: the most recen
 
 - **SQL engine.** Parameterised functions cover evolutions, moves, types, multi-criteria search and rankings by statistic. Filters, sorts, totals and ties are computed in SQL. The language model never writes SQL: it picks an operation and its arguments.
 - **Document search.** Combined lexical and vector search, awareness of section structure, then reranking.
-- **MCP server.** Twelve tools expose these functions to any compatible client.
+- **MCP server.** Twelve tools expose these functions to any compatible client: the ADK agent, Claude.ai, or [OpenClaw](integrations/openclaw/) on Discord with Qwen.
 - **HTTP API.** Eleven routes expose the SQL engine without any model. They reuse the functions of the MCP tools: same arguments, same validation.
 
 Three ways of answering a question rely on the same data. The ADK agent and its web interface are the main path. The LangGraph graph and the MCP client are the project's first version, kept for comparison and no longer maintained: the graph covers 7 structured operations against the agent's 12 tools, but it is the only path that checks the faithfulness of a description.

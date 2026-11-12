@@ -133,6 +133,25 @@ limite (2 058 Mio) à la fin du préchargement ; à 1 vCPU, une recherche docume
 prend 60 à 90 s, presque insensible au nombre de processeurs. Une instance au plus, aucune
 au repos. `scripts/mcp_http_probe.py <url>/mcp` vérifie le service sans modèle de langage.
 
+[OpenClaw](https://docs.openclaw.ai) (2026.11.3), agent auto-hébergé relié à des messageries, est
+un autre client du serveur stdio : Qwen via LM Studio, interface Discord. La configuration est
+dans [`integrations/openclaw/`](../../../integrations/openclaw/) ; le canal Discord est un plugin
+(`openclaw plugins install @openclaw/discord`, gateway arrêté) et le jeton du bot est lu dans
+`DISCORD_BOT_TOKEN`. Par défaut, OpenClaw envoie ~57k caractères avant la question (outils
+intégrés 16k, fichiers de l'espace de travail ~10k, liste de 23 skills 8k, catalogue de 52 outils
+différés 7k) et cache les outils MCP derrière `tool_search` : la requête dépasse les 16k tokens de
+Qwen. Le profil de l'exemple (`tools.profile: "minimal"` avec `bundle-mcp`, `toolSearch: false`,
+aucun skill fourni ni fichier injecté, outils inutiles interdits) ramène la requête à ~7 100 tokens,
+dont 17k caractères pour 13 outils (`pokemon_search` seul : 4,8k ; OpenClaw transmet les
+descriptions entières, sans l'abrègement ADK). Mesures du 12 novembre, une question de chaque
+sorte : statistiques de Méga-Dracaufeu X et Feu le plus rapide (`best_only=true`, sans ex aequo)
+justes depuis Discord, mais un commentaire non demandé attribue le type Vol à Méga-Dracaufeu X.
+Aucun guard ni grounding : Qwen pilote seul les outils, et le nom passé à l'outil était anglais,
+résolu par les alias du serveur. Ce profil retire aussi du prompt la liste des skills : le skill
+`pokemon-expert` du dossier n'est pas lu. Réponse en ~38 s (choix de l'outil 5,5 s, réponse de
+149 tokens à ~4,7 tokens/s, premier token en 0,6 s grâce au cache de LM Studio), contre une
+médiane de 10,2 s pour l'agent ADK sur les questions à un outil de sa campagne structurée.
+
 Après installation du projet dans l'environnement :
 
 ```powershell

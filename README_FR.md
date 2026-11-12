@@ -98,7 +98,7 @@ Une anomalie de données rencontrée en cours de route illustre l'intérêt de c
 
 - **Moteur SQL.** Des fonctions paramétrées couvrent les évolutions, les capacités, les types, la recherche multicritère et les classements par statistique. Les filtres, les tris, les totaux et les égalités sont calculés en SQL. Le modèle de langage ne produit jamais de SQL : il choisit une opération et ses arguments.
 - **Recherche documentaire.** Recherche lexicale et vectorielle combinées, prise en compte de la structure des sections, puis reclassement.
-- **Serveur MCP.** Douze outils exposent ces fonctions à n'importe quel client compatible.
+- **Serveur MCP.** Douze outils exposent ces fonctions à n'importe quel client compatible : l'agent ADK, Claude.ai, ou [OpenClaw](integrations/openclaw/) sur Discord avec Qwen.
 - **API HTTP.** Onze routes exposent le moteur SQL sans aucun modèle. Elles réutilisent les fonctions des outils MCP : mêmes arguments, mêmes validations.
 
 Trois façons de répondre à une question s'appuient sur ces mêmes données. L'agent ADK et son interface Web sont le parcours principal. Le graphe LangGraph et le client MCP sont la première version du projet, gardée pour comparaison et non maintenue : le graphe couvre 7 opérations structurées contre les 12 outils de l'agent, mais il est le seul parcours à contrôler la fidélité d'une description.

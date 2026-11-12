@@ -1,0 +1,55 @@
+// Exemple pour ~/.openclaw/openclaw.json (OpenClaw 2026.11.3) : Discord -> Qwen (LM Studio) -> serveur MCP
+// du projet en stdio. À appliquer avec `openclaw config patch --file <copie> --dry-run`, puis sans --dry-run.
+// Remplacer YOUR_SERVER_ID (clic droit sur l'icône du serveur) et YOUR_USER_ID (clic droit sur son profil),
+// mode développeur de Discord activé. Le jeton du bot est lu dans DISCORD_BOT_TOKEN, jamais écrit ici.
+{
+  models: {
+    providers: {
+      lmstudio: {
+        baseUrl: "http://localhost:1234/v1",
+        api: "openai-completions",
+        apiKey: "lm-studio", // LM Studio ignore la clé ; auth: "none" est refusé par le schéma
+        timeoutSeconds: 300,
+        models: [{ id: "qwen/qwen3-vl-8b", name: "Qwen3 VL 8B", input: ["text"], contextWindow: 16384, maxTokens: 2048 }],
+      },
+    },
+  },
+  agents: {
+    defaults: {
+      model: { primary: "lmstudio/qwen/qwen3-vl-8b" },
+      // Les fichiers de l'espace de travail (AGENTS.md, SOUL.md...) pèsent ~10k caractères par requête.
+      contextInjection: "never",
+    },
+  },
+
+  mcp: {
+    servers: {
+      pokemon: {
+        command: "C:/Users/rmour/miniconda3/envs/langgraph-agent/python.exe",
+        args: ["-m", "pokemon_rag.mcp.server"],
+        cwd: "C:/projets perso/agents/pokemon",
+      },
+    },
+  },
+
+  // Le prompt par défaut (~57k caractères) dépasse le contexte de 16k tokens de Qwen. Profil minimal,
+  // outils MCP envoyés directement (sinon cachés derrière tool_search) et outils inutiles interdits.
+  tools: {
+    profile: "minimal",
+    alsoAllow: ["bundle-mcp"],
+    toolSearch: false,
+    deny: ["gateway", "cron", "sessions_spawn", "sessions_send", "presence", "heartbeat_respond",
+           "pokemon__prompts_*", "pokemon__resources_*"],
+  },
+  skills: { allowBundled: [] },
+
+  // Canal Discord : plugin à installer, gateway arrêté (`openclaw plugins install @openclaw/discord`).
+  channels: {
+    discord: {
+      enabled: true,
+      token: { source: "env", provider: "default", id: "DISCORD_BOT_TOKEN" },
+      groupPolicy: "allowlist",
+      guilds: { "YOUR_SERVER_ID": { requireMention: true, users: ["YOUR_USER_ID"] } },
+    },
+  },
+}
