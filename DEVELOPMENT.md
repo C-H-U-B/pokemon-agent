@@ -2231,3 +2231,29 @@ deterministic argument check does not apply. On six verification questions,
 including a game with a level bound, a Mega form, a tied superlative and data
 specific to the custom Pokédex, Claude called the expected tool and gave the
 exact answer.
+
+## 109. [Feature] The project's tools on Discord with OpenClaw
+
+OpenClaw is a self-hosted agent that connects a language model to messaging
+apps. The project's MCP server plugs into it without code: a configuration
+declares Qwen in LM Studio, the stdio server and a Discord bot limited to one
+server and one account. The example and an instructions skill are in
+`integrations/openclaw/`.
+
+The default configuration did not fit in Qwen's context. A relay between
+OpenClaw and LM Studio showed about 57,000 characters sent before the
+question: built-in tools, workspace files, the list of skills and a catalogue
+of deferred tools. The twelve MCP tools were not even in it: OpenClaw hid them
+behind its search tool. The chosen profile keeps only the MCP tools, sent
+directly, with no bundled skill and no injected file. The request drops to
+about 7,100 tokens. It also removes the list of skills: the folder's skill is
+not read.
+
+From Discord, the base stats of Mega Charizard X and the fastest Fire Pokémon
+are correct. The superlative does go through the SQL computation of the winner
+and of ties. Without any argument or faithfulness check, Qwen still passed the
+name in English, found by the server's aliases, and added an unrequested
+comment giving Mega Charizard X a wrong type. An answer takes about 38 seconds
+against about ten for the ADK agent on the same model: almost all of that time
+is spent generating the answer, not reading the prompt, which LM Studio keeps
+cached.

@@ -2316,3 +2316,29 @@ déterministe des arguments de l'agent local ne s'applique pas. Sur six question
 de vérification, dont un jeu avec une borne de niveau, une forme Méga, un
 superlatif à égalité et des données propres au Pokédex personnalisé, Claude a
 appelé l'outil attendu et donné la réponse exacte.
+
+## 109. [Feature] Les outils du projet sur Discord avec OpenClaw
+
+OpenClaw est un agent auto-hébergé qui relie un modèle de langage à des
+messageries. Le serveur MCP du projet s'y branche sans code : une configuration
+déclare Qwen dans LM Studio, le serveur stdio et un bot Discord limité à un
+serveur et à un compte. L'exemple et un skill de consignes sont dans
+`integrations/openclaw/`.
+
+La configuration par défaut ne tenait pas dans le contexte de Qwen. Un relais
+entre OpenClaw et LM Studio a montré environ 57 000 caractères envoyés avant
+la question : outils intégrés, fichiers de l'espace de travail, liste des skills
+et catalogue d'outils différés. Les douze outils MCP n'y figuraient même pas :
+OpenClaw les cachait derrière son outil de recherche. Le profil retenu garde les
+seuls outils MCP, envoyés directement, sans skill fourni ni fichier injecté. La
+requête tombe à environ 7 100 tokens. Il retire aussi la liste des skills : le
+skill du dossier n'est pas lu.
+
+Depuis Discord, les statistiques de Méga-Dracaufeu X et le Pokémon Feu le plus
+rapide sont justes. Le superlatif passe bien par le calcul SQL du gagnant et
+des ex aequo. Sans contrôle des arguments ni de fidélité, Qwen a pourtant
+transmis le nom en anglais, retrouvé par les alias du serveur, et ajouté un
+commentaire non demandé qui attribue à Méga-Dracaufeu X un type faux. Une
+réponse prend environ 38 secondes contre une dizaine pour l'agent ADK sur le
+même modèle : presque tout ce temps est passé à générer la réponse, pas à lire
+le prompt, que LM Studio garde en cache.
