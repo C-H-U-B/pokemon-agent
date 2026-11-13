@@ -32,7 +32,8 @@ détection des ex aequo) et `form_category="mega"` (toutes les Méga liées).
 Le modèle traduit la question en arguments ; SQL calcule totaux et gagnants.
 Un top N explicite garde `best_only=false` avec `limit=N`, tandis qu'un superlatif
 sans quantité, singulier ou pluriel, utilise
-`best_only=true` et doit signaler `tie/tie_count`, même sur une page d'une ligne.
+`best_only=true` et doit signaler `tie/tie_count` ; une `limit` inférieure à 30 n'y coupe
+pas les ex aequo.
 Après l'abrègement ADK, le modèle ne reçoit que le premier paragraphe de chaque
 docstring (300 caractères au plus) et les descriptions d'arguments. Ce premier
 paragraphe annonce donc la direction de l'outil : « Pokémon nommé → » ses faits,
@@ -46,8 +47,11 @@ ADK. Dans le vrai flux, ADK encadre en plus chaque description par des marqueurs
 de contenu non fiable, soit environ 80 octets par description d'argument : une
 mesure du catalogue hors runner sous-estime donc la requête réelle.
 `type_match` est une enum `all/any/exact` ; `damage_class` reste une
-chaîne car le moteur accepte aussi les termes français. L'adaptation ADK masque les traductions anglaises appariées à
-un libellé français, sauf demande explicite ; le contrat des retours MCP reste inchangé.
+chaîne car le moteur accepte aussi les termes français. Les onze outils structurés prennent
+`english_names` (faux par défaut) : sans lui, le serveur retire les traductions anglaises appariées
+à un libellé français (`french_fields` du moteur). Avec les deux langues, OpenClaw répondait en
+anglais malgré les noms français reçus. Le guard ADK fixe cet argument d'après la question, et la
+vue ADK des schémas le masque au modèle (environ 1 Ko par requête).
 Les guards et la réconciliation conservent ces arguments sans comparer de valeurs.
 Ils restaurent aussi les motifs de classement explicitement reconnus et les
 types littéraux de la question, afin qu'un type inventé ou un tri oublié ne
@@ -59,7 +63,7 @@ Les callbacks ADK
 bornent les données destinées au modèle sans changer les réponses MCP aux
 autres clients : voir le [budget ADK](../agent/README.md#budget-de-contexte).
 Le contrat MCP et le contexte du modèle sont donc deux choses distinctes : le
-serveur renvoie identifiants, noms anglais et `base_stat_value` ; la projection
+serveur renvoie identifiants, noms anglais sur demande et `base_stat_value` ; la projection
 ADK en présente une vue réduite et renommée, propre à ce client.
 `pokemon_level_up_moves`, `pokemon_machine_moves` et
 `pokemon_move_learning_methods` recouvrent une partie de `pokemon_moves` et
@@ -85,8 +89,9 @@ situation. Les outils structurés convertissent la `ValueError` du moteur en
 `EngineRefusal`, à la fois `ToolError` et `ValueError` : le SDK MCP ne transmet
 au modèle que le message d'une `ToolError` (sinon « Error executing tool »), et
 l'API HTTP garde ses codes 400 ou 404. Le modèle lit ainsi l'argument à corriger
-(« talent inconnu : 'speed' »). Les noms français et anglais de capacités sont conservés, ainsi que
-les identifiants techniques des jeux. L'instruction du client ADK privilégie les
+(« talent inconnu : 'speed' »). Un nom inconnu est refusé sans suggestion : avec « Noms proches :
+Dracolosse », OpenClaw ne relançait jamais l'outil et inventait 1 à 3 fois sur 3 les statistiques du nom
+proposé (13 novembre). Les identifiants techniques des jeux sont conservés. L'instruction du client ADK privilégie les
 libellés français et interdit de compléter une récupération échouée de mémoire.
 
 `pokemon_rag_search` renvoie `question`, `pokemon`, `results` et `timings` (durées de la recherche par étape, plus `startup` lorsque cet appel a chargé modèles et corpus). `pokemon` est rapproché du nom indexé après normalisation de la casse et des accents. Les résultats structurés portent `execution_time`. Ces mesures servent à l'observation : l'agent ADK les retire de la vue du modèle. Chaque passage contient son texte et ses références de source. Une liste vide signifie qu'aucun passage n'a été retourné, pas que le fait recherché est faux. Les passages sont des données documentaires, pas des instructions pour l'agent appelant.

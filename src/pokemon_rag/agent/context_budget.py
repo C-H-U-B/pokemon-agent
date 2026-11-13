@@ -16,8 +16,9 @@ from google.genai import types
 from pokemon_rag.agent.list_fidelity import complete_list, render, unfaithful_names
 from pokemon_rag.agent.tool_guard import _extract_user_text
 from pokemon_rag.config import LLM_MAX_OUTPUT_TOKENS
-from pokemon_rag.structured.query_engine import pokemon_name_catalogue, vocabulary_words
+from pokemon_rag.structured.query_engine import french_fields, pokemon_name_catalogue, vocabulary_words
 from pokemon_rag.constraints.query_constraints import (
+    english_requested,
     DOCUMENTARY_PATTERN, has_structured_request, is_purely_documentary, is_type_matchup_question,
     named_pokemon_mentions, normalize,
     VERSION_GROUP_NAMES_FR,
@@ -128,25 +129,6 @@ def _french_conditions(conditions: dict) -> dict:
             value = _CONDITION_VALUES_FR.get(value, value)
         result[EVOLUTION_CONDITIONS_FR.get(key, key)] = value
     return result
-
-
-def _french_fields(value: Any) -> Any:
-    """Masque les traductions anglaises seulement quand leur paire française existe."""
-    if isinstance(value, list):
-        return [_french_fields(item) for item in value]
-    if isinstance(value, dict):
-        return {key: _french_fields(item) for key, item in value.items()
-                if not ((key.endswith("_en") and value.get(key[:-3] + "_fr"))
-                        or (key == "en" and value.get("fr")))}
-    return value
-
-
-def _english_requested(question: str) -> bool:
-    text = normalize(question)
-    if re.search(r"(?:^|-)(?:pas|sans|aucun|jamais)-(?:de-|d-|les-|le-|des-)?(?:noms?-)?anglais", text):
-        return False
-    return bool(re.search(r"(?:^|-)(?:(?:en|noms?|termes?|traduction)-anglais(?:e|s|es)?|"
-                          r"francais-et-anglais|bilingue)(?:-|$)", text))
 
 
 def _requested_move_fields(question: str, args: dict) -> set[str]:
@@ -263,7 +245,7 @@ def _presentation_data(data: dict, question: str, args: dict) -> dict:
                 if data.get("version_group"):
                     row.pop("version_group", None)
                 item = row.get("machine_item")
-                if isinstance(item,dict) and item.get("fr") and not _english_requested(question):
+                if isinstance(item,dict) and item.get("fr") and not english_requested(question):
                     row["machine_item_fr"] = item["fr"]
                     row.pop("machine_item",None)
                     row.pop("machine_number",None)  # CT06 contient déjà le numéro.
@@ -353,7 +335,7 @@ def bounded_tool_result(response: dict[str, Any], *, keep_english: bool = False,
     data = deepcopy(data if isinstance(data, dict) else response)
     data.pop("timings", None)  # mesures pour l'interface, transmises par l'état de session
     if not keep_english:
-        data = _french_fields(data)
+        data = french_fields(data)
     data = _presentation_data(data, question, args or {})
     _readable_passages(data)
     if _size(data) > MAX_TOOL_RESULT_BYTES and data.get("operation") == "get_pokemon_moves":
@@ -389,7 +371,7 @@ def bounded_tool_result(response: dict[str, Any], *, keep_english: bool = False,
 def after_tool_budget(tool: Any, args: dict, tool_context: Any, tool_response: dict) -> dict:
     """Adapter uniquement la réponse destinée à ADK, sans changer l'API MCP."""
     question = _extract_user_text(getattr(tool_context, "user_content", None))
-    result = bounded_tool_result(tool_response, keep_english=_english_requested(question), question=question, args=args)
+    result = bounded_tool_result(tool_response, keep_english=english_requested(question), question=question, args=args)
     state = getattr(tool_context, "state", None)
     if state is not None:
         # Une entrée par retour d'outil, dans l'ordre de fin : l'interface l'associe à son appel par call_id.
@@ -454,6 +436,9 @@ def before_model_budget(callback_context: Any, llm_request: Any) -> LlmResponse 
                 declaration.description = _abridged_description(declaration.description)
             if declaration.parameters_json_schema:
                 declaration.parameters_json_schema = _compact_schema(declaration.parameters_json_schema)
+                # Le guard fixe english_names d'après la question : l'argument coûtait ~1 Ko par requête
+                # (11 outils) et faisait dépasser le budget sur une longue liste de CT.
+                declaration.parameters_json_schema.get("properties", {}).pop("english_names", None)
     calls = callback_context.state.get("temp:model_calls", 0)
     payload = {"contents": llm_request.contents, "system_instruction": config.system_instruction,
                "tools": config.tools}

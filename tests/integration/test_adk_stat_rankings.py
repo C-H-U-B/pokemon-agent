@@ -140,7 +140,8 @@ def test_e2e_recorder_separates_proposal_execution_raw_mcp_and_adk_projection(mo
         raw_data = raw[0]["response"]["structuredContent"]
         adapted = helpers["_responses"](events)[0]["response"]
         assert raw_data["best_value"] == adapted["best_value"] == 20
-        assert "name_en" in raw_data["results"][0]
+        # Le serveur ne renvoie l'anglais que sur demande (english_names) : absent du brut comme du projeté.
+        assert "name_en" not in raw_data["results"][0]
         assert "name_en" not in adapted["results"][0]
     asyncio.run(run())
 

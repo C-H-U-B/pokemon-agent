@@ -143,12 +143,14 @@ def main() -> None:
     parser.add_argument("--timeout", type=int, default=600, help="délai maximal d'un cas, en secondes")
     parser.add_argument("--repeat", type=int, default=1,
                         help="exécutions d'OpenClaw ; la i-ème est comparée au i-ème des N derniers runs ADK complets")
+    parser.add_argument("--cases", nargs="+", choices=CASE_IDS, default=CASE_IDS,
+                        help="sous-ensemble des dix cas, pour vérifier un correctif ciblé")
     args = parser.parse_args()
     if shutil.which("openclaw") is None:
         sys.exit("openclaw introuvable dans le PATH")
 
     e2e = _load(ROOT / "tests" / "long" / "test_adk_structured_database_e2e.py", "adk_structured_e2e")
-    cases = [c for c in e2e.CASES if c.id in CASE_IDS]
+    cases = [c for c in e2e.CASES if c.id in args.cases]
     adk_runs = adk_reference(cases, args.repeat)
     defaults = tool_defaults()
     run_id = datetime.now().astimezone().isoformat(timespec="seconds")

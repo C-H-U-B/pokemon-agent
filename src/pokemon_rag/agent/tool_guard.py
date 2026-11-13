@@ -5,6 +5,7 @@ import re
 
 from pokemon_rag.constraints.query_constraints import (
     ExplicitConstraints,
+    english_requested,
     extract_explicit_constraints, reconcile_search_args,
     extract_named_pokemon, named_pokemon_mentions,
     is_named_identity_question, is_named_stat_question, is_purely_documentary,
@@ -319,6 +320,13 @@ def before_tool_guard(
             "message": str(exc),
         }
 
+    if tool_name != "pokemon_rag_search":
+        # Le serveur ne renvoie les noms anglais que sur demande : la question en décide, pas le modèle.
+        # Absent vaut false côté serveur ; un true inventé par le modèle est retiré.
+        if english_requested(question):
+            corrected["english_names"] = True
+        else:
+            corrected.pop("english_names", None)
     args.clear()
     args.update(corrected)
     return None

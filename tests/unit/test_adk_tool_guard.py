@@ -709,3 +709,16 @@ def test_search_naming_no_pokemon_or_two_keeps_its_arguments(catalogue):
         args = {"question": question, "pokemon": "Carabaffe"}
         assert before_tool_guard(_tool("pokemon_rag_search"), args, _context(question)) is None
         assert args == {"question": question, "pokemon": "Carabaffe"}
+
+
+@pytest.mark.parametrize("question,english", [
+    ("Quels Pokémon de type Feu dans la première génération ?", False),
+    ("Quels Pokémon de type Feu dans la première génération, avec les noms en anglais ?", True),
+    ("Quels Pokémon de type Feu dans la première génération, sans les noms anglais ?", False),
+])
+def test_english_names_follow_the_question_not_the_model(question, english):
+    """Le serveur ne renvoie l'anglais que sur demande : un true inventé est retiré, une demande explicite l'impose."""
+    for proposed in ({}, {"english_names": True}, {"english_names": False}):
+        args = {"types": ["Feu"], "generation": 1, **proposed}
+        assert before_tool_guard(_tool("pokemon_search"), args, _context(question)) is None
+        assert args.get("english_names", False) is english
