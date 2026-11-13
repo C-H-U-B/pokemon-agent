@@ -39,8 +39,8 @@ Good to know: the service stops when idle, and the first document search that wa
 | Relational database | 35 tables, 56 indexes, 8 views; 638,000 move-learning rows across 26 game groups |
 | Reference data | 1,025 species, 1,351 Pokémon, 1,579 forms, 937 moves |
 | Document index | 36,280 embedded chunks |
-| Tests | 1,653 tests, 1,519 of which need no model |
-| End-to-end campaign | 46 of 48 questions passed with Qwen3-VL 8B running locally, over 2 runs on 13 October 2026 (structured campaign) |
+| Tests | 1,659 tests, 1,525 of which need no model |
+| End-to-end campaign | 48 of 48 questions passed with Qwen3-VL 8B running locally, over 2 runs on 13 November 2026 (structured campaign) |
 
 ## Data flow
 
@@ -90,7 +90,7 @@ Each chunk keeps the Pokémon, source file and section path it comes from, which
 - **Tests on real data.** Matching, default forms, evolutions and moves are checked against the built database.
 - **Tests on a controlled catalogue.** The SQL logic is tested on small SQLite databases created for each test, with adversarial cases: out-of-order identifiers, null values, ties, missing forms.
 - **Isolation.** Light tests fail if they open the project databases or load a model. The SQL engine imports no model client, which a test verifies.
-- **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the 1,247 tests that depend on neither local data nor a model.
+- **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the 1,253 tests that depend on neither local data nor a model.
 
 One data anomaly met along the way shows why these checks matter: the most recent game uses a single learning method, so a search for moves by level returned an empty list for more than 300 Pokémon. Game selection now takes the requested method into account.
 
@@ -123,7 +123,7 @@ Results of the campaign when it had 31 questions (2 October 2026, Qwen3-VL 8B, o
 
 The campaign then grew with ordinary words that must not become constraints, lists whose answer is checked and misspelt names; its latest result is in the "At a glance" table, recomputed from the recorded runs by `scripts/campaign_result.py`.
 
-What the check is worth was measured against a general-purpose agent with the same model and the same tools: [OpenClaw](integrations/openclaw/), given the usage rules in its prompt but no check, answered 4 of 10 constraint questions from the campaign correctly, against 10 of 10 for the agent (13 November 2026, one run). The misses were a misspelt name passed as is, filters invented or forgotten, a tie cut by an invented limit, and English move names: the first three are corrected by the check, the last is avoided by showing the model only the French labels.
+What the check is worth was measured against a general-purpose agent with the same model and the same tools: [OpenClaw](integrations/openclaw/), given the usage rules in its prompt but no check, answered 5 of 10 constraint questions from the campaign correctly on each of three runs, always on the same cases, against 10 of 10 for the agent (13 November 2026). Two server-side fixes, useful to any client, brought it to 9, 8 and 9: a superlative no longer cuts a tie, and English names are only returned on request. The remaining misses, a forgotten or invented argument and a misspelt name, can only be corrected by reading the question: that is the check's job, which the server cannot do. Offering the model the closest name for an unknown one was tried and removed: OpenClaw never called the tool again and invented the suggested Pokémon's stats.
 
 Each cause was isolated before being fixed, telling data errors, test errors and orchestration errors apart. The full account is in the [development history](DEVELOPMENT.md).
 

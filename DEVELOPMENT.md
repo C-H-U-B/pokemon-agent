@@ -2282,3 +2282,35 @@ avoids the last. The automatic grader counted six successes: two cases expected
 no term and let through a "none" answer and a ranking skewed by an invented
 filter. Both cases now expect the results read from the database, and the
 benchmark compares terms with the campaign's function instead of a looser copy.
+
+## 111. [Feature] What the server can correct without a guard
+
+A score of four out of ten from a single run did not say whether OpenClaw
+always failed on the same cases or at random. The benchmark now replays
+OpenClaw N times and compares each run with one of the last N runs of the ADK
+agent, made the same day. It reads the calls and the answer from the trajectory
+each session leaves in OpenClaw, no longer from a relay that a misconfigured
+`baseUrl` bypassed without error, and it stops on a session with neither call
+nor answer instead of counting it as a model failure.
+
+Over three runs, OpenClaw answers five cases out of ten correctly, always the
+same ones, against ten for the agent: tool calls are almost identical from one
+run to the next, only the wording varies. Repeating the same questions
+therefore measures wording noise, not how robust the choice of arguments is.
+
+Two failures did not need the question to be corrected. A superlative turned
+into `limit` 1 cut a tie that the model kept quiet about despite the flag: with
+`best_only`, a limit below thirty is now raised to thirty. The model answered
+in English although the server also gave it the French names: the eleven
+structured tools take `english_names`, false by default, and otherwise return
+only the French labels. The ADK guard sets this argument from the question, and
+the schema view shown to the ADK model hides it: adding it pushed a long TM list
+over the context budget.
+
+OpenClaw rises to nine, eight and nine, and the agent still passes all 48 cases
+of the campaign. Ties and English names are corrected by mechanism; two filter
+cases pass too, but through different arguments that these fixes did not
+target. The misspelt name still fails: correcting it requires reading the
+question. Offering the model the closest names to an unknown one was tried and
+removed, since OpenClaw never called the tool again and invented the suggested
+Pokémon's stats.

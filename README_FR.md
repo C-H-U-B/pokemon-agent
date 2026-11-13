@@ -39,8 +39,8 @@ Les douze outils du projet (moteur SQL et recherche Poképédia) sont aussi serv
 | Base relationnelle | 35 tables, 56 index, 8 vues ; 638 000 lignes d'apprentissage de capacités sur 26 groupes de jeux |
 | Référentiel | 1 025 espèces, 1 351 Pokémon, 1 579 formes, 937 capacités |
 | Index documentaire | 36 280 fragments vectorisés |
-| Tests | 1 653 tests, dont 1 519 sans aucun modèle |
-| Campagne de bout en bout | 46 questions sur 48 réussies avec Qwen3-VL 8B en local, sur 2 exécutions le 13 octobre 2026 (campagne structurée) |
+| Tests | 1 659 tests, dont 1 525 sans aucun modèle |
+| Campagne de bout en bout | 48 questions sur 48 réussies avec Qwen3-VL 8B en local, sur 2 exécutions le 13 novembre 2026 (campagne structurée) |
 
 ## Flux de données
 
@@ -90,7 +90,7 @@ Chaque fragment garde le Pokémon, le fichier source et le chemin de section don
 - **Tests sur les données réelles.** Le rapprochement, les formes par défaut, les évolutions et les capacités sont vérifiés sur la base construite.
 - **Tests sur catalogue contrôlé.** La logique SQL est testée sur de petites bases SQLite créées pour chaque test, avec des cas adverses : identifiants dans le désordre, valeurs nulles, égalités, formes manquantes.
 - **Isolation.** Les tests légers échouent s'ils ouvrent les bases du projet ou chargent un modèle. Le moteur SQL n'importe aucun client de modèle, ce qu'un test vérifie.
-- **Intégration continue.** À chaque push, GitHub Actions installe le projet sur une machine vierge, lance le contrôle statique et les 1 247 tests qui ne dépendent ni des données locales ni d'un modèle.
+- **Intégration continue.** À chaque push, GitHub Actions installe le projet sur une machine vierge, lance le contrôle statique et les 1 253 tests qui ne dépendent ni des données locales ni d'un modèle.
 
 Une anomalie de données rencontrée en cours de route illustre l'intérêt de ces contrôles : le jeu le plus récent n'utilise qu'une seule méthode d'apprentissage, si bien qu'une recherche de capacités par niveau y renvoyait une liste vide pour plus de 300 Pokémon. La sélection du jeu tient désormais compte de la méthode demandée.
 
@@ -123,7 +123,7 @@ Résultats de la campagne quand elle comptait 31 questions (2 octobre 2026, Qwen
 
 La campagne s'est ensuite enrichie de mots ordinaires qui ne doivent pas devenir des contraintes, de listes dont la réponse est contrôlée et de noms mal orthographiés ; son dernier résultat est dans le tableau « En bref », recalculé depuis les runs enregistrés par `scripts/campaign_result.py`.
 
-Ce que vaut ce contrôle a été mesuré face à un agent généraliste, avec le même modèle et les mêmes outils : [OpenClaw](integrations/openclaw/), qui reçoit les règles d'usage dans son prompt mais aucun contrôle, a répondu juste à 4 des 10 questions à contraintes de la campagne, contre 10 sur 10 pour l'agent (13 novembre 2026, une exécution). Les échecs : un nom mal écrit transmis tel quel, des filtres inventés ou oubliés, un ex aequo coupé par une limite inventée, des noms de capacités en anglais. Les trois premiers sont corrigés par le contrôle, le dernier est évité en ne montrant au modèle que les libellés français.
+Ce que vaut ce contrôle a été mesuré face à un agent généraliste, avec le même modèle et les mêmes outils : [OpenClaw](integrations/openclaw/), qui reçoit les règles d'usage dans son prompt mais aucun contrôle, a répondu juste à 5 des 10 questions à contraintes de la campagne à chacune de trois exécutions, toujours sur les mêmes cas, contre 10 sur 10 pour l'agent (13 novembre 2026). Deux correctifs côté serveur, utiles à tout client, l'ont porté à 9, 8 et 9 : un superlatif ne coupe plus un ex aequo, et les noms anglais ne sont renvoyés que sur demande. Les échecs restants, un argument oublié ou inventé et un nom mal écrit, ne se corrigent qu'en lisant la question : c'est le rôle du contrôle, que le serveur ne peut pas tenir. Proposer au modèle le nom proche d'un nom inconnu a été essayé puis retiré : OpenClaw ne relançait pas l'outil et inventait les statistiques du nom proposé.
 
 Chaque cause a été isolée avant d'être corrigée, en distinguant erreur de données, erreur de test et erreur d'orchestration. Le récit complet est dans [l'historique de développement](DEVELOPMENT_FR.md).
 
