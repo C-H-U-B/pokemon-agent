@@ -1,30 +1,33 @@
 """OpenClaw (sans guard) contre l'agent ADK (avec guard) sur des cas à contraintes de la campagne structurée.
 
 Même modèle des deux côtés (Qwen dans LM Studio). Côté OpenClaw, chaque question part par `openclaw agent`
-dans une session neuve ; le relais (`scripts/openclaw_relay.py`), lancé ici sur le port 1235, enregistre ce
-que reçoit et renvoie le modèle, d'où l'on tire les appels d'outils et la réponse. Côté ADK, les mêmes cas
+dans une session neuve ; ses appels d'outils et sa réponse sont lus dans la trajectoire que la session laisse
+(`openclaw sessions export-trajectory`), quel que soit le `baseUrl` configuré. Côté ADK, les mêmes cas
 sont relus dans le dernier run de `test_results/adk_structured_database_e2e.jsonl` qui les contient tous.
 Un seul correcteur pour les deux : outil attendu appelé, arguments attendus (ceux exécutés ; pour ADK, aussi
 ceux proposés par Qwen avant le guard), termes attendus présents et termes interdits absents de la réponse.
 
-Appelle un LLM : à lancer par l'utilisateur. Prérequis : LM Studio servi sur 1234 avec le modèle chargé,
-gateway OpenClaw démarré, `models.providers.lmstudio.baseUrl` d'OpenClaw = http://localhost:1235/v1.
+Appelle un LLM : à lancer par l'utilisateur. Prérequis : LM Studio servi avec le modèle chargé, gateway
+OpenClaw démarré.
 
-    python benchmarks/benchmark_openclaw_vs_adk.py
+    python benchmarks/benchmark_openclaw_vs_adk.py --repeat 3
+
+Avec `--repeat N`, la i-ème exécution d'OpenClaw est comparée au i-ème des N derniers runs ADK contenant
+les dix cas : rejouer d'abord la campagne ADK N fois sur ces cas, le même jour, pour comparer à conditions égales.
 """
 from __future__ import annotations
 
 import argparse
+import asyncio
 import importlib.util
 import json
 import shutil
+import statistics
 import subprocess
 import sys
 import tempfile
-import threading
 import time
 from datetime import datetime
-from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -58,14 +61,17 @@ def grade(case, calls: list[dict], answer: str, e2e) -> dict:
     }
 
 
-def adk_reference(cases) -> tuple[str, dict]:
+def adk_reference(cases, count: int = 1) -> list[tuple[str, dict]]:
+    """Les `count` derniers runs de la campagne ADK qui contiennent tous les cas, du plus ancien au plus récent."""
     rows = [json.loads(line) for line in (RESULTS / "adk_structured_database_e2e.jsonl").open(encoding="utf-8")
             if line.strip()]
     by_run: dict[str, dict] = {}
     for row in rows:
         by_run.setdefault(row["run_id"], {})[row["case_id"]] = row
-    run = max(r for r, found in by_run.items() if all(c.id in found for c in cases))
-    return run, by_run[run]
+    runs = sorted(r for r, found in by_run.items() if all(c.id in found for c in cases))[-count:]
+    if len(runs) < count:
+        sys.exit(f"{count} runs ADK demandés, {len(runs)} contiennent les {len(cases)} cas")
+    return [(r, by_run[r]) for r in runs]
 
 
 def adk_calls(row: dict) -> tuple[list[dict], list[dict]]:
@@ -76,130 +82,147 @@ def adk_calls(row: dict) -> tuple[list[dict], list[dict]]:
     return executed, proposed
 
 
-def _stream_message(raw: str) -> tuple[str, list[dict]]:
-    """Texte et appels d'outils d'une réponse SSE de type OpenAI."""
-    text, calls = "", {}
-    for line in raw.splitlines():
-        if not line.startswith("data: {"):
-            continue
-        for choice in json.loads(line[6:]).get("choices", []):
-            delta = choice.get("delta") or {}
-            text += delta.get("content") or ""
-            for tc in delta.get("tool_calls") or []:
-                slot = calls.setdefault(tc.get("index", 0), {"name": "", "arguments": ""})
-                fn = tc.get("function") or {}
-                slot["name"] += fn.get("name") or ""
-                slot["arguments"] += fn.get("arguments") or ""
-    return text, [{"name": c["name"], "args": json.loads(c["arguments"] or "{}")} for c in calls.values()]
+def tool_defaults() -> dict[str, dict]:
+    """Défauts des arguments, lus dans les schémas du serveur MCP : l'export d'OpenClaw tronque `tools.json`."""
+    from pokemon_rag.mcp.server import mcp
+    return {t.name: {k: p["default"] for k, p in t.input_schema.get("properties", {}).items() if "default" in p}
+            for t in asyncio.run(mcp.list_tools())}
 
 
-def openclaw_transcript(capture_dir: Path, session_id: str | None = None) -> tuple[list[dict], str]:
-    """Appels d'outils (préfixe du serveur retiré) et réponse finale, lus dans les captures du relais.
+def trajectory_calls(events: list[dict], defaults: dict[str, dict]) -> tuple[list[dict], str]:
+    """Appels d'outils (préfixe du serveur retiré) et réponse finale d'une trajectoire OpenClaw exportée.
 
-    Comme dans la campagne ADK, un argument omis vaut son défaut de schéma (lu dans la requête capturée).
-    Avec `session_id`, les requêtes d'une autre session (reprise par le gateway au démarrage) sont ignorées.
+    Comme dans la campagne ADK, un argument omis vaut son défaut de schéma.
     """
     calls, answer = [], ""
-    for resp in sorted(capture_dir.glob("*.resp.txt")):
-        raw_request = resp.with_name(resp.name.replace(".resp.txt", ".json")).read_text(encoding="utf-8")
-        request = json.loads(raw_request)
-        if not request.get("tools"):  # titre de session, compaction : hors tour d'agent
+    for e in events:
+        if e.get("source") != "transcript":
             continue
-        if session_id and f":{session_id}" not in raw_request:
-            continue
-        defaults = {t["function"]["name"]: {k: p["default"] for k, p in
-                                            t["function"].get("parameters", {}).get("properties", {}).items()
-                                            if "default" in p}
-                    for t in request["tools"]}
-        text, made = _stream_message(resp.read_text(encoding="utf-8", errors="replace"))
-        calls += [{"name": c["name"].removeprefix(TOOL_PREFIX), "args": {**defaults.get(c["name"], {}), **c["args"]}}
-                  for c in made]
-        if text.strip() and not made:
-            answer = text
+        if e["type"] == "tool.call":
+            name = e["data"]["name"].removeprefix(TOOL_PREFIX)
+            calls.append({"name": name, "args": {**defaults.get(name, {}), **(e["data"].get("arguments") or {})}})
+        elif e["type"] == "assistant.message":
+            content = e["data"]["message"].get("content") or []
+            if not any(c.get("type") == "toolCall" for c in content):
+                answer = "".join(c.get("text", "") for c in content if c.get("type") == "text") or answer
     return calls, answer
+
+
+def openclaw_transcript(session: str, export_root: Path, defaults: dict[str, dict]) -> tuple[list[dict], str]:
+    """Trajectoire de la session `session`, exportée par `openclaw sessions export-trajectory` (lecture seule)."""
+    folder = export_root / ".openclaw" / "trajectory-exports" / session
+    if not folder.exists():  # l'export refuse un dossier existant
+        export_root.mkdir(parents=True, exist_ok=True)
+        subprocess.run([shutil.which("openclaw"), "sessions", "export-trajectory", "--session-key",
+                        f"agent:main:explicit:{session}", "--output", session, "--workspace", str(export_root)],
+                       capture_output=True, timeout=120, check=True)
+    events = [json.loads(line) for line in (folder / "events.jsonl").open(encoding="utf-8") if line.strip()]
+    return trajectory_calls(events, defaults)
 
 
 def session_id(case, run_tag: str) -> str:
     return f"eval-{case.id}-{run_tag}"
 
 
-def run_openclaw(case, run_tag: str, capture_dir: Path, relay_module, timeout: int) -> float:
-    capture_dir.mkdir(parents=True, exist_ok=True)
-    server = ThreadingHTTPServer(("127.0.0.1", 1235),
-                                 relay_module.make_handler(capture_dir, "http://localhost:1234", False))
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    message = capture_dir / "question.txt"
+def run_openclaw(case, session: str, work_dir: Path, timeout: int) -> float:
+    work_dir.mkdir(parents=True, exist_ok=True)
+    message = work_dir / f"{session}.txt"
     message.write_text(case.question, encoding="utf-8")
     started = time.monotonic()
-    try:
-        subprocess.run([shutil.which("openclaw"), "agent", "--session-id", session_id(case, run_tag),
-                        "--message-file", str(message), "--timeout", str(timeout)],
-                       capture_output=True, timeout=timeout + 60, check=False)
-    finally:
-        server.shutdown()
-        server.server_close()
+    done = subprocess.run([shutil.which("openclaw"), "agent", "--session-id", session,
+                           "--message-file", str(message), "--timeout", str(timeout)],
+                          capture_output=True, text=True, encoding="utf-8", errors="replace",
+                          timeout=timeout + 60, check=False)
+    if done.returncode:
+        print(f"    openclaw agent : code {done.returncode}\n{done.stderr[-800:]}", flush=True)
     return time.monotonic() - started
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--timeout", type=int, default=600, help="délai maximal d'un cas, en secondes")
+    parser.add_argument("--repeat", type=int, default=1,
+                        help="exécutions d'OpenClaw ; la i-ème est comparée au i-ème des N derniers runs ADK complets")
     args = parser.parse_args()
     if shutil.which("openclaw") is None:
         sys.exit("openclaw introuvable dans le PATH")
 
     e2e = _load(ROOT / "tests" / "long" / "test_adk_structured_database_e2e.py", "adk_structured_e2e")
-    relay = _load(ROOT / "scripts" / "openclaw_relay.py", "openclaw_relay")
     cases = [c for c in e2e.CASES if c.id in CASE_IDS]
-    adk_run, adk_rows = adk_reference(cases)
+    adk_runs = adk_reference(cases, args.repeat)
+    defaults = tool_defaults()
     run_id = datetime.now().astimezone().isoformat(timespec="seconds")
-    run_tag = datetime.now().strftime("%Y%m%d%H%M%S")
     capture_root = Path(tempfile.mkdtemp(prefix="openclaw_eval_"))
 
     records = []
-    for i, case in enumerate(cases, 1):
-        print(f"[{i}/{len(cases)}] {case.id} : {case.question}", flush=True)
-        elapsed = run_openclaw(case, run_tag, capture_root / case.id, relay, args.timeout)
-        calls, answer = openclaw_transcript(capture_root / case.id, session_id(case, run_tag))
-        adk = adk_rows[case.id]
-        adk_executed, adk_proposed = adk_calls(adk)
-        record = {
-            "run_id": run_id, "case_id": case.id, "question": case.question, "adk_run_id": adk_run,
-            "openclaw": {"elapsed_seconds": round(elapsed, 1), "tool_calls": calls, "final_answer": answer,
-                         **grade(case, calls, answer, e2e)},
-            "adk": {"elapsed_seconds": adk["elapsed_seconds"], "final_answer": adk["final_answer"],
-                    "proposed_args_ok": grade(case, adk_proposed, "", e2e)["args_ok"],
-                    **grade(case, adk_executed, adk["final_answer"], e2e)},
-        }
-        records.append(record)
-        oc = record["openclaw"]
-        print(f"    OpenClaw : réponse {'juste' if oc['answer_ok'] else 'FAUSSE'}, "
-              f"arguments {'conformes' if oc['args_ok'] else oc['wrong_args']}, {oc['elapsed_seconds']} s", flush=True)
+    for rep, (adk_run, adk_rows) in enumerate(adk_runs, 1):
+        run_tag = f"{datetime.now():%Y%m%d%H%M%S}r{rep}"
+        for i, case in enumerate(cases, 1):
+            print(f"[exécution {rep}/{args.repeat}, cas {i}/{len(cases)}] {case.id} : {case.question}", flush=True)
+            session = session_id(case, run_tag)
+            elapsed = run_openclaw(case, session, capture_root, args.timeout)
+            calls, answer = openclaw_transcript(session, capture_root, defaults)
+            if not calls and not answer:  # le silence n'est pas un échec du modèle : arrêter la mesure
+                sys.exit(f"Session {session} sans appel ni réponse : vérifier LM Studio et le gateway.")
+            adk = adk_rows[case.id]
+            adk_executed, adk_proposed = adk_calls(adk)
+            record = {
+                "run_id": run_id, "repetition": rep, "case_id": case.id, "question": case.question,
+                "adk_run_id": adk_run,
+                "openclaw": {"elapsed_seconds": round(elapsed, 1), "tool_calls": calls, "final_answer": answer,
+                             **grade(case, calls, answer, e2e)},
+                "adk": {"elapsed_seconds": adk["elapsed_seconds"], "final_answer": adk["final_answer"],
+                        "proposed_args_ok": grade(case, adk_proposed, "", e2e)["args_ok"],
+                        **grade(case, adk_executed, adk["final_answer"], e2e)},
+            }
+            records.append(record)
+            oc = record["openclaw"]
+            print(f"    OpenClaw : réponse {'juste' if oc['answer_ok'] else 'FAUSSE'}, "
+                  f"arguments {'conformes' if oc['args_ok'] else oc['wrong_args']}, {oc['elapsed_seconds']} s",
+                  flush=True)
 
     RESULTS.mkdir(exist_ok=True)
     with (RESULTS / "openclaw_vs_adk.jsonl").open("a", encoding="utf-8") as f:
         for record in records:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    lines = report(records, run_id, capture_root)
+    (RESULTS / "openclaw_vs_adk.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print("\n".join(lines[-2:]))
+    print(f"Rapport : {RESULTS / 'openclaw_vs_adk.md'}")
 
-    def total(agent, key):
-        return sum(r[agent][key] for r in records)
+
+def report(records: list[dict], run_id: str, capture_root) -> list[str]:
+    """Par cas, réussites sur N exécutions ; puis le score de chaque exécution, pour juger de la variance."""
+    reps = sorted({r.get("repetition", 1) for r in records})
+    by_case: dict[str, list[dict]] = {}
+    for r in records:
+        by_case.setdefault(r["case_id"], []).append(r)
+
+    def count(rows, agent, key):
+        return f"{sum(r[agent][key] for r in rows)}/{len(rows)}"
+
+    def per_rep(agent, key):
+        return ", ".join(str(sum(r[agent][key] for r in records if r.get("repetition", 1) == rep)) for rep in reps)
 
     lines = [f"# OpenClaw contre ADK — {run_id}", "",
-             f"Cas : {len(records)}. ADK relu dans le run {adk_run}. Captures : {capture_root}", "",
-             "| Cas | OpenClaw réponse | OpenClaw arguments | ADK réponse | ADK proposition Qwen | OpenClaw s | ADK s |",
+             f"Cas : {len(by_case)}, exécutions : {len(reps)}. Runs ADK : "
+             f"{', '.join(sorted({r['adk_run_id'] for r in records}))}. Captures : {capture_root}", "",
+             "| Cas | OpenClaw réponse | OpenClaw arguments | ADK réponse | ADK proposition Qwen "
+             "| OpenClaw s (médiane) | ADK s (médiane) |",
              "| --- | --- | --- | --- | --- | --- | --- |"]
-    for r in records:
-        oc, adk = r["openclaw"], r["adk"]
-        lines.append(f"| {r['case_id']} | {'ok' if oc['answer_ok'] else 'KO'} | "
-                     f"{'ok' if oc['args_ok'] else oc['wrong_args']} | {'ok' if adk['answer_ok'] else 'KO'} | "
-                     f"{'ok' if adk['proposed_args_ok'] else 'corrigée'} | {oc['elapsed_seconds']} | {adk['elapsed_seconds']} |")
-    lines += ["", f"Réponses justes : OpenClaw {total('openclaw', 'answer_ok')}/{len(records)}, "
-                  f"ADK {total('adk', 'answer_ok')}/{len(records)}. Arguments exécutés conformes : OpenClaw "
-                  f"{total('openclaw', 'args_ok')}, ADK {total('adk', 'args_ok')} ; proposition Qwen conforme "
-                  f"chez ADK : {total('adk', 'proposed_args_ok')}."]
-    (RESULTS / "openclaw_vs_adk.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print("\n".join(lines[-1:]))
-    print(f"Rapport : {RESULTS / 'openclaw_vs_adk.md'}")
+    for case_id, rows in by_case.items():
+        wrong = [r["openclaw"]["wrong_args"] for r in rows if not r["openclaw"]["args_ok"]]
+        lines.append(f"| {case_id} | {count(rows, 'openclaw', 'answer_ok')} | {count(rows, 'openclaw', 'args_ok')}"
+                     f"{' ' + str(wrong[0]) if wrong else ''} | {count(rows, 'adk', 'answer_ok')} | "
+                     f"{count(rows, 'adk', 'proposed_args_ok')} | "
+                     f"{statistics.median(r['openclaw']['elapsed_seconds'] for r in rows)} | "
+                     f"{statistics.median(r['adk']['elapsed_seconds'] for r in rows)} |")
+    lines += ["", f"Réponses justes sur {len(by_case)}, par exécution : OpenClaw {per_rep('openclaw', 'answer_ok')} ; "
+                  f"ADK {per_rep('adk', 'answer_ok')}.",
+              f"Arguments exécutés conformes, par exécution : OpenClaw {per_rep('openclaw', 'args_ok')} ; "
+              f"ADK {per_rep('adk', 'args_ok')} ; proposition Qwen conforme chez ADK : "
+              f"{per_rep('adk', 'proposed_args_ok')}."]
+    return lines
 
 
 if __name__ == "__main__":
