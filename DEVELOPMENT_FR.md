@@ -2368,3 +2368,36 @@ comptait six réussites : deux cas n'attendaient aucun terme et laissaient passe
 une réponse « aucune » et un classement faussé par un filtre inventé. Ces deux
 cas attendent désormais les résultats lus dans la base, et le benchmark compare
 les termes avec la fonction de la campagne au lieu d'une copie moins stricte.
+
+## 111. [Feature] Ce que le serveur peut corriger sans guard
+
+Un score de quatre sur dix tiré d'une seule exécution ne disait pas si
+OpenClaw échouait toujours sur les mêmes cas ou au hasard. Le benchmark rejoue
+désormais N fois OpenClaw et compare chaque exécution à l'un des N derniers runs
+de l'agent ADK, faits le même jour. Il lit les appels et la réponse dans la
+trajectoire que chaque session laisse à OpenClaw, et non plus dans un relais
+qu'un `baseUrl` mal réglé contournait sans erreur, et il s'arrête sur une
+session sans appel ni réponse au lieu de la compter comme un échec du modèle.
+
+Sur trois exécutions, OpenClaw répond juste à cinq cas sur dix, toujours les
+mêmes, contre dix pour l'agent : les appels d'outils sont presque identiques
+d'une exécution à l'autre, seule la rédaction varie. Répéter les mêmes questions
+mesure donc le bruit de rédaction, pas la robustesse du choix des arguments.
+
+Deux échecs ne demandaient pas la question pour être corrigés. Un superlatif
+traduit en `limit` 1 coupait un ex aequo que le modèle taisait malgré le
+signalement : avec `best_only`, une limite inférieure à trente est maintenant
+relevée à trente. Le modèle répondait en anglais alors que le serveur lui
+donnait aussi les noms français : les onze outils structurés prennent
+`english_names`, faux par défaut, et ne renvoient sinon que les libellés
+français. Le guard ADK fixe cet argument d'après la question, et la vue des
+schémas présentée au modèle ADK le masque : son ajout faisait dépasser le
+budget de contexte sur une longue liste de CT.
+
+OpenClaw passe à neuf, huit et neuf, et l'agent réussit toujours les 48 cas de
+la campagne. Les ex aequo et les noms anglais sont corrigés par mécanisme ; deux
+cas de filtres passent aussi, mais par des arguments différents que ces
+correctifs ne visaient pas. Le nom mal écrit reste en échec : il faut lire la
+question pour le corriger. Proposer au modèle les noms proches d'un nom inconnu
+a été essayé puis retiré, car OpenClaw ne relançait pas l'outil et inventait
+les statistiques du nom proposé.

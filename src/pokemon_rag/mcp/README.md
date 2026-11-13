@@ -163,12 +163,17 @@ IDENTITY.md et USER.md réduits à une ligne). Deux autres voies, vérifiées pa
 n'est lu que si le modèle appelle `skills_read`, un appel de plus par question ; les `instructions`
 du serveur MCP ne sont pas transmises au modèle. `benchmarks/benchmark_openclaw_vs_adk.py` pose à
 OpenClaw dix cas à contraintes de la campagne structurée ADK et les note avec les critères de cette
-campagne, relue pour ADK. Le 13 novembre (1 exécution) : 4 réponses justes sur 10, contre 10 sur 10
-pour ADK (le premier correcteur en comptait 6 : deux cas sans terme attendu laissaient passer une
-réponse fausse ; ils attendent désormais les résultats de la base). Échecs : nom mal écrit transmis tel quel, filtres inventés (`version_group`,
-`evolution_stage`, `max_power`) ou oubliés (`damage_class`), `limit` 1 sur un ex aequo, noms de
-capacités en anglais malgré des arguments justes. Le guard ADK corrige les premiers ; la projection
-ADK, qui masque les traductions anglaises, évite le dernier. Les règles étaient dans le prompt.
+campagne, relue pour ADK. Les appels et la réponse d'OpenClaw sont lus dans
+la trajectoire de chaque session (`openclaw sessions export-trajectory`), quel que soit le `baseUrl` ;
+`--repeat N` compare N exécutions aux N derniers runs ADK, `--cases` restreint les cas. Le 13 novembre,
+sur 3 exécutions : 5, 5, 5 réponses justes sur 10, toujours les mêmes cas, contre 10 sur 10 pour ADK ;
+les appels d'outils étaient identiques d'une exécution à l'autre sur 9 cas sur 10, seule la rédaction
+variait. Échecs : nom mal écrit transmis tel quel, filtres inventés (`evolution_stage`, `max_power`)
+ou oubliés (`damage_class`), `limit` 1 sur un ex aequo, noms en anglais malgré les noms français reçus.
+Après les deux correctifs serveur (`best_only` qui ne coupe plus d'ex aequo, `english_names`) : 9, 8, 9,
+ADK 48 sur 48 sur la campagne complète. Les ex aequo et les noms anglais sont corrigés par mécanisme ; les
+deux cas de filtres passent aussi, mais par des arguments différents que les correctifs ne visaient pas.
+Le nom mal écrit reste en échec : il faut la question pour le corriger, ce que fait le guard ADK.
 
 Après installation du projet dans l'environnement :
 
