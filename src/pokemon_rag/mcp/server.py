@@ -7,6 +7,7 @@ Les diagnostics du serveur doivent utiliser stderr pour préserver le stdio MCP.
 
 from __future__ import annotations
 
+import inspect
 import os
 import sys
 import threading
@@ -32,6 +33,7 @@ from pokemon_rag.structured.query_engine import (
     get_pokemon_types,
     get_signature_moves,
     get_pokemon_moves,
+    french_fields,
     search_pokemon,
 )
 
@@ -58,15 +60,32 @@ class EngineRefusal(ToolError, ValueError):
     """
 
 
-def _refusals_to_model(tool):
+_ENGLISH_NAMES = inspect.Parameter(
+    "english_names", inspect.Parameter.KEYWORD_ONLY, default=False,
+    annotation=Annotated[bool, Field(description="Noms anglais en plus ; seulement si la question les demande.")])
+
+
+def _structured_tool(tool):
+    """Outil du moteur structuré : refus transmis au modèle, noms anglais seulement sur demande.
+
+    Avec les deux langues, un client sans projection (OpenClaw, 13 novembre) répondait en anglais
+    malgré les noms français reçus ; `english_names` les rend explicites et désactivés par défaut.
+    """
+    signature = inspect.signature(tool, eval_str=True)  # __signature__ court-circuite la résolution des annotations
+
     @wraps(tool)
-    def call(*args, **kwargs):
+    def call(*args, english_names: bool = False, **kwargs):
         try:
-            return tool(*args, **kwargs)
+            result = tool(*args, **kwargs)
         except EngineRefusal:
             raise
         except ValueError as exc:
             raise EngineRefusal(str(exc)) from exc
+        return result if english_names else french_fields(result)
+
+    call.__signature__ = signature.replace(parameters=[*signature.parameters.values(), _ENGLISH_NAMES])
+    call.__annotations__ = {**{n: p.annotation for n, p in signature.parameters.items()},
+                            "english_names": _ENGLISH_NAMES.annotation, "return": signature.return_annotation}
     return call
 
 # Seuls le premier paragraphe d'une docstring et les descriptions d'arguments
@@ -76,7 +95,7 @@ def _refusals_to_model(tool):
 
 
 @mcp.tool()
-@_refusals_to_model
+@_structured_tool
 def pokemon_search(
     pokedex_number: Annotated[int | None, Field(description="Numéro national → son Pokémon.")] = None,
     generation: int | None = None,
@@ -144,7 +163,7 @@ def pokemon_search(
 
 
 @mcp.tool()
-@_refusals_to_model
+@_structured_tool
 def pokemon_moves(
     pokemon: str, form: str | None = None, version_group: str | None = None,
     move_type: str | None = None,
@@ -180,7 +199,7 @@ def pokemon_moves(
 
 
 @mcp.tool()
-@_refusals_to_model
+@_structured_tool
 def pokemon_evolutions(
     pokemon: str,
     form: str | None = None,
@@ -201,7 +220,7 @@ def pokemon_evolutions(
 
 
 @mcp.tool()
-@_refusals_to_model
+@_structured_tool
 def pokemon_level_up_moves(
     pokemon: str,
     form: str | None = None,
@@ -230,7 +249,7 @@ def pokemon_level_up_moves(
 
 
 @mcp.tool()
-@_refusals_to_model
+@_structured_tool
 def pokemon_move_learning_methods(
     pokemon: str,
     move: str,
@@ -256,7 +275,7 @@ def pokemon_move_learning_methods(
 
 
 @mcp.tool()
-@_refusals_to_model
+@_structured_tool
 def pokemon_machine_moves(
     pokemon: str,
     form: str | None = None,
@@ -280,7 +299,7 @@ def pokemon_machine_moves(
 
 
 @mcp.tool()
-@_refusals_to_model
+@_structured_tool
 def pokemon_types(
     pokemon: str,
     form: str | None = None,
@@ -301,7 +320,7 @@ def pokemon_types(
 
 
 @mcp.tool()
-@_refusals_to_model
+@_structured_tool
 def pokemon_base_stats(
     pokemon: str,
     form: str | None = None,
@@ -316,7 +335,7 @@ def pokemon_base_stats(
 
 
 @mcp.tool()
-@_refusals_to_model
+@_structured_tool
 def pokemon_particularities(
     pokemon: str,
     form: str | None = None,
@@ -340,7 +359,7 @@ def pokemon_particularities(
 
 
 @mcp.tool()
-@_refusals_to_model
+@_structured_tool
 def pokemon_pokedex_identity(
     pokemon: str,
     form: str | None = None,
@@ -365,7 +384,7 @@ def pokemon_pokedex_identity(
 
 
 @mcp.tool()
-@_refusals_to_model
+@_structured_tool
 def pokemon_signature_moves(
     pokemon: str,
     form: str | None = None,

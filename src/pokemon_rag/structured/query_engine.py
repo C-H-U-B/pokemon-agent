@@ -380,6 +380,10 @@ def search_pokemon(
         # « mega » seul ne nomme pas une forme : « mega-x », « mega-y », « mega-z » lui échappaient.
         form, form_category = None, "mega"
     _page_arguments(limit, offset)
+    if best_only is True and 0 < limit < 30:
+        # Un superlatif renvoie tous ses gagnants : « le plus lourd » traduit en limit=1 coupait un ex aequo
+        # que le modèle taisait malgré tie=true (OpenClaw, 13 novembre). Au-delà de 30, la pagination reste.
+        limit = 30
     _bounded_integer("pokedex_number", pokedex_number, 1)
     _bounded_integer("generation", generation, 1)
     sort_by, stat_expression, stat_label = _stat_sort(sort_by)
@@ -725,6 +729,17 @@ def validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
 def _language_ids(conn: sqlite3.Connection) -> tuple[int | None, int | None]:
     row = conn.execute("SELECT fr, en FROM language_ids").fetchone()
     return (row["fr"], row["en"]) if row else (None, None)
+
+
+def french_fields(value: Any) -> Any:
+    """Masque les traductions anglaises seulement quand leur paire française existe."""
+    if isinstance(value, list):
+        return [french_fields(item) for item in value]
+    if isinstance(value, dict):
+        return {key: french_fields(item) for key, item in value.items()
+                if not ((key.endswith("_en") and value.get(key[:-3] + "_fr"))
+                        or (key == "en" and value.get("fr")))}
+    return value
 
 
 def _resolve_species(conn: sqlite3.Connection, name: str) -> sqlite3.Row:

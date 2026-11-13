@@ -159,6 +159,15 @@ def normalize(text: str | None) -> str:
     return re.sub(r"[^a-z0-9]+", "-", value).strip("-")
 
 
+def english_requested(question: str) -> bool:
+    """La question demande-t-elle les noms anglais (« en anglais », « bilingue ») sans les exclure ?"""
+    text = normalize(question)
+    if re.search(r"(?:^|-)(?:pas|sans|aucun|jamais)-(?:de-|d-|les-|le-|des-)?(?:noms?-)?anglais", text):
+        return False
+    return bool(re.search(r"(?:^|-)(?:(?:en|noms?|termes?|traduction)-anglais(?:e|s|es)?|"
+                          r"francais-et-anglais|bilingue)(?:-|$)", text))
+
+
 def _one_edit(word: str, name: str) -> bool:
     """Une seule faute de frappe sépare word de name : lettre changée, ajoutée, oubliée ou deux voisines inversées."""
     if len(word) == len(name):

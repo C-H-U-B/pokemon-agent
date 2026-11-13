@@ -140,8 +140,10 @@ contrôlée de façon déterministe. Le reste de leur respect par Qwen doit êtr
 vérifié manuellement.
 Les outils de capacités renvoient aussi `name_en` ; les groupes de versions
 restent des identifiants techniques, sans table de traductions dans la base actuelle.
-L'adaptation des résultats ADK masque récursivement les champs `*_en` ou `en` lorsqu'un
-champ `*_fr` correspondant est renseigné, sauf demande explicite d'anglais.
+Le serveur ne renvoie ces champs que si `english_names` est vrai : le guard le fixe à vrai sur
+demande explicite d'anglais et retire sinon une valeur proposée par le modèle, qui ne voit pas
+l'argument. L'adaptation des résultats ADK masque en plus récursivement les champs `*_en` ou `en`
+lorsqu'un champ `*_fr` correspondant est renseigné, sauf demande explicite d'anglais.
 Les noms sans traduction française sont conservés ;
 les réponses originales du serveur MCP restent inchangées.
 Les instructions exigent pour chaque classement le nom français et la valeur

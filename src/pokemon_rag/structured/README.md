@@ -124,9 +124,10 @@ Pour un superlatif singulier, utiliser `best_only=True` avec un tri statistique.
 SQL calcule MIN (`asc`) ou MAX (`desc`) après tous les filtres, puis sélectionne
 tous les gagnants au seuil. `best_value`, `tie`, `tie_count` et `matching_count`
 indiquent valeur gagnante, égalité, nombre de gagnants et nombre de candidats
-avec une valeur connue. `total_count` compte alors les gagnants ; pagination
-et `limit` restent applicables à cet ensemble. Une page contenant un seul nom
-peut donc avoir `tie=true`. Sans candidat : `best_value=null`, aucun résultat,
+avec une valeur connue. `total_count` compte alors les gagnants. Une `limit`
+entre 1 et 29 y est relevée à 30 : « le plus lourd » traduit en `limit=1` ne coupe
+plus un ex aequo. Au-delà de 30 gagnants, la pagination s'applique et une page
+peut avoir `tie=true` sans tous les noms. Sans candidat : `best_value=null`, aucun résultat,
 `tie=false`, comptes à zéro. Les clients doivent signaler les ex aequo et toute
 page partielle, sans compléter les noms manquants de mémoire.
 

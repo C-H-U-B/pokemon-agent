@@ -182,16 +182,18 @@ def test_mega_category_and_exact_form_are_intersected_without_default_fallback(s
     assert names(winners) == ["Méga-Mewtwo Y"]
 
 
-def test_best_only_detects_ties_even_when_page_shows_one_winner(stat_catalogue):
+def test_best_only_returns_every_winner_even_when_the_model_asks_for_one(stat_catalogue):
     args = {"types":["fire"],"generation":1,"sort_by":"speed","sort_order":"desc","best_only":True}
     complete = engine.search_pokemon(**args)
     assert names(complete) == ["Dracaufeu","Feunard"]
+    # « Le plus rapide » traduit en limit=1 : l'ex aequo n'est plus coupé.
     first = engine.search_pokemon(**args, limit=1)
-    assert names(first) == ["Dracaufeu"]
+    assert names(first) == ["Dracaufeu","Feunard"]
     assert first["tie"] and first["tie_count"] == 2 and first["best_value"] == 100
-    assert first["matching_count"] == 2 and first["truncated"] and first["has_more"]
-    assert names(engine.search_pokemon(**args, limit=1, offset=1)) == ["Feunard"]
+    assert first["matching_count"] == 2 and not first["truncated"] and not first["has_more"]
     assert engine.search_pokemon(**args, limit=0)["total_count"] == 2
+    # Un top N explicite (best_only=False) garde sa limite.
+    assert len(names(engine.search_pokemon(**{**args, "best_only": False}, limit=1))) == 1
 
 
 def test_total_uses_six_fields_not_stored_total_and_excludes_incomplete_rows(stat_catalogue):

@@ -84,7 +84,12 @@ async def _check_server() -> None:
             tied = await session.call_tool("pokemon_search", arguments={
                 "form_category":"mega", "sort_by":"speed", "sort_order":"asc", "best_only":True, "limit":1})
             assert not tied.is_error and tied.structured_content["tie_count"] == 2
-            assert tied.structured_content["returned_count"] == 1
+            assert tied.structured_content["returned_count"] == 2  # limit=1 ne coupe pas un superlatif
+            assert all("name_en" not in row for row in tied.structured_content["results"])
+            english = await session.call_tool("pokemon_search", arguments={
+                "form_category":"mega", "sort_by":"speed", "sort_order":"asc", "best_only":True,
+                "english_names":True})
+            assert all(row["name_en"] for row in english.structured_content["results"])
             for invalid_args in ({"sort_by":"sql"}, {"sort_order":"sideways"}, {"form_category":"unknown"}):
                 assert (await session.call_tool("pokemon_search", arguments=invalid_args)).is_error
 
