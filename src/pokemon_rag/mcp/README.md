@@ -158,9 +158,9 @@ IDENTITY.md et USER.md réduits à une ligne). Deux autres voies, vérifiées pa
 n'est lu que si le modèle appelle `skills_read`, un appel de plus par question ; les `instructions`
 du serveur MCP ne sont pas transmises au modèle. `benchmarks/benchmark_openclaw_vs_adk.py` pose à
 OpenClaw dix cas à contraintes de la campagne structurée ADK et les note avec les critères de cette
-campagne, relue pour ADK. Le 13 novembre (1 exécution) : 5 réponses justes sur 10 après relecture
-(6 au correcteur, qui ne voit pas une réponse « aucune » quand le cas n'attend aucun terme), contre
-10 sur 10 pour ADK. Échecs : nom mal écrit transmis tel quel, filtres inventés (`version_group`,
+campagne, relue pour ADK. Le 13 novembre (1 exécution) : 4 réponses justes sur 10, contre 10 sur 10
+pour ADK (le premier correcteur en comptait 6 : deux cas sans terme attendu laissaient passer une
+réponse fausse ; ils attendent désormais les résultats de la base). Échecs : nom mal écrit transmis tel quel, filtres inventés (`version_group`,
 `evolution_stage`, `max_power`) ou oubliés (`damage_class`), `limit` 1 sur un ex aequo, noms de
 capacités en anglais malgré des arguments justes. Le guard ADK corrige les premiers ; la projection
 ADK, qui masque les traductions anglaises, évite le dernier. Les règles étaient dans le prompt.

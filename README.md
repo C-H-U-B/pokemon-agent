@@ -123,7 +123,7 @@ Results of the campaign when it had 31 questions (2 October 2026, Qwen3-VL 8B, o
 
 The campaign then grew with ordinary words that must not become constraints, lists whose answer is checked and misspelt names; its latest result is in the "At a glance" table, recomputed from the recorded runs by `scripts/campaign_result.py`.
 
-What the check is worth was measured against a general-purpose agent with the same model and the same tools: [OpenClaw](integrations/openclaw/), given the usage rules in its prompt but no check, answered 5 of 10 constraint questions from the campaign correctly, against 10 of 10 for the agent (13 November 2026, one run). The misses were a misspelt name passed as is, filters invented or forgotten, a tie cut by an invented limit, and English move names: the first three are corrected by the check, the last is avoided by showing the model only the French labels.
+What the check is worth was measured against a general-purpose agent with the same model and the same tools: [OpenClaw](integrations/openclaw/), given the usage rules in its prompt but no check, answered 4 of 10 constraint questions from the campaign correctly, against 10 of 10 for the agent (13 November 2026, one run). The misses were a misspelt name passed as is, filters invented or forgotten, a tie cut by an invented limit, and English move names: the first three are corrected by the check, the last is avoided by showing the model only the French labels.
 
 Each cause was isolated before being fixed, telling data errors, test errors and orchestration errors apart. The full account is in the [development history](DEVELOPMENT.md).
 

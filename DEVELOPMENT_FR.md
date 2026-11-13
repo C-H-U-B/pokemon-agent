@@ -2358,11 +2358,13 @@ environ 1 800 caractères, et le skill est retiré.
 
 Un benchmark pose ensuite à OpenClaw dix cas à contraintes de la campagne
 structurée et les note avec les critères de cette campagne, relue pour l'agent
-ADK. OpenClaw répond juste à cinq cas sur dix, contre dix pour l'agent. Les
+ADK. OpenClaw répond juste à quatre cas sur dix, contre dix pour l'agent. Les
 règles étaient dans le prompt et n'ont pas été suivies : un nom mal écrit
 transmis tel quel, des filtres inventés ou oubliés, un ex aequo coupé par une
 limite inventée, des capacités nommées en anglais malgré des arguments justes.
 Le guard corrige les trois premiers ; la projection de l'agent, qui ne montre
 au modèle que les libellés français, évite le dernier. Le correcteur automatique
-comptait six réussites : une réponse « aucune » sur un cas sans terme attendu
-lui échappait, d'où une relecture des réponses.
+comptait six réussites : deux cas n'attendaient aucun terme et laissaient passer
+une réponse « aucune » et un classement faussé par un filtre inventé. Ces deux
+cas attendent désormais les résultats lus dans la base, et le benchmark compare
+les termes avec la fonction de la campagne au lieu d'une copie moins stricte.

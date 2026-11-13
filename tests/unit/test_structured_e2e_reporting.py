@@ -235,6 +235,15 @@ def test_expected_and_forbidden_terms_ignore_apostrophe_style_and_match_whole_wo
     assert not passes("Aucun talent connu.")
 
 
+def test_answer_terms_reject_empty_result_and_compare_whole_folded_words(reporting):
+    """Correcteur partagé avec le benchmark OpenClaw : « aucune » ne passe plus sur un cas à résultats."""
+    case = reporting["Case"]("t", "q", "pokemon_moves", {}, ("Hydrocanon", "Ocroupi"), ("Oui",))
+    failures = reporting["answer_term_failures"]
+    assert failures(case, "Nigirigon ne peut apprendre aucune capacité.") == (["Hydrocanon", "Ocroupi"], [])
+    assert failures(case, "HYDROCANON et ocroupi, pour Grenouille.") == ([], [])
+    assert failures(case, "Hydrocanon, Ocroupi. Oui.") == ([], ["Oui"])
+
+
 @pytest.fixture(scope="module")
 def documentary():
     return runpy.run_path(str(Path(__file__).parents[1] / "long/test_adk_documentary_e2e.py"))
