@@ -141,16 +141,29 @@ dans [`integrations/openclaw/`](../../../integrations/openclaw/) ; le canal Disc
 intégrés 16k, fichiers de l'espace de travail ~10k, liste de 23 skills 8k, catalogue de 52 outils
 différés 7k) et cache les outils MCP derrière `tool_search` : la requête dépasse les 16k tokens de
 Qwen. Le profil de l'exemple (`tools.profile: "minimal"` avec `bundle-mcp`, `toolSearch: false`,
-aucun skill fourni ni fichier injecté, outils inutiles interdits) ramène la requête à ~7 100 tokens,
+aucun skill fourni, fichiers de l'espace de travail réduits, outils inutiles interdits) ramène la requête à ~7 100 tokens,
 dont 17k caractères pour 13 outils (`pokemon_search` seul : 4,8k ; OpenClaw transmet les
 descriptions entières, sans l'abrègement ADK). Mesures du 12 novembre, une question de chaque
 sorte : statistiques de Méga-Dracaufeu X et Feu le plus rapide (`best_only=true`, sans ex aequo)
 justes depuis Discord, mais un commentaire non demandé attribue le type Vol à Méga-Dracaufeu X.
 Aucun guard ni grounding : Qwen pilote seul les outils, et le nom passé à l'outil était anglais,
-résolu par les alias du serveur. Ce profil retire aussi du prompt la liste des skills : le skill
-`pokemon-expert` du dossier n'est pas lu. Réponse en ~38 s (choix de l'outil 5,5 s, réponse de
+résolu par les alias du serveur. Réponse en ~38 s (choix de l'outil 5,5 s, réponse de
 149 tokens à ~4,7 tokens/s, premier token en 0,6 s grâce au cache de LM Studio), contre une
 médiane de 10,2 s pour l'agent ADK sur les questions à un outil de sa campagne structurée.
+
+Les règles d'usage des outils sont dans [`AGENTS.md`](../../../integrations/openclaw/AGENTS.md),
+copié dans l'espace de travail d'OpenClaw et injecté à chaque requête (+1,8k caractères ; SOUL.md,
+IDENTITY.md et USER.md réduits à une ligne). Deux autres voies, vérifiées par capture du relais
+`scripts/openclaw_relay.py --capture-only` (requête enregistrée, rien transmis au modèle) : un skill
+n'est lu que si le modèle appelle `skills_read`, un appel de plus par question ; les `instructions`
+du serveur MCP ne sont pas transmises au modèle. `benchmarks/benchmark_openclaw_vs_adk.py` pose à
+OpenClaw dix cas à contraintes de la campagne structurée ADK et les note avec les critères de cette
+campagne, relue pour ADK. Le 13 novembre (1 exécution) : 5 réponses justes sur 10 après relecture
+(6 au correcteur, qui ne voit pas une réponse « aucune » quand le cas n'attend aucun terme), contre
+10 sur 10 pour ADK. Échecs : nom mal écrit transmis tel quel, filtres inventés (`version_group`,
+`evolution_stage`, `max_power`) ou oubliés (`damage_class`), `limit` 1 sur un ex aequo, noms de
+capacités en anglais malgré des arguments justes. Le guard ADK corrige les premiers ; la projection
+ADK, qui masque les traductions anglaises, évite le dernier. Les règles étaient dans le prompt.
 
 Après installation du projet dans l'environnement :
 

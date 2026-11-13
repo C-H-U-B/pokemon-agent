@@ -17,8 +17,11 @@
   agents: {
     defaults: {
       model: { primary: "lmstudio/qwen/qwen3-vl-8b" },
-      // Les fichiers de l'espace de travail (AGENTS.md, SOUL.md...) pèsent ~10k caractères par requête.
-      contextInjection: "never",
+      // Les règles d'usage des outils sont dans AGENTS.md, injecté à chaque requête : copier
+      // integrations/openclaw/AGENTS.md dans ~/.openclaw/workspace/ et réduire SOUL.md, IDENTITY.md et
+      // USER.md à une ligne (sinon ~10k caractères de plus). Un skill ne serait lu que par un appel
+      // supplémentaire à skills_read ; les instructions du serveur MCP ne sont pas transmises au modèle.
+      contextInjection: "always",
     },
   },
 

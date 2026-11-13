@@ -2342,3 +2342,27 @@ commentaire non demandé qui attribue à Méga-Dracaufeu X un type faux. Une
 réponse prend environ 38 secondes contre une dizaine pour l'agent ADK sur le
 même modèle : presque tout ce temps est passé à générer la réponse, pas à lire
 le prompt, que LM Studio garde en cache.
+
+## 110. [Feature] Ce que vaut le guard, mesuré face à OpenClaw
+
+Le branchement d'OpenClaw offrait une comparaison naturelle : même modèle, mêmes
+outils, mais aucun contrôle des arguments. Restait à donner à Qwen les règles
+d'usage des outils, que le profil réduit avait fait disparaître du prompt.
+
+Un mode « capture seule » du relais enregistre la requête qu'OpenClaw destine au
+modèle sans rien lui transmettre : chaque voie se vérifie ainsi sans inférence.
+Les `instructions` du serveur MCP n'atteignent pas le modèle ; un skill n'est lu
+que si le modèle appelle un outil de lecture, soit un appel de plus par
+question. Les règles vont donc dans `AGENTS.md`, injecté à chaque requête pour
+environ 1 800 caractères, et le skill est retiré.
+
+Un benchmark pose ensuite à OpenClaw dix cas à contraintes de la campagne
+structurée et les note avec les critères de cette campagne, relue pour l'agent
+ADK. OpenClaw répond juste à cinq cas sur dix, contre dix pour l'agent. Les
+règles étaient dans le prompt et n'ont pas été suivies : un nom mal écrit
+transmis tel quel, des filtres inventés ou oubliés, un ex aequo coupé par une
+limite inventée, des capacités nommées en anglais malgré des arguments justes.
+Le guard corrige les trois premiers ; la projection de l'agent, qui ne montre
+au modèle que les libellés français, évite le dernier. Le correcteur automatique
+comptait six réussites : une réponse « aucune » sur un cas sans terme attendu
+lui échappait, d'où une relecture des réponses.
