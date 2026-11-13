@@ -2257,3 +2257,26 @@ comment giving Mega Charizard X a wrong type. An answer takes about 38 seconds
 against about ten for the ADK agent on the same model: almost all of that time
 is spent generating the answer, not reading the prompt, which LM Studio keeps
 cached.
+
+## 110. [Feature] What the guard is worth, measured against OpenClaw
+
+Plugging in OpenClaw offered a natural comparison: same model, same tools, but
+no argument check. Qwen still had to be given the tool usage rules, which the
+reduced profile had removed from the prompt.
+
+A "capture only" mode of the relay records the request OpenClaw means for the
+model without passing anything on: each route can thus be checked without
+inference. The MCP server's `instructions` do not reach the model; a skill is
+only read if the model calls a reading tool, one more call per question. The
+rules therefore go into `AGENTS.md`, injected into every request for about
+1,800 characters, and the skill is removed.
+
+A benchmark then asks OpenClaw ten constraint cases from the structured
+campaign and grades them with that campaign's criteria, reread for the ADK
+agent. OpenClaw answers five cases out of ten correctly, against ten for the
+agent. The rules were in the prompt and were not followed: a misspelt name
+passed as is, filters invented or forgotten, a tie cut by an invented limit,
+moves named in English despite correct arguments. The guard corrects the first
+three; the agent's projection, which shows the model only the French labels,
+avoids the last. The automatic grader counted six successes: a "none" answer on
+a case with no expected term escaped it, hence a reading of the answers.
