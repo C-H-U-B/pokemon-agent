@@ -217,7 +217,8 @@ CASES = [
         "Quels sont les 5 Pokémon Spectre avec le plus d'Attaque Spéciale ?",
         "pokemon_search",
         {"sort_by": "special-attack", "sort_order": "desc", "best_only": False, "limit": 5},
-        note="Filtre type + classement + top N.",
+        ("Pierroteknik", "Hoopa"),
+        note="Filtre type + classement + top N. Les deux premiers seulement : trois Pokémon à 145 se disputent les places suivantes.",
     ),
     Case(
         "legendary-gen4-defense",
@@ -344,7 +345,8 @@ CASES = [
         "Quelles capacités spéciales de type Eau d'au moins 80 de puissance Nigirigon peut-il apprendre ?",
         "pokemon_moves",
         {"pokemon": "nigirigon", "min_power": 80, "move_type":"water", "damage_class":"special", "learning_method": None},
-        note="Composition type + catégorie + puissance.",
+        ("Hydrocanon", "Ocroupi", "Surf"),
+        note="Composition type + catégorie + puissance. Les trois résultats de la base (13/11).",
     ),
 
     # --- Mots ordinaires qui ne sont pas des contraintes ---
@@ -795,23 +797,32 @@ def _semantic_checks(case, calls, responses, answer, executions, raw_responses=(
         "Réponse finale vide ou abstention de budget",
     ))
 
-    answer_folded = _fold(answer)
+    missing, exposed = answer_term_failures(case, answer)
     for term in case.expected_answer_terms:
         checks.append((
-            _fold(term) in answer_folded,
+            term not in missing,
             f"Réponse finale contient {term!r}",
             f"Réponse finale ne contient pas {term!r}",
         ))
 
     for term in case.forbidden_answer_terms:
         checks.append((
-            # Mot entier : « Oui » interdit ne rejette pas « Grenouille ».
-            not re.search(rf"(?<!\w){re.escape(_fold(term))}(?!\w)",answer_folded),
+            term not in exposed,
             f"Réponse finale n'expose pas {term!r}",
             f"Terme interdit présent dans la réponse : {term!r}",
         ))
 
     return checks
+
+
+def answer_term_failures(case, answer: str) -> tuple[list[str], list[str]]:
+    """Termes attendus absents et termes interdits présents ; partagé avec benchmarks/benchmark_openclaw_vs_adk.py."""
+    folded = _fold(answer)
+    missing = [t for t in case.expected_answer_terms if _fold(t) not in folded]
+    # Mot entier : « Oui » interdit ne rejette pas « Grenouille ».
+    exposed = [t for t in case.forbidden_answer_terms
+               if re.search(rf"(?<!\w){re.escape(_fold(t))}(?!\w)", folded)]
+    return missing, exposed
 
 
 def _format_value(value):

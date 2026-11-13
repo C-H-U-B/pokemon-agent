@@ -2273,10 +2273,12 @@ rules therefore go into `AGENTS.md`, injected into every request for about
 
 A benchmark then asks OpenClaw ten constraint cases from the structured
 campaign and grades them with that campaign's criteria, reread for the ADK
-agent. OpenClaw answers five cases out of ten correctly, against ten for the
+agent. OpenClaw answers four cases out of ten correctly, against ten for the
 agent. The rules were in the prompt and were not followed: a misspelt name
 passed as is, filters invented or forgotten, a tie cut by an invented limit,
 moves named in English despite correct arguments. The guard corrects the first
 three; the agent's projection, which shows the model only the French labels,
-avoids the last. The automatic grader counted six successes: a "none" answer on
-a case with no expected term escaped it, hence a reading of the answers.
+avoids the last. The automatic grader counted six successes: two cases expected
+no term and let through a "none" answer and a ranking skewed by an invented
+filter. Both cases now expect the results read from the database, and the
+benchmark compares terms with the campaign's function instead of a looser copy.

@@ -44,13 +44,12 @@ def _load(path: Path, name: str):
     return module
 
 
-def grade(case, calls: list[dict], answer: str, arg_matches) -> dict:
-    """Mêmes critères pour les deux agents ; `calls` = [{"name", "args"}] dans l'ordre."""
+def grade(case, calls: list[dict], answer: str, e2e) -> dict:
+    """Mêmes critères pour les deux agents, termes comparés comme dans la campagne ; `calls` = [{"name", "args"}]."""
     call = next((c for c in calls if c["name"] == case.expected_tool), None)
     args = call["args"] if call else {}
-    folded = answer.casefold()
-    missing = [t for t in case.expected_answer_terms if t.casefold() not in folded]
-    forbidden = [t for t in case.forbidden_answer_terms if t.casefold() in folded]
+    arg_matches = e2e._arg_matches
+    missing, forbidden = e2e.answer_term_failures(case, answer)
     wrong_args = {k: args.get(k) for k, v in case.expected_args.items() if not arg_matches(args.get(k), v, k)}
     return {
         "tool_ok": call is not None, "args_ok": call is not None and not wrong_args, "wrong_args": wrong_args,
@@ -167,10 +166,10 @@ def main() -> None:
         record = {
             "run_id": run_id, "case_id": case.id, "question": case.question, "adk_run_id": adk_run,
             "openclaw": {"elapsed_seconds": round(elapsed, 1), "tool_calls": calls, "final_answer": answer,
-                         **grade(case, calls, answer, e2e._arg_matches)},
+                         **grade(case, calls, answer, e2e)},
             "adk": {"elapsed_seconds": adk["elapsed_seconds"], "final_answer": adk["final_answer"],
-                    "proposed_args_ok": grade(case, adk_proposed, "", e2e._arg_matches)["args_ok"],
-                    **grade(case, adk_executed, adk["final_answer"], e2e._arg_matches)},
+                    "proposed_args_ok": grade(case, adk_proposed, "", e2e)["args_ok"],
+                    **grade(case, adk_executed, adk["final_answer"], e2e)},
         }
         records.append(record)
         oc = record["openclaw"]
