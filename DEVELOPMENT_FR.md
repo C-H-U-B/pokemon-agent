@@ -2401,3 +2401,23 @@ correctifs ne visaient pas. Le nom mal écrit reste en échec : il faut lire la
 question pour le corriger. Proposer au modèle les noms proches d'un nom inconnu
 a été essayé puis retiré, car OpenClaw ne relançait pas l'outil et inventait
 les statistiques du nom proposé.
+
+## 112. [Feature] Le serveur MCP dans un workflow n8n
+
+n8n relie déclencheurs, connecteurs et nœuds d'IA dans un éditeur visuel. Il
+est placé autour de l'agent, pas à sa place : un workflow `Chat Trigger → AI
+Agent` utilise Qwen dans LM Studio et branche le serveur MCP du projet par le
+nœud MCP Client, sans code. Le guide et deux captures sont dans
+`integrations/n8n/`.
+
+Le serveur offrait déjà le HTTP streamable du connecteur Claude.ai. Deux
+réglages suffisent : écouter sur toutes les interfaces, car n8n tourne dans
+Docker et appelle un hôte que le SDK MCP refuse sur 127.0.0.1, et passer un
+jeton quelconque, que la façade OAuth exige sans le vérifier. À « Quels sont
+les types de Dracaufeu ? », Qwen appelle `pokemon_types`, le serveur répond en
+137 ms depuis la base, et la réponse « Feu et Vol » arrive en 14 secondes.
+
+Le nœud AI Agent n'a ni guard ni budget de contexte : il retrouve la situation
+d'OpenClaw. n8n convient donc à ce qui entoure l'agent, déclencher une question
+ou diffuser une réponse, tandis que la logique qui fiabilise le modèle reste en
+code.

@@ -2314,3 +2314,22 @@ target. The misspelt name still fails: correcting it requires reading the
 question. Offering the model the closest names to an unknown one was tried and
 removed, since OpenClaw never called the tool again and invented the suggested
 Pokémon's stats.
+
+## 112. [Feature] The MCP server in an n8n workflow
+
+n8n connects triggers, connectors and AI nodes in a visual editor. It is placed
+around the agent, not in its place: a `Chat Trigger → AI Agent` workflow uses
+Qwen in LM Studio and plugs in the project's MCP server through the MCP Client
+node, without code. The guide and two screenshots are in `integrations/n8n/`.
+
+The server already offered the streamable HTTP of the Claude.ai connector. Two
+settings are enough: listening on all interfaces, since n8n runs in Docker and
+calls a host that the MCP SDK refuses on 127.0.0.1, and passing any token,
+which the OAuth facade requires without checking it. Asked "Quels sont les
+types de Dracaufeu ?", Qwen calls `pokemon_types`, the server answers in 137 ms
+from the database, and the answer "Feu et Vol" arrives in 14 seconds.
+
+The AI Agent node has neither guard nor context budget: it is in the same
+situation as OpenClaw. n8n therefore suits what surrounds the agent, triggering
+a question or delivering an answer, while the logic that makes the model
+reliable stays in code.
