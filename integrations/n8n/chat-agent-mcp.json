@@ -1,0 +1,130 @@
+{
+  "name": "Pokémon – Agent Qwen + MCP",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        0
+      ],
+      "id": "91e6440d-e3ca-4c81-a55d-41e5521e7b6f",
+      "name": "When chat message received",
+      "webhookId": "9f12ef55-5cc1-465a-9d7a-1eb1391fe6e0"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "Pour toute question sur un Pokémon, une capacité, un type, un jeu ou une évolution, utilise les outils MCP Pokémon. Ne réponds jamais de mémoire.\n\n- Les outils calculent, pas toi. Filtres, tris, totaux, maximums et comptages viennent des résultats d'outil. Ne recompte pas, ne trie pas, ne complète pas une liste. Une liste tronquée se signale avec le total renvoyé.\n- Noms en français, tels quels. Passe les noms de Pokémon, capacités, types et jeux exactement comme dans la question. Ne traduis pas en anglais.\n- Aucune contrainte perdue. Une forme (Méga, Alola, Gigamax…), un jeu ou une borne de niveau cités dans la question figurent dans les arguments.\n- Un outil par direction. Pokémon nommé → ses faits (pokemon_base_stats, pokemon_moves, pokemon_types, pokemon_evolutions…). Propriétés → liste de Pokémon : pokemon_search. Description, apparence, histoire : pokemon_rag_search.\n- Superlatif. « Le plus rapide » sans nombre : best_only=true, et signale les ex aequo (tie, tie_count). « Les 5 plus… » : limit=5.\n- Absence ≠ panne. Résultat vide = pas de données ; erreur d'outil = panne. Dis lequel, n'invente pas de réponse.\n\nRéponds en français, brièvement : les valeurs reçues, sans phrase d'introduction ni commentaire, et sans fait absent des résultats.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "481bcbf0-6730-4ca8-affe-f95fe0fa5c4f",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "qwen/qwen3-vl-8b",
+          "mode": "list",
+          "cachedResultName": "qwen/qwen3-vl-8b"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        96,
+        208
+      ],
+      "id": "bcebc7da-072b-491e-a9aa-76b1d2b8cdb9",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "Ranp7pElSPgAumsj",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://host.docker.internal:8001/mcp",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        272,
+        208
+      ],
+      "id": "1d0c9189-fd69-40a5-81a8-e1f6b03b9ab5",
+      "name": "MCP Client",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Hd5nJtXC489sqONm",
+          "name": "Header Auth account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "43b3951c-e5b4-4ded-92e3-0a810ccfc8a6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4f6d22a0f9a20a205d6103e65d4a85fdf44d4df03ab0a4150b5b8997866bd52e"
+  },
+  "nodeGroups": [],
+  "id": "jLAMR7PRIY8M9qJx",
+  "tags": []
+}

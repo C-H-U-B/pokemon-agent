@@ -1,0 +1,61 @@
+{
+  "name": "Pokémon – Webhook vers API",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "pokemon-stats",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "824d34d9-6150-4260-8e6a-852f94f4616d",
+      "name": "Webhook",
+      "webhookId": "18af315f-3154-4209-acf2-28375f523cef"
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:8000/pokemon/{{ $json.query.pokemon }}/stats",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "45987b76-8968-4376-b0da-b26147bb5d85",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "31f68462-5202-45d1-bc08-aa45368e44dd",
+  "meta": {
+    "instanceId": "4f6d22a0f9a20a205d6103e65d4a85fdf44d4df03ab0a4150b5b8997866bd52e"
+  },
+  "nodeGroups": [],
+  "id": "aSmZbhw7dnTuS74Y",
+  "tags": []
+}
