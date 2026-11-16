@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "url": "=http://host.docker.internal:8000/pokemon/{{ $json.query.pokemon }}/stats",
+        "url": "=http://host.docker.internal:8000/pokemon/{{ encodeURIComponent($json.query.pokemon) }}/stats",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
