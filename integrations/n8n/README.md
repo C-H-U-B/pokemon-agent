@@ -46,13 +46,16 @@ jeton ne sont exportés.
    | MCP Client | Header Auth `Authorization` = `Bearer n8n-local` |
 
    La façade OAuth du serveur accepte n'importe quel jeton, mais en exige un : sans
-   en-tête, `/mcp` répond 401.
+   en-tête, `/mcp` répond 401. Le jeton n'étant pas vérifié et le serveur écoutant sur
+   toutes les interfaces, ne le lancer ainsi que sur un réseau privé.
 
 ## Webhook vers l'API, sans modèle
 
 ![Workflow n8n : Webhook puis requête HTTP vers l'API, statistiques de Dracaufeu](webhook.png)
 
 Le webhook transmet le nom reçu à l'API, qui répond en 125 ms ; aucun modèle n'intervient.
+Le nom est encodé (`encodeURIComponent`) avant d'entrer dans le chemin : sinon un nom
+contenant `/` ou `?` atteindrait une autre route de l'API.
 
 ```powershell
 python -m uvicorn pokemon_rag.api.app:app --host 0.0.0.0 --port 8000
@@ -73,5 +76,5 @@ un tableur, en le modifiant sans redéployer de code. Le cœur de l'agent reste 
 corrige ou refuse les arguments, le budget de contexte, les reprises et l'abstention.
 Le nœud AI Agent de n8n n'a rien de tout cela. Avec les mêmes outils, le même modèle et
 les mêmes règles dans le prompt, il se trouve dans la situation d'[OpenClaw](../openclaw/),
-mesuré à 9, 8 et 9 cas justes sur 10 contre 10 pour l'agent ADK ; ce score n'a pas été
-remesuré dans n8n.
+mesuré moins fiable que l'agent ADK sur les mêmes cas ; la mesure n'a pas été refaite
+dans n8n.

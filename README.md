@@ -39,8 +39,7 @@ Good to know: the service stops when idle, and the first document search that wa
 | Relational database | 35 tables, 56 indexes, 8 views; 638,000 move-learning rows across 26 game groups |
 | Reference data | 1,025 species, 1,351 Pokémon, 1,579 forms, 937 moves |
 | Document index | 36,280 embedded chunks |
-| Tests | 1,659 tests, 1,525 of which need no model |
-| End-to-end campaign | 48 of 48 questions passed with Qwen3-VL 8B running locally, over 2 runs on 13 November 2026 (structured campaign) |
+| Tests | Unit, integration and end-to-end tests; most need no model and run in CI |
 
 ## Data flow
 
@@ -90,7 +89,7 @@ Each chunk keeps the Pokémon, source file and section path it comes from, which
 - **Tests on real data.** Matching, default forms, evolutions and moves are checked against the built database.
 - **Tests on a controlled catalogue.** The SQL logic is tested on small SQLite databases created for each test, with adversarial cases: out-of-order identifiers, null values, ties, missing forms.
 - **Isolation.** Light tests fail if they open the project databases or load a model. The SQL engine imports no model client, which a test verifies.
-- **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the 1,253 tests that depend on neither local data nor a model.
+- **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the tests that depend on neither local data nor a model.
 
 One data anomaly met along the way shows why these checks matter: the most recent game uses a single learning method, so a search for moves by level returned an empty list for more than 300 Pokémon. Game selection now takes the requested method into account.
 
@@ -113,17 +112,9 @@ Three ways of answering a question rely on the same data. The ADK agent and its 
 
 An 8-billion-parameter model often gets arguments wrong: it forgets a filter, invents a bound, replaces a rare name with a more common one. Rather than trusting it, a deterministic check extracts the constraints from the question and compares them with the proposed call before it runs. The answer is checked the same way: when the model omits or denies a row of a list it received in full, the answer is replaced by the list built from the data.
 
-Results of the campaign when it had 31 questions (2 October 2026, Qwen3-VL 8B, one run on each side), before and after the reliability work:
+Each fix was measured before and after on an end-to-end campaign run with Qwen3-VL 8B locally: more questions passed, the model's calls were correct as proposed far more often, and no answer was dropped any more for exceeding the context budget. The campaign then grew with ordinary words that must not become constraints, lists whose answer is checked and misspelt names; its result is recomputed from the recorded runs by `scripts/campaign_result.py`.
 
-| Measure | Before | After |
-| --- | --- | --- |
-| Questions passed | 24 | 31 |
-| Calls correct as proposed by the model | 15 | 30 |
-| Answers dropped for exceeding the context budget | 5 | 0 |
-
-The campaign then grew with ordinary words that must not become constraints, lists whose answer is checked and misspelt names; its latest result is in the "At a glance" table, recomputed from the recorded runs by `scripts/campaign_result.py`.
-
-What the check is worth was measured against a general-purpose agent with the same model and the same tools: [OpenClaw](integrations/openclaw/), given the usage rules in its prompt but no check, answered 5 of 10 constraint questions from the campaign correctly on each of three runs, always on the same cases, against 10 of 10 for the agent (13 November 2026). Two server-side fixes, useful to any client, brought it to 9, 8 and 9: a superlative no longer cuts a tie, and English names are only returned on request. The remaining misses, a forgotten or invented argument and a misspelt name, can only be corrected by reading the question: that is the check's job, which the server cannot do. Offering the model the closest name for an unknown one was tried and removed: OpenClaw never called the tool again and invented the suggested Pokémon's stats.
+What the check is worth was measured against a general-purpose agent with the same model and the same tools: [OpenClaw](integrations/openclaw/), given the usage rules in its prompt but no check, was clearly less reliable than the agent on the same constraint questions from the campaign, failing on the same cases from one run to the next (November 2026). Two server-side fixes, useful to any client, closed most of the gap: a superlative no longer cuts a tie, and English names are only returned on request. The remaining misses, a forgotten or invented argument and a misspelt name, can only be corrected by reading the question: that is the check's job, which the server cannot do. Offering the model the closest name for an unknown one was tried and removed: OpenClaw never called the tool again and invented the suggested Pokémon's stats.
 
 Each cause was isolated before being fixed, telling data errors, test errors and orchestration errors apart. The full account is in the [development history](DEVELOPMENT.md).
 

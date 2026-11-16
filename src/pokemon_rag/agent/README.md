@@ -271,8 +271,8 @@ arguments restent dans le schéma après l'abrègement des descriptions d'outils
 Le catalogue d'outils reste déclaré à chaque tour, y compris après un résultat
 complet : le modèle décide lui-même quand rédiger. Le retirer après le premier
 résultat (état précédent) faisait échouer Gemini, qui émettait encore un appel :
-recherches répétées jusqu'à l'abstention de budget (21 questions sur 70 sur la
-démo, 10 et 11 octobre 2026), puis, l'historique transmis en texte, appel filtré
+recherches répétées jusqu'à l'abstention de budget (une part notable des
+questions de la démo, 10 et 11 octobre 2026), puis, l'historique transmis en texte, appel filtré
 par l'API et réponse vide (`MALFORMED_FUNCTION_CALL`) ou coupée. Ni une phrase de
 consigne ni `tool_choice: none` ne l'arrêtaient. Une question peut aussi
 demander plusieurs outils (« mouscoto » : quatre appels au même tour). Coût : le
