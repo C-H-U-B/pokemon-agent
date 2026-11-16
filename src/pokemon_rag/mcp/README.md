@@ -120,7 +120,8 @@ applique pas. Le guard ne remplace pas le grounding du graphe.
 Le serveur parle stdio par défaut. `python -m pokemon_rag.mcp.server --http` le sert
 en HTTP streamable sur `/mcp`, sans état, pour un client distant ; le port vient de
 `PORT` (8000 par défaut), l'hôte de `MCP_HOST` (127.0.0.1, avec la protection du SDK
-contre le DNS rebinding ; `0.0.0.0` dans un conteneur). Aucun guard dans ce mode : le
+contre le DNS rebinding ; `0.0.0.0` dans un conteneur, ou pour un client en conteneur qui
+appelle `host.docker.internal`, comme [n8n](../../../integrations/n8n/)). Aucun guard dans ce mode : le
 client distant pilote seul les outils.
 
 Claude.ai refuse un connecteur sans authentification (il tente toujours une inscription
