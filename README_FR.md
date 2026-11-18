@@ -90,6 +90,7 @@ Chaque fragment garde le Pokémon, le fichier source et le chemin de section don
 - **Tests sur catalogue contrôlé.** La logique SQL est testée sur de petites bases SQLite créées pour chaque test, avec des cas adverses : identifiants dans le désordre, valeurs nulles, égalités, formes manquantes.
 - **Isolation.** Les tests légers échouent s'ils ouvrent les bases du projet ou chargent un modèle. Le moteur SQL n'importe aucun client de modèle, ce qu'un test vérifie.
 - **Intégration continue.** À chaque push, GitHub Actions installe le projet sur une machine vierge, lance le contrôle statique et les tests qui ne dépendent ni des données locales ni d'un modèle.
+- **Déploiement continu.** Quand les tests passent sur `main`, le même workflow construit l'image de simulation et la déploie sur Cloud Run en révision sans trafic. Le trafic ne bascule qu'une fois que la page de cette révision indique le mode simulation : aucun appel en direct au modèle ne peut partir. GitHub s'authentifie par Workload Identity Federation, sans clé de compte de service stockée.
 
 Une anomalie de données rencontrée en cours de route illustre l'intérêt de ces contrôles : le jeu le plus récent n'utilise qu'une seule méthode d'apprentissage, si bien qu'une recherche de capacités par niveau y renvoyait une liste vide pour plus de 300 Pokémon. La sélection du jeu tient désormais compte de la méthode demandée.
 

@@ -3,10 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
-    # Un changement limité à la documentation ne relance pas la suite.
+    # Un changement limité à la documentation ne relance ni la suite ni le déploiement.
     paths-ignore: ["**.md", "LICENSE"]
+  # Sans filtre : main exige le check « tests », qui doit donc tourner sur toute pull request.
   pull_request:
-    paths-ignore: ["**.md", "LICENSE"]
   # Redéploiement sans commit (après un changement côté Google Cloud, par exemple).
   workflow_dispatch:
 
@@ -54,10 +54,10 @@ jobs:
 
   deploy:
     # Démo publique (Cloud Run), seulement si les tests passent. Une révision candidate est déployée sans
-    # trafic puis contrôlée ; seule main bascule le trafic. Une pull request s'arrête au contrôle : c'est
-    # l'essai d'une branche sans toucher à la démo. Les pull requests venues d'un fork n'ont pas de jeton.
+    # trafic puis contrôlée ; seule main bascule le trafic (un lancement manuel d'une autre branche s'arrête
+    # au contrôle). Une pull request ne déploie rien : la démo suit main.
     needs: tests
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     # Deux déploiements ne se croisent pas : la bascule vise la dernière révision.
     concurrency:

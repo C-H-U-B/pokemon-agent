@@ -90,6 +90,7 @@ Each chunk keeps the Pokémon, source file and section path it comes from, which
 - **Tests on a controlled catalogue.** The SQL logic is tested on small SQLite databases created for each test, with adversarial cases: out-of-order identifiers, null values, ties, missing forms.
 - **Isolation.** Light tests fail if they open the project databases or load a model. The SQL engine imports no model client, which a test verifies.
 - **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the tests that depend on neither local data nor a model.
+- **Continuous deployment.** When the tests pass on `main`, the same workflow builds the simulation image and deploys it to Cloud Run as a revision without traffic. Traffic switches only once that revision's page shows that it is in simulation mode, so no live model call can go out. GitHub authenticates through Workload Identity Federation: no service account key is stored.
 
 One data anomaly met along the way shows why these checks matter: the most recent game uses a single learning method, so a search for moves by level returned an empty list for more than 300 Pokémon. Game selection now takes the requested method into account.
 

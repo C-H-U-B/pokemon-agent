@@ -461,10 +461,27 @@ Déploiement actuel, depuis le 7 novembre 2026 : image `simulation`, Cloud Run, 
 projet `pokemon-agent-demo`, région `europe-west1`, 1 Gio et 1 vCPU, une instance au plus et aucune au
 repos. Le secret `gemini-api-key` et les variables du modèle restent attachés au service sans être lus,
 pour revenir à l'image `demo` (Gemini 3.8 Flash, 4 Gio et 2 vCPU, dernière image `demo:006460b`) par un
-seul `gcloud run deploy`. Une nouvelle version se publie en trois temps : construire
-(`docker build --target simulation`), envoyer l'image dans le dépôt
-`europe-west1-docker.pkg.dev/pokemon-agent-demo/pokemon-agent`, puis
-`gcloud run deploy pokemon-agent --image=<image> --region=europe-west1`, qui garde les autres réglages.
+seul `gcloud run deploy` (en retirant aussi `POKEMON_RAG_SIMULATION`, posée sur le service, avec
+`--remove-env-vars`).
+
+Déploiement continu, depuis le 18 novembre 2026 : le job `deploy` de
+[`ci.yml`](../../../.github/workflows/ci.yml) suit les tests. Il construit l'image `simulation`,
+l'envoie dans `europe-west1-docker.pkg.dev/pokemon-agent-demo/pokemon-agent` sous le commit, puis
+déploie une révision étiquetée `candidate`, sans trafic, avec `POKEMON_RAG_SIMULATION=1` posée sur
+le service : la clé Gemini y reste attachée, et la simulation ne dépend plus seulement de la cible
+du `Dockerfile`. La page de la candidate doit porter l'en-tête « Simulation : réponses
+enregistrées » ; sinon le job échoue et la démo publique reste sur l'ancienne révision. Sur `main`
+seulement, le trafic bascule ensuite et l'adresse publique est contrôlée de la même façon.
+`main` n'accepte que des pull requests dont le check `tests` a réussi : une pull request lance les
+tests, documentation comprise, mais ne déploie rien. Un push limité à la documentation ne déploie
+rien ; `workflow_dispatch` redéploie sans commit.
+
+GitHub s'authentifie par Workload Identity Federation : le jeton OIDC du dépôt
+`C-H-U-B/pokemon-agent` (pool `github`, fournisseur `pokemon-agent`) s'échange contre le compte
+`github-deployer`, sans clé stockée. Ses droits se limitent à écrire dans ce dépôt d'images,
+`run.developer` sur le seul service `pokemon-agent` et l'emprunt du compte d'exécution
+`pokemon-demo`. Une politique de nettoyage du dépôt supprime les images `simulation` de plus de
+7 jours, en gardant les trois dernières ; les images `demo` n'y sont pas soumises.
 
 Hugging Face Spaces écarté le 7 novembre 2026 : la création d'un Space Docker ou Gradio est refusée
 (402) sans abonnement PRO, même sur le processeur gratuit ; seuls les Spaces statiques restent gratuits.
