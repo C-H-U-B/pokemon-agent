@@ -2450,8 +2450,9 @@ Le workflow de CI a désormais un job de déploiement qui suit les tests. Il
 déploie d'abord une révision candidate, sans trafic, avec la variable de
 simulation posée aussi sur le service. Il vérifie ensuite que sa page porte
 l'en-tête de simulation. Sur `main` seulement, le trafic bascule et l'adresse
-publique est contrôlée de la même façon ; une pull request s'arrête à la
-candidate, ce qui permet d'essayer une branche sans toucher à la démo. GitHub
+publique est contrôlée de la même façon. Comme `main` n'accepte que des pull
+requests dont les tests ont réussi, les tests tournent sur toute pull request,
+documentation comprise, mais une pull request ne déploie rien. GitHub
 s'authentifie par Workload Identity Federation, avec un compte de service
 limité à ce dépôt d'images et à ce service, sans clé stockée. Une politique
 de nettoyage garde les trois dernières images de simulation.

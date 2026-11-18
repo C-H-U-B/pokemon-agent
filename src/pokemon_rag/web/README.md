@@ -471,9 +471,10 @@ déploie une révision étiquetée `candidate`, sans trafic, avec `POKEMON_RAG_S
 le service : la clé Gemini y reste attachée, et la simulation ne dépend plus seulement de la cible
 du `Dockerfile`. La page de la candidate doit porter l'en-tête « Simulation : réponses
 enregistrées » ; sinon le job échoue et la démo publique reste sur l'ancienne révision. Sur `main`
-seulement, le trafic bascule ensuite et l'adresse publique est contrôlée de la même façon ; une
-pull request s'arrête à la candidate. Un push limité à la documentation ne déploie rien ;
-`workflow_dispatch` redéploie sans commit.
+seulement, le trafic bascule ensuite et l'adresse publique est contrôlée de la même façon.
+`main` n'accepte que des pull requests dont le check `tests` a réussi : une pull request lance les
+tests, documentation comprise, mais ne déploie rien. Un push limité à la documentation ne déploie
+rien ; `workflow_dispatch` redéploie sans commit.
 
 GitHub s'authentifie par Workload Identity Federation : le jeton OIDC du dépôt
 `C-H-U-B/pokemon-agent` (pool `github`, fournisseur `pokemon-agent`) s'échange contre le compte

@@ -2363,8 +2363,9 @@ The CI workflow now has a deployment job that runs after the tests. It first
 deploys a candidate revision, without traffic, with the simulation variable
 also set on the service. It then checks that the revision's page carries the
 simulation heading. On `main` only, traffic switches and the public address is
-checked the same way; a pull request stops at the candidate, which lets a
-branch be tried without touching the demo. GitHub authenticates through
+checked the same way. Since `main` only accepts pull requests whose tests
+passed, the tests now run on every pull request, documentation included, but
+a pull request deploys nothing. GitHub authenticates through
 Workload Identity Federation, with a service account limited to that image
 repository and that service, and no stored key. A cleanup policy keeps the
 three latest simulation images.
