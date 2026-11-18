@@ -72,3 +72,18 @@ def test_client_forgotten_after_restart_reaches_claude_but_no_other_site(http):
     elsewhere = _authorize(http, "client-d-avant-le-redemarrage", redirect_uri="https://pirate.example/callback")
     assert elsewhere.status_code == 400
     assert "location" not in elsewhere.headers
+
+
+@pytest.mark.parametrize("headers, status", [
+    ({}, 401),
+    ({"Authorization": "Bearer faux"}, 401),
+    ({"Authorization": "Bearer secret-de-test"}, 200),
+])
+def test_configured_secret_is_the_only_accepted_token(http, monkeypatch, headers, status):
+    monkeypatch.setenv("MCP_AUTH_TOKEN", "secret-de-test")
+    assert http.post("/mcp", json=INITIALIZE, headers={**MCP_HEADERS, **headers}).status_code == status
+
+
+def test_without_secret_any_token_is_accepted(http, monkeypatch):
+    monkeypatch.delenv("MCP_AUTH_TOKEN", raising=False)
+    assert http.post("/mcp", json=INITIALIZE, headers={**MCP_HEADERS, "Authorization": "Bearer faux"}).status_code == 200

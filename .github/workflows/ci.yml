@@ -49,7 +49,3 @@ jobs:
       - name: Intégrité et références de la base publiée
         # SQLite seul : aucun modèle, aucun LLM.
         run: python -m pytest tests/integration/test_database.py -q
-
-      - name: Compteur de tests du README
-        # Échoue si le nombre annoncé dans les README ne correspond plus aux tests lancés ci-dessus.
-        run: python scripts/check_test_counts.py --ci

@@ -35,10 +35,10 @@ Les douze outils du projet (moteur SQL et recherche Poképédia) sont aussi serv
 
 | | |
 | --- | --- |
-| Sources | 29 fichiers CSV PokéAPI, un tableur de référence maintenu à la main, 1 216 pages Poképédia |
-| Base relationnelle | 35 tables, 56 index, 8 vues ; 638 000 lignes d'apprentissage de capacités sur 26 groupes de jeux |
-| Référentiel | 1 025 espèces, 1 351 Pokémon, 1 579 formes, 937 capacités |
-| Index documentaire | 36 280 fragments vectorisés |
+| Sources | Une trentaine de fichiers CSV PokéAPI, un tableur de référence maintenu à la main, plus d'un millier de pages Poképédia |
+| Base relationnelle | Quelques dizaines de tables, d'index et de vues ; des centaines de milliers de lignes d'apprentissage de capacités sur tous les groupes de jeux |
+| Référentiel | Toutes les espèces, formes et capacités, environ un millier de chaque |
+| Index documentaire | Des dizaines de milliers de fragments vectorisés |
 | Tests | Tests unitaires, d'intégration et de bout en bout ; la plupart sans modèle, lancés en CI |
 
 ## Flux de données

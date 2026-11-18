@@ -2423,3 +2423,18 @@ Le nœud AI Agent n'a ni guard ni budget de contexte : avec les mêmes règles
 dans le prompt, il retrouve la situation d'OpenClaw. n8n convient donc à ce qui
 entoure l'agent, déclencher une question ou diffuser une réponse, tandis que la
 logique qui fiabilise le modèle reste en code.
+
+## 113. [Feature] Un secret optionnel pour le serveur MCP en HTTP
+
+La façade OAuth accepte tout jeton : c'est ce qui permet au connecteur
+Claude.ai de joindre la démo publique, dont les outils lisent seulement des
+données publiques. Mais un serveur lancé sur toutes les interfaces pour n8n, ou
+un déploiement privé, restait ouvert à quiconque l'atteint sur le réseau.
+
+Comparer le jeton à un secret fixe, sans condition, aurait coupé Claude.ai,
+qui obtient son jeton par la façade. La vérification est donc optionnelle :
+avec `MCP_AUTH_TOKEN` défini, seul ce secret est accepté, par une comparaison
+à temps constant, et tout autre jeton ou son absence reçoit un 401. Sans la
+variable, le comportement de la démo est inchangé. Des tests vérifient les
+deux modes. Le guide n8n génère le secret avant de lancer le serveur, et la
+sonde HTTP l'envoie lorsqu'il est défini.
