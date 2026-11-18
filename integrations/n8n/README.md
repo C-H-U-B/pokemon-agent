@@ -29,6 +29,7 @@ jeton ne sont exportés.
    sur 127.0.0.1.
 
    ```powershell
+   $env:MCP_AUTH_TOKEN = python -c "import secrets; print(secrets.token_urlsafe(32))"; $env:MCP_AUTH_TOKEN
    $env:MCP_HOST="0.0.0.0"; $env:PORT="8001"; python -m pokemon_rag.mcp.server --http
    ```
 
@@ -43,11 +44,12 @@ jeton ne sont exportés.
    | Nœud | Réglage |
    | --- | --- |
    | OpenAI Chat Model | Base URL `http://host.docker.internal:1234/v1`, clé `lm-studio` ; **Use Responses API désactivé** (LM Studio sert `/v1/chat/completions`) |
-   | MCP Client | Header Auth `Authorization` = `Bearer n8n-local` |
+   | MCP Client | Header Auth `Authorization` = `Bearer <valeur de MCP_AUTH_TOKEN>` |
 
-   La façade OAuth du serveur accepte n'importe quel jeton, mais en exige un : sans
-   en-tête, `/mcp` répond 401. Le jeton n'étant pas vérifié et le serveur écoutant sur
-   toutes les interfaces, ne le lancer ainsi que sur un réseau privé.
+   Le serveur écoute sur toutes les interfaces : définir `MCP_AUTH_TOKEN` dans son terminal
+   avant de le lancer, et mettre la même valeur dans l'en-tête. Tout autre jeton, ou son
+   absence, reçoit un 401. Sans cette variable, la façade OAuth accepte n'importe quel jeton
+   (mode de la démo publique pour Claude.ai) : à réserver à un réseau privé.
 
 ## Webhook vers l'API, sans modèle
 

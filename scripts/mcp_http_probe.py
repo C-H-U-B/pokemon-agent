@@ -9,6 +9,7 @@ dont le premier attend le chargement des modèles quand l'instance vient de dém
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 import time
 
@@ -23,8 +24,9 @@ async def probe(url: str) -> None:
     def step(label: str) -> None:
         print(f"{time.perf_counter() - start:7.1f} s  {label}", flush=True)
 
-    # La façade OAuth du serveur accepte tout jeton (src/pokemon_rag/mcp/open_oauth.py).
-    client = create_mcp_http_client(headers={"Authorization": "Bearer sonde"})
+    # Sans MCP_AUTH_TOKEN, la façade OAuth du serveur accepte tout jeton (src/pokemon_rag/mcp/open_oauth.py).
+    token = os.environ.get("MCP_AUTH_TOKEN", "sonde")
+    client = create_mcp_http_client(headers={"Authorization": f"Bearer {token}"})
     async with streamable_http_client(url, http_client=client) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()

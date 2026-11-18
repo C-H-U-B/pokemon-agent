@@ -131,6 +131,13 @@ l'instance ; un client oublié n'est reconstitué qu'avec les adresses de retour
 jamais vers un autre site. `MCP_PUBLIC_URL` (adresse https du service, sans `/mcp`) est
 l'émetteur annoncé ; un client HTTP direct envoie `Authorization: Bearer <n'importe quoi>`.
 
+Ce choix tient au modèle de menace : les outils lisent en lecture seule des données publiques,
+le serveur ne détient aucun secret et n'écrit rien, et Cloud Run plafonne le coût à une
+instance. Avec `MCP_AUTH_TOKEN` défini, seul ce secret est accepté (comparaison à temps
+constant, 401 sinon) : à utiliser hors de la démo publique, pour un serveur local exposé sur
+`0.0.0.0` ou un déploiement privé. Claude.ai, qui obtient son jeton par la façade OAuth, ne
+peut alors plus se connecter. `scripts/mcp_http_probe.py` envoie `MCP_AUTH_TOKEN` s'il est défini.
+
 Déploiement : service Cloud Run `pokemon-mcp` (`europe-west1`), image `demo` du `Dockerfile`
 dont la commande est remplacée par `python -m pokemon_rag.mcp.server --http --preload`, avec
 `MCP_HOST=0.0.0.0` et `MCP_PUBLIC_URL`. 4 Gio et 4 vCPU : à 2 Gio, l'instance dépassait sa

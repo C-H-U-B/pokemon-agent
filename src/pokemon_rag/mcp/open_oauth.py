@@ -9,10 +9,15 @@ tout jeton est accepté et n'expire pas (pas de rafraîchissement), et un client
 après redémarrage est reconstitué avec les seules adresses de retour de Claude.ai, pour
 ne pas faire du serveur une redirection ouverte. Seuls les codes d'autorisation,
 échangés quelques secondes après leur émission, vivent en mémoire.
+
+Avec MCP_AUTH_TOKEN défini, seul ce secret est accepté (comparaison à temps constant) :
+usage local ou déploiement privé, Claude.ai ne peut alors plus se connecter.
 """
 
 from __future__ import annotations
 
+import hmac
+import os
 import secrets
 import time
 
@@ -85,7 +90,10 @@ class OpenAccessProvider:
     async def exchange_refresh_token(self, client, refresh_token, scopes) -> OAuthToken:
         raise NotImplementedError
 
-    async def load_access_token(self, token: str) -> AccessToken:
+    async def load_access_token(self, token: str) -> AccessToken | None:
+        secret = os.environ.get("MCP_AUTH_TOKEN")
+        if secret and not hmac.compare_digest(token.encode(), secret.encode()):
+            return None  # le SDK répond 401
         return AccessToken(token=token, client_id="public", scopes=[])
 
     async def revoke_token(self, token) -> None:

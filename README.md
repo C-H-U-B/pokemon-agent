@@ -35,10 +35,10 @@ Good to know: the service stops when idle, and the first document search that wa
 
 | | |
 | --- | --- |
-| Sources | 29 PokéAPI CSV files, a hand-maintained reference spreadsheet, 1,216 Poképédia pages |
-| Relational database | 35 tables, 56 indexes, 8 views; 638,000 move-learning rows across 26 game groups |
-| Reference data | 1,025 species, 1,351 Pokémon, 1,579 forms, 937 moves |
-| Document index | 36,280 embedded chunks |
+| Sources | About thirty PokéAPI CSV files, a hand-maintained reference spreadsheet, over a thousand Poképédia pages |
+| Relational database | A few dozen tables, indexes and views; hundreds of thousands of move-learning rows across every game group |
+| Reference data | Every species, form and move, around a thousand of each |
+| Document index | Tens of thousands of embedded chunks |
 | Tests | Unit, integration and end-to-end tests; most need no model and run in CI |
 
 ## Data flow

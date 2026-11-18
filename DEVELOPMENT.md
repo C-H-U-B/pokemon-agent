@@ -2336,3 +2336,18 @@ The AI Agent node has neither guard nor context budget: with the same rules in
 its prompt, it is in the same situation as OpenClaw. n8n therefore suits what
 surrounds the agent, triggering a question or delivering an answer, while the
 logic that makes the model reliable stays in code.
+
+## 113. [Feature] An optional secret for the MCP server over HTTP
+
+The OAuth facade accepts any token: that is what lets the Claude.ai connector
+reach the public demo, whose tools only read public data. But a server started
+on every interface for n8n, or a private deployment, stayed open to anyone who
+could reach it on the network.
+
+Comparing the token to a fixed secret unconditionally would have cut off
+Claude.ai, which gets its token through the facade. The check is therefore
+optional: with `MCP_AUTH_TOKEN` set, only that secret is accepted, through a
+constant-time comparison, and any other token or a missing one gets a 401.
+Without the variable, the demo behaves as before. Tests cover both modes. The
+n8n guide generates the secret before starting the server, and the HTTP probe
+sends it when it is set.
