@@ -2351,3 +2351,23 @@ constant-time comparison, and any other token or a missing one gets a 401.
 Without the variable, the demo behaves as before. Tests cover both modes. The
 n8n guide generates the secret before starting the server, and the HTTP probe
 sends it when it is set.
+
+## 114. [Feature] Continuous deployment of the demo
+
+The hosted demo was published by hand: build the simulation image, push it to
+the image repository, then deploy it to Cloud Run. The service keeps the
+Gemini key attached so that it can go back to the live image. Simulation mode
+therefore rested on a single variable set by the `Dockerfile` target.
+
+The CI workflow now has a deployment job that runs after the tests. It first
+deploys a candidate revision, without traffic, with the simulation variable
+also set on the service. It then checks that the revision's page carries the
+simulation heading. On `main` only, traffic switches and the public address is
+checked the same way; a pull request stops at the candidate, which lets a
+branch be tried without touching the demo. GitHub authenticates through
+Workload Identity Federation, with a service account limited to that image
+repository and that service, and no stored key. A cleanup policy keeps the
+three latest simulation images.
+
+Tried on a pull request (candidate deployed, demo unchanged), then on `main`
+(traffic switched, online demo still in simulation).

@@ -2438,3 +2438,23 @@ avec `MCP_AUTH_TOKEN` défini, seul ce secret est accepté, par une comparaison
 variable, le comportement de la démo est inchangé. Des tests vérifient les
 deux modes. Le guide n8n génère le secret avant de lancer le serveur, et la
 sonde HTTP l'envoie lorsqu'il est défini.
+
+## 114. [Feature] Déploiement continu de la démo
+
+La démo hébergée se publiait à la main : construire l'image de simulation,
+l'envoyer dans le dépôt d'images, puis la déployer sur Cloud Run. Le service
+garde la clé Gemini attachée pour pouvoir revenir à l'image en direct. Le mode
+simulation ne tenait donc qu'à une variable posée par la cible du `Dockerfile`.
+
+Le workflow de CI a désormais un job de déploiement qui suit les tests. Il
+déploie d'abord une révision candidate, sans trafic, avec la variable de
+simulation posée aussi sur le service. Il vérifie ensuite que sa page porte
+l'en-tête de simulation. Sur `main` seulement, le trafic bascule et l'adresse
+publique est contrôlée de la même façon ; une pull request s'arrête à la
+candidate, ce qui permet d'essayer une branche sans toucher à la démo. GitHub
+s'authentifie par Workload Identity Federation, avec un compte de service
+limité à ce dépôt d'images et à ce service, sans clé stockée. Une politique
+de nettoyage garde les trois dernières images de simulation.
+
+Essayé sur une pull request (candidate déployée, démo inchangée), puis sur
+`main` (trafic basculé, démo en ligne toujours en simulation).
