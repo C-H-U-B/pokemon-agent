@@ -7,6 +7,8 @@ on:
     paths-ignore: ["**.md", "LICENSE"]
   pull_request:
     paths-ignore: ["**.md", "LICENSE"]
+  # Redéploiement sans commit (après un changement côté Google Cloud, par exemple).
+  workflow_dispatch:
 
 jobs:
   tests:
@@ -49,3 +51,64 @@ jobs:
       - name: Intégrité et références de la base publiée
         # SQLite seul : aucun modèle, aucun LLM.
         run: python -m pytest tests/integration/test_database.py -q
+
+  deploy:
+    # Démo publique (Cloud Run), seulement si les tests passent. Une révision candidate est déployée sans
+    # trafic puis contrôlée ; seule main bascule le trafic. Une pull request s'arrête au contrôle : c'est
+    # l'essai d'une branche sans toucher à la démo. Les pull requests venues d'un fork n'ont pas de jeton.
+    needs: tests
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    # Deux déploiements ne se croisent pas : la bascule vise la dernière révision.
+    concurrency:
+      group: deploy-demo
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write  # jeton OIDC échangé contre un accès Google Cloud (Workload Identity Federation)
+    env:
+      IMAGE: europe-west1-docker.pkg.dev/pokemon-agent-demo/pokemon-agent/simulation
+      SERVICE: pokemon-agent
+      REGION: europe-west1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          project_id: pokemon-agent-demo
+          workload_identity_provider: projects/592924290447/locations/global/workloadIdentityPools/github/providers/pokemon-agent
+          service_account: github-deployer@pokemon-agent-demo.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Construire et publier l'image de simulation
+        # ponytail: aucun cache de couches, l'image est reconstruite en entier ; cache-from si la durée gêne.
+        run: |
+          gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+          docker build --target simulation -t "$IMAGE:${GITHUB_SHA::7}" .
+          docker push "$IMAGE:${GITHUB_SHA::7}"
+
+      - name: Révision candidate, sans trafic
+        # POKEMON_RAG_SIMULATION=1 est aussi posé sur le service : la clé Gemini y reste attachée, et la
+        # simulation ne dépend plus seulement de la cible du Dockerfile.
+        run: >
+          gcloud run deploy "$SERVICE" --region="$REGION" --image="$IMAGE:${GITHUB_SHA::7}"
+          --update-env-vars=POKEMON_RAG_SIMULATION=1 --no-traffic --tag=candidate --quiet
+
+      - name: Contrôle du mode simulation sur la candidate
+        # La page porte « Simulation : réponses enregistrées… » en tête ; sans lui, aucune bascule.
+        run: |
+          url=$(gcloud run services describe "$SERVICE" --region="$REGION" --format='value(status.url)')
+          candidate="${url/https:\/\//https://candidate---}"
+          echo "Candidate : $candidate"
+          curl -fsS --retry 5 --retry-all-errors -m 120 "$candidate/" | grep -q "Simulation : réponses enregistrées"
+
+      - name: Bascule du trafic
+        if: github.ref == 'refs/heads/main'
+        run: gcloud run services update-traffic "$SERVICE" --region="$REGION" --to-latest
+
+      - name: Contrôle de la démo publique
+        if: github.ref == 'refs/heads/main'
+        run: |
+          curl -fsS --retry 5 --retry-all-errors -m 120 "https://pokemon-agent-592924290447.europe-west1.run.app/" \
+            | grep -q "Simulation : réponses enregistrées"
