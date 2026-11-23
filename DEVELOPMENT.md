@@ -1466,15 +1466,14 @@ and only when the question cites a value without the word "talent".
 The three paths were presented on an equal footing. The ADK agent and its web
 interface are now described as the main path; the LangGraph graph and the MCP
 client as the project's first version, kept for comparison and no longer
-maintained, with the capability gap: seven structured operations for the
-graph, twelve tools for the agent, but the only faithfulness check for
+maintained, with the capability gap: fewer structured operations for the
+graph than for the agent, but the only faithfulness check for
 descriptions in the graph.
 
 A review of the whole documentation corrected statements that had become false
-(ability filter described as missing, Ollama path "not validated", ten tools
-instead of twelve) and outdated figures, checked against the database and by
-collecting the tests. The campaign figures come from a full run of 42
-questions.
+(ability filter described as missing, Ollama path "not validated", a wrong
+number of tools) and outdated figures, checked against the database and by
+collecting the tests. The campaign results come from a full run.
 
 `pandas` and `openpyxl`, imported nowhere, leave the dependencies; `pytest`
 moves to the development dependencies and is no longer installed in the image.
@@ -1501,7 +1500,7 @@ the illustrations are inserted as HTML, with a fixed width.
 
 ## 83. [Feature] Suggested questions by audience
 
-The random question button drew from 142 questions, many of which assumed
+The random question button drew from a long list of questions, many of which assumed
 knowledge of Pokémon. It is replaced by three buttons: "Je découvre Pokémon"
 (new to Pokémon), with plain-language questions whose answer can be checked
 without any knowledge ("How many Pokémon are there?", "Which Pokémon is the
@@ -1518,9 +1517,9 @@ against the database before being suggested.
 
 The free-text headings of the spreadsheet (notable stats, how a Pokémon was
 obtained, its spotlight, movepool, former type) were covered by no test. A
-dedicated campaign of 26 questions, one per kind of fact, tells three failures
+dedicated campaign, one question per kind of fact, tells three failures
 apart: the sheet is not requested, the heading does not arrive, or the answer
-renders it badly. First run with Qwen: 12 out of 26.
+renders it badly. The first run with Qwen passes about half.
 
 Three defects were fixed. The spreadsheet shorthand was copied as is or read
 backwards ("PV #6 (30)" under "Bottom 10" became a good score): the engine now
@@ -1539,7 +1538,7 @@ Accepting the types tool for a type being asked about, tried first, replaced an
 abstention with a wrong answer: the tool ignores history and the model made it
 up. Only the sheet is therefore accepted.
 
-Second run: 13 out of 26, a gap within noise; Abo and the ranks pass, Rondoudou
+Second run: a gap within noise; Abo and the ranks pass, Rondoudou
 passes on one try in the interface. Still open: denials drawn from an absence
 ("Dracaufeu has no Mega Evolution" from an empty evolution list) and questions
 the model sends to another tool.
@@ -1668,8 +1667,8 @@ The agent quoted the right section of the sheet, then contradicted it: "Oui,
 Ectoplasma a toujours eu le talent Corps Maudit", followed by "donc non";
 Weezing "immunisé s'il possède Lévitation, ce qui est le cas pour lui"; a
 correct list of games followed by invented games. Read over ten runs of each
-question, 26 answers out of 30 were faulty, and the campaign check counted 18
-of them as passed.
+question, most answers were faulty, and the campaign check passed
+many of them.
 
 Three causes were possible: the writing instruction, a prior of the model on
 yes/no questions, or the sheet itself. Each faulty sentence could be traced to
@@ -1936,9 +1935,9 @@ not started. A test replays every suggested question.
 ## 98. [Bug fix] A drafting turn with no tool call to imitate
 
 On the public demo, nearly one question in three ended with "Je n'ai pas pu
-obtenir une réponse fiable dans les limites de traitement": 21 out of 70 over
+obtenir une réponse fiable dans les limites de traitement" over
 one weekend, suggested questions included. With local Qwen, the same abstention
-affected 3% of the questions.
+was rare.
 
 The demo's traces showed the cause. Once a tool result is received, the tool
 catalogue is removed so that the model drafts its answer. Gemini kept calling
@@ -2022,7 +2021,7 @@ Questions that really require a second Pokémon remain unanswered.
 
 ## 102. [Bug fix] An empty list only when the request was understood
 
-An audit of the eleven structured tools, called directly with edge-case inputs,
+An audit of the structured tools, called directly with edge-case inputs,
 showed that several returned an empty list for a request they had not
 recognised. The model reads an empty list as a fact: "does not evolve", "does not
 learn this move".
@@ -2105,7 +2104,7 @@ therefore narrow: the name is a single word of at least five letters, keeps its
 initial, and the word is close to one species only. Words from the names of
 moves, types, abilities and games are never read as a typo. Words from item
 names are not protected, since no tool filters by item: "cosmo", a word of the
-item Lettre Cosmo, otherwise stayed unknown instead of meaning Cosmog. Over the 492
+item Lettre Cosmo, otherwise stayed unknown instead of meaning Cosmog. Over the
 questions of the traces, the replay files and the guide, only "mimigale" and
 "écoli" are matched.
 
@@ -2205,7 +2204,7 @@ demo therefore stays on Cloud Run.
 
 The online demo only replays recorded answers: a visitor cannot ask their own
 question without installing the project. The MCP server, which exposes the
-twelve tools, only spoke stdio, so only to a client started on the same machine.
+tools, only spoke stdio, so only to a client started on the same machine.
 The intended audience often has a Claude account, and the free plan of Claude.ai
 accepts a remote MCP connector.
 
@@ -2243,7 +2242,7 @@ server and one account. The example and an instructions skill are in
 The default configuration did not fit in Qwen's context. A relay between
 OpenClaw and LM Studio showed about 57,000 characters sent before the
 question: built-in tools, workspace files, the list of skills and a catalogue
-of deferred tools. The twelve MCP tools were not even in it: OpenClaw hid them
+of deferred tools. The project's MCP tools were not even in it: OpenClaw hid them
 behind its search tool. The chosen profile keeps only the MCP tools, sent
 directly, with no bundled skill and no injected file. The request drops to
 about 7,100 tokens. It also removes the list of skills: the folder's skill is
@@ -2301,14 +2300,14 @@ therefore measures wording noise, not how robust the choice of arguments is.
 Two failures did not need the question to be corrected. A superlative turned
 into `limit` 1 cut a tie that the model kept quiet about despite the flag: with
 `best_only`, a limit below thirty is now raised to thirty. The model answered
-in English although the server also gave it the French names: the eleven
+in English although the server also gave it the French names: the
 structured tools take `english_names`, false by default, and otherwise return
 only the French labels. The ADK guard sets this argument from the question, and
 the schema view shown to the ADK model hides it: adding it pushed a long TM list
 over the context budget.
 
-OpenClaw rises to nine, eight and nine, and the agent still passes all 48 cases
-of the campaign. Ties and English names are corrected by mechanism; two filter
+OpenClaw's gap narrows clearly, and the agent still passes the
+campaign. Ties and English names are corrected by mechanism; two filter
 cases pass too, but through different arguments that these fixes did not
 target. The misspelt name still fails: correcting it requires reading the
 question. Offering the model the closest names to an unknown one was tried and

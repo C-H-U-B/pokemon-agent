@@ -4,9 +4,9 @@
 
 🇬🇧 [English version](README.md)
 
-Une chaîne de données complète, de la source brute au service interrogeable : deux sources hétérogènes sont collectées, nettoyées, modélisées et contrôlées, puis exposées par un moteur SQL et une recherche documentaire à des agents qui répondent en langage naturel avec un modèle local.
+Un agent de questions-réponses en français, conçu pour rester fiable avec un petit modèle local. Le modèle choisit des outils, un contrôle déterministe vérifie chaque appel, et des campagnes d'évaluation mesurent l'effet des correctifs. L'agent s'appuie sur une chaîne de données qui collecte, nettoie et contrôle trois sources hétérogènes, puis les expose par un moteur SQL et une recherche documentaire. Il couvre tout le parcours, de la collecte des données au déploiement continu, et sert aussi de terrain pour prendre en main et comparer des outils du domaine.
 
-Le projet tourne entièrement en local : SQLite, ChromaDB et un modèle Qwen 8B servi par LM Studio.
+Le projet se lance entièrement en local : SQLite, ChromaDB et un modèle Qwen 8B servi par LM Studio. La démo en ligne rejoue des réponses enregistrées.
 
 ## Démo en ligne
 
@@ -23,7 +23,7 @@ Le déploiement et ses réglages sont décrits dans le [guide de l'interface Web
 
 ### Avec votre compte Claude
 
-Les douze outils du projet (moteur SQL et recherche Poképédia) sont aussi servis comme connecteur MCP distant. Avec votre compte Claude, gratuit compris, vous posez vos propres questions : c'est Claude qui choisit les outils et rédige la réponse, à partir des données du projet.
+Les outils du projet (moteur SQL et recherche Poképédia) sont aussi servis comme connecteur MCP distant. Avec votre compte Claude, gratuit compris, vous posez vos propres questions : c'est Claude qui choisit les outils et rédige la réponse, à partir des données du projet.
 
 1. Dans Claude.ai, ouvrez Paramètres → Connecteurs → « Ajouter un connecteur personnalisé ».
 2. Donnez-lui un nom et l'URL `https://pokemon-mcp-592924290447.europe-west1.run.app/mcp`, puis cliquez sur « Connect » : l'autorisation est immédiate, aucun compte n'est demandé.
@@ -41,6 +41,16 @@ Les douze outils du projet (moteur SQL et recherche Poképédia) sont aussi serv
 | Index documentaire | Des dizaines de milliers de fragments vectorisés |
 | Tests | Tests unitaires, d'intégration et de bout en bout ; la plupart sans modèle, lancés en CI |
 
+## Fiabiliser un petit modèle
+
+Un modèle de 8 milliards de paramètres se trompe souvent sur les arguments : il oublie un filtre, invente une borne, remplace un nom rare par un nom plus courant. Plutôt que de lui faire confiance, un contrôle déterministe extrait les contraintes de la question et les compare à l'appel proposé avant son exécution. La réponse est contrôlée de la même façon : quand le modèle omet ou nie une ligne d'une liste reçue en entier, la réponse est remplacée par la liste construite depuis les données.
+
+Les correctifs ont été mesurés avant et après sur une campagne de bout en bout avec Qwen3-VL 8B en local : davantage de questions réussies, des appels corrects dès la proposition du modèle bien plus souvent, et moins de réponses abandonnées pour dépassement de contexte. La campagne s'est ensuite enrichie de mots ordinaires qui ne doivent pas devenir des contraintes, de listes dont la réponse est contrôlée et de noms mal orthographiés.
+
+Ce que vaut ce contrôle a été mesuré face à un agent généraliste, avec le même modèle et les mêmes outils : [OpenClaw](integrations/openclaw/), qui reçoit les règles d'usage dans son prompt mais aucun contrôle, s'est montré nettement moins fiable que l'agent sur les mêmes questions à contraintes de la campagne, en échouant sur les mêmes cas d'une exécution à l'autre (novembre 2026). Deux correctifs côté serveur, utiles à tout client, ont comblé l'essentiel de l'écart : un superlatif ne coupe plus un ex aequo, et les noms anglais ne sont renvoyés que sur demande. Les échecs restants, un argument oublié ou inventé et un nom mal écrit, ne se corrigent qu'en lisant la question : c'est le rôle du contrôle, que le serveur ne peut pas tenir. Proposer au modèle le nom proche d'un nom inconnu a été essayé puis retiré : OpenClaw ne relançait pas l'outil et inventait les statistiques du nom proposé.
+
+Les traces enregistrent ce que le modèle a proposé, ce que le contrôle a corrigé ou refusé et ce qui a été exécuté. Les défauts qu'elles révèlent deviennent des cas de test, et les échecs sont classés avant correction en erreur de données, de test ou d'orchestration. Le récit complet est dans [l'historique de développement](DEVELOPMENT_FR.md).
+
 ## Flux de données
 
 ```mermaid
@@ -53,7 +63,7 @@ flowchart LR
     R --> S[Index vectoriel<br/>ChromaDB]
     C --> E[Moteur SQL]
     S --> F[Recherche hybride]
-    E --> M[Serveur MCP<br/>12 outils]
+    E --> M[Serveur MCP]
     F --> M
     E --> G[Graphe LangGraph]
     F --> G
@@ -71,7 +81,7 @@ flowchart LR
 | Base intermédiaire | `scripts/pokeapi/build_pokeapi_db.py` | Importe les CSV avec des colonnes typées, crée les index et les vues de libellés |
 | Base applicative | `scripts/pokeapi/build_pokemon_db.py` | Lit le tableur, relie chaque ligne aux identifiants PokéAPI et produit la vue `custom_pokedex` |
 
-Le rapprochement entre le tableur et PokéAPI est le point délicat : les deux sources ne nomment ni ne découpent les formes de la même façon. Chaque ligne reçoit un statut de rapprochement, et les formes sans correspondance sont signalées plutôt que masquées.
+Le tableur et PokéAPI ne nomment ni ne découpent les formes de la même façon. Chaque ligne du tableur porte donc ses identifiants PokéAPI et un statut de correspondance. La construction vérifie que ces identifiants numériques existent, qu'ils sont cohérents entre eux et identiques dans les feuilles française et anglaise ; sinon, elle s'arrête.
 
 ### Données documentaires : Poképédia
 
@@ -92,16 +102,16 @@ Chaque fragment garde le Pokémon, le fichier source et le chemin de section don
 - **Intégration continue.** À chaque push, GitHub Actions installe le projet sur une machine vierge, lance le contrôle statique et les tests qui ne dépendent ni des données locales ni d'un modèle.
 - **Déploiement continu.** Quand les tests passent sur `main`, le même workflow construit l'image de simulation et la déploie sur Cloud Run en révision sans trafic. Le trafic ne bascule qu'une fois que la page de cette révision indique le mode simulation : aucun appel en direct au modèle ne peut partir. GitHub s'authentifie par Workload Identity Federation, sans clé de compte de service stockée.
 
-Une anomalie de données rencontrée en cours de route illustre l'intérêt de ces contrôles : le jeu le plus récent n'utilise qu'une seule méthode d'apprentissage, si bien qu'une recherche de capacités par niveau y renvoyait une liste vide pour plus de 300 Pokémon. La sélection du jeu tient désormais compte de la méthode demandée.
+Une anomalie de données rencontrée en cours de route illustre l'intérêt de ces contrôles : le jeu le plus récent n'utilise qu'une seule méthode d'apprentissage, si bien qu'une recherche de capacités par niveau y renvoyait une liste vide pour des centaines de Pokémon. La sélection du jeu tient désormais compte de la méthode demandée.
 
 ## Exposer les données
 
 - **Moteur SQL.** Des fonctions paramétrées couvrent les évolutions, les capacités, les types, la recherche multicritère et les classements par statistique. Les filtres, les tris, les totaux et les égalités sont calculés en SQL. Le modèle de langage ne produit jamais de SQL : il choisit une opération et ses arguments.
 - **Recherche documentaire.** Recherche lexicale et vectorielle combinées, prise en compte de la structure des sections, puis reclassement.
-- **Serveur MCP.** Douze outils exposent ces fonctions à n'importe quel client compatible : l'agent ADK, Claude.ai, [OpenClaw](integrations/openclaw/) sur Discord avec Qwen, ou un workflow [n8n](integrations/n8n/).
-- **API HTTP.** Onze routes exposent le moteur SQL sans aucun modèle. Elles réutilisent les fonctions des outils MCP : mêmes arguments, mêmes validations.
+- **Serveur MCP.** Des outils typés exposent ces fonctions à n'importe quel client compatible : l'agent ADK, Claude.ai, [OpenClaw](integrations/openclaw/) sur Discord avec Qwen, ou un workflow [n8n](integrations/n8n/).
+- **API HTTP.** Des routes exposent le moteur SQL sans aucun modèle. Elles réutilisent les fonctions des outils MCP : mêmes arguments, mêmes validations.
 
-Trois façons de répondre à une question s'appuient sur ces mêmes données. L'agent ADK et son interface Web sont le parcours principal. Le graphe LangGraph et le client MCP sont la première version du projet, gardée pour comparaison et non maintenue : le graphe couvre 7 opérations structurées contre les 12 outils de l'agent, mais il est le seul parcours à contrôler la fidélité d'une description.
+Trois façons de répondre à une question s'appuient sur ces mêmes données. L'agent ADK et son interface Web sont le parcours principal. Le graphe LangGraph et le client MCP sont la première version du projet, gardée pour comparaison et non maintenue : le graphe couvre moins d'opérations structurées que l'agent, mais il est le seul parcours à contrôler la fidélité d'une description.
 
 | Parcours | Principe | Garanties |
 | --- | --- | --- |
@@ -109,15 +119,14 @@ Trois façons de répondre à une question s'appuient sur ces mêmes données. L
 | Graphe LangGraph (première version) | Routage entre SQL, recherche documentaire ou les deux | Plan contraint, contrôle de fidélité de la réponse, reprises bornées, abstention, traces |
 | Client MCP (première version) | Boucle d'agent minimale écrite à la main | Contraintes explicites de la question préservées |
 
-## Fiabiliser un petit modèle
+## Veille et intégrations
 
-Un modèle de 8 milliards de paramètres se trompe souvent sur les arguments : il oublie un filtre, invente une borne, remplace un nom rare par un nom plus courant. Plutôt que de lui faire confiance, un contrôle déterministe extrait les contraintes de la question et les compare à l'appel proposé avant son exécution. La réponse est contrôlée de la même façon : quand le modèle omet ou nie une ligne d'une liste reçue en entier, la réponse est remplacée par la liste construite depuis les données.
+Le serveur MCP sert aussi de terrain pour évaluer d'autres outils du domaine :
 
-Chaque correctif a été mesuré avant et après sur une campagne de bout en bout avec Qwen3-VL 8B en local : davantage de questions réussies, des appels corrects dès la proposition du modèle bien plus souvent, et plus aucune réponse abandonnée pour dépassement de contexte. La campagne s'est ensuite enrichie de mots ordinaires qui ne doivent pas devenir des contraintes, de listes dont la réponse est contrôlée et de noms mal orthographiés ; son résultat est recalculé depuis les runs enregistrés par `scripts/campaign_result.py`.
-
-Ce que vaut ce contrôle a été mesuré face à un agent généraliste, avec le même modèle et les mêmes outils : [OpenClaw](integrations/openclaw/), qui reçoit les règles d'usage dans son prompt mais aucun contrôle, s'est montré nettement moins fiable que l'agent sur les mêmes questions à contraintes de la campagne, en échouant sur les mêmes cas d'une exécution à l'autre (novembre 2026). Deux correctifs côté serveur, utiles à tout client, ont comblé l'essentiel de l'écart : un superlatif ne coupe plus un ex aequo, et les noms anglais ne sont renvoyés que sur demande. Les échecs restants, un argument oublié ou inventé et un nom mal écrit, ne se corrigent qu'en lisant la question : c'est le rôle du contrôle, que le serveur ne peut pas tenir. Proposer au modèle le nom proche d'un nom inconnu a été essayé puis retiré : OpenClaw ne relançait pas l'outil et inventait les statistiques du nom proposé.
-
-Chaque cause a été isolée avant d'être corrigée, en distinguant erreur de données, erreur de test et erreur d'orchestration. Le récit complet est dans [l'historique de développement](DEVELOPMENT_FR.md).
+- **OpenClaw** : client du serveur MCP, comparé à l'agent ADK sur les mêmes questions. La comparaison a conduit à deux correctifs du serveur.
+- **n8n** : un agent de chat connecté au serveur MCP et un webhook vers l'API HTTP, avec un guide sur les cas où préférer n8n à du code.
+- **LangGraph** : première version de l'agent (routage, contrôle de fidélité, abstention), conservée pour comparaison.
+- **Contrôle d'accès MCP** : modèle de menace documenté et secret optionnel pour les déploiements privés. Le connecteur public reste ouvert par choix : ses outils sont en lecture seule sur des données publiques.
 
 ## Technologies
 
@@ -193,6 +202,8 @@ ruff check .
 - Les étapes de construction se lancent à la main, dans l'ordre ci-dessus, et reconstruisent tout.
 - L'intégration continue ne couvre pas les tests qui demandent les bases construites ou un modèle.
 - Les mesures de bout en bout dépendent d'un modèle local ; elles sont relancées manuellement.
+- Les campagnes ont aussi servi à mettre au point les correctifs, et aucun jeu de test n'est tenu à part : leur résultat ne mesure pas la généralisation à de nouvelles questions.
+- Un run de campagne n'enregistre pas le commit sur lequel il a tourné.
 
 ## Documentation
 

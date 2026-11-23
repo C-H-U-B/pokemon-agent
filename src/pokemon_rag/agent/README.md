@@ -14,7 +14,7 @@ présentes dans l'environnement sont conservées, vérifier qu'elles ciblent bie
 le serveur voulu avant toute exécution.
 
 L'agent unique dispose désormais de `McpToolset`, qui démarre le serveur Pokémon
-en stdio avec le même interpréteur Python. Le filtre expose les douze outils :
+en stdio avec le même interpréteur Python. Le filtre expose les outils :
 `pokemon_evolutions`, `pokemon_level_up_moves`, `pokemon_move_learning_methods`,
 `pokemon_machine_moves`, `pokemon_types`, `pokemon_pokedex_identity`,
 `pokemon_signature_moves`, `pokemon_base_stats`, `pokemon_particularities`,
@@ -277,7 +277,7 @@ par l'API et réponse vide (`MALFORMED_FUNCTION_CALL`) ou coupée. Ni une phrase
 consigne ni `tool_choice: none` ne l'arrêtaient. Une question peut aussi
 demander plusieurs outils (« mouscoto » : quatre appels au même tour). Coût : le
 catalogue est relu au tour de rédaction, environ 2,75 s de plus par question
-avec Qwen en local (campagne structurée, 699 s contre 578 s pour 44 cas).
+avec Qwen en local (campagne structurée).
 Chaque abstention locale est journalisée avec sa raison (`request_too_large`
 ou `too_many_model_calls`) et les tailles mesurées, et chaque résultat d'outil
 avec sa taille MCP et sa taille projetée, sans contenu. Ces lignes passent par
@@ -375,7 +375,7 @@ et ne garantissent pas la qualité factuelle des réponses Pokémon.
 Le test `tests/integration/test_adk_mcp_toolset.py` découvre les outils sans
 appeler de LLM ni exécuter de recherche. Le serveur importe le module RAG uniquement lors
 d'un appel à `pokemon_rag_search`, pour ne pas retarder l'initialisation MCP.
-Le test de découverte ADK vérifie exactement le catalogue des douze outils.
+Le test de découverte ADK vérifie exactement le catalogue des outils.
 
 Le budget de requête est passé de 12000 à 13500 octets avec les outils
 `pokemon_base_stats` et `pokemon_particularities` : le catalogue réel est passé

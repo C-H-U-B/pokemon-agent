@@ -4,9 +4,9 @@
 
 🇫🇷 [Version française](README_FR.md)
 
-A complete data pipeline, from raw sources to a queryable service: two heterogeneous sources are collected, cleaned, modelled and validated, then exposed through a SQL engine and a document search to agents that answer in natural language with a local model.
+A French-language question-answering agent designed to stay reliable with a small local model. The model chooses tools, a deterministic check verifies every call, and evaluation campaigns measure the effect of fixes. The agent relies on a data pipeline that collects, cleans and validates three heterogeneous sources, then serves them through a SQL engine and a document search. It covers the whole path, from data collection to continuous deployment, and also serves as a testbed for learning and comparing tools in the field.
 
-Everything runs locally: SQLite, ChromaDB and an 8B Qwen model served by LM Studio.
+The project can run entirely locally: SQLite, ChromaDB and an 8B Qwen model served by LM Studio. The online demo replays recorded answers.
 
 ## Live demo
 
@@ -23,7 +23,7 @@ The deployment and its settings are described in the [web interface guide](src/p
 
 ### With your Claude account
 
-The project's twelve tools (SQL engine and Poképédia search) are also served as a remote MCP connector. With your Claude account, free plan included, you ask your own questions: Claude chooses the tools and writes the answer from the project's data.
+The project's tools (SQL engine and Poképédia search) are also served as a remote MCP connector. With your Claude account, free plan included, you ask your own questions: Claude chooses the tools and writes the answer from the project's data.
 
 1. In Claude.ai, open Settings → Connectors → "Add custom connector".
 2. Give it a name and the URL `https://pokemon-mcp-592924290447.europe-west1.run.app/mcp`, then click "Connect": authorization is immediate, no account is asked for.
@@ -41,6 +41,16 @@ Good to know: the service stops when idle, and the first document search that wa
 | Document index | Tens of thousands of embedded chunks |
 | Tests | Unit, integration and end-to-end tests; most need no model and run in CI |
 
+## Making a small model reliable
+
+An 8-billion-parameter model often gets arguments wrong: it forgets a filter, invents a bound, replaces a rare name with a more common one. Rather than trusting it, a deterministic check extracts the constraints from the question and compares them with the proposed call before it runs. The answer is checked the same way: when the model omits or denies a row of a list it received in full, the answer is replaced by the list built from the data.
+
+Fixes were measured before and after on an end-to-end campaign run with Qwen3-VL 8B locally: more questions passed, the model's calls were correct as proposed far more often, and fewer answers were dropped for exceeding the context budget. The campaign then grew with ordinary words that must not become constraints, lists whose answer is checked and misspelt names.
+
+What the check is worth was measured against a general-purpose agent with the same model and the same tools: [OpenClaw](integrations/openclaw/), given the usage rules in its prompt but no check, was clearly less reliable than the agent on the same constraint questions from the campaign, failing on the same cases from one run to the next (November 2026). Two server-side fixes, useful to any client, closed most of the gap: a superlative no longer cuts a tie, and English names are only returned on request. The remaining misses, a forgotten or invented argument and a misspelt name, can only be corrected by reading the question: that is the check's job, which the server cannot do. Offering the model the closest name for an unknown one was tried and removed: OpenClaw never called the tool again and invented the suggested Pokémon's stats.
+
+Traces record what the model proposed, what the check corrected or refused and what was executed. The defects they reveal become test cases, and failures are classified before being fixed as data, test or orchestration errors. The full account is in the [development history](DEVELOPMENT.md).
+
 ## Data flow
 
 ```mermaid
@@ -53,7 +63,7 @@ flowchart LR
     R --> S[Vector index<br/>ChromaDB]
     C --> E[SQL engine]
     S --> F[Hybrid search]
-    E --> M[MCP server<br/>12 tools]
+    E --> M[MCP server]
     F --> M
     E --> G[LangGraph graph]
     F --> G
@@ -71,7 +81,7 @@ flowchart LR
 | Intermediate database | `scripts/pokeapi/build_pokeapi_db.py` | Imports the CSV files with typed columns, creates indexes and label views |
 | Application database | `scripts/pokeapi/build_pokemon_db.py` | Reads the spreadsheet, links each row to PokéAPI identifiers and builds the `custom_pokedex` view |
 
-Matching the spreadsheet to PokéAPI is the delicate part: the two sources neither name nor split forms the same way. Each row gets a matching status, and forms without a match are reported rather than hidden.
+The spreadsheet and PokéAPI neither name nor split forms the same way. Each spreadsheet row therefore carries its PokéAPI identifiers and a mapping status. The build checks that these numeric identifiers exist, agree with each other and match across the French and English sheets; otherwise it stops.
 
 ### Document data: Poképédia
 
@@ -92,16 +102,16 @@ Each chunk keeps the Pokémon, source file and section path it comes from, which
 - **Continuous integration.** On every push, GitHub Actions installs the project on a clean machine, runs the static checks and the tests that depend on neither local data nor a model.
 - **Continuous deployment.** When the tests pass on `main`, the same workflow builds the simulation image and deploys it to Cloud Run as a revision without traffic. Traffic switches only once that revision's page shows that it is in simulation mode, so no live model call can go out. GitHub authenticates through Workload Identity Federation: no service account key is stored.
 
-One data anomaly met along the way shows why these checks matter: the most recent game uses a single learning method, so a search for moves by level returned an empty list for more than 300 Pokémon. Game selection now takes the requested method into account.
+One data anomaly met along the way shows why these checks matter: the most recent game uses a single learning method, so a search for moves by level returned an empty list for hundreds of Pokémon. Game selection now takes the requested method into account.
 
 ## Serving the data
 
 - **SQL engine.** Parameterised functions cover evolutions, moves, types, multi-criteria search and rankings by statistic. Filters, sorts, totals and ties are computed in SQL. The language model never writes SQL: it picks an operation and its arguments.
 - **Document search.** Combined lexical and vector search, awareness of section structure, then reranking.
-- **MCP server.** Twelve tools expose these functions to any compatible client: the ADK agent, Claude.ai, [OpenClaw](integrations/openclaw/) on Discord with Qwen, or an [n8n](integrations/n8n/) workflow.
-- **HTTP API.** Eleven routes expose the SQL engine without any model. They reuse the functions of the MCP tools: same arguments, same validation.
+- **MCP server.** Typed tools expose these functions to any compatible client: the ADK agent, Claude.ai, [OpenClaw](integrations/openclaw/) on Discord with Qwen, or an [n8n](integrations/n8n/) workflow.
+- **HTTP API.** Routes expose the SQL engine without any model. They reuse the functions of the MCP tools: same arguments, same validation.
 
-Three ways of answering a question rely on the same data. The ADK agent and its web interface are the main path. The LangGraph graph and the MCP client are the project's first version, kept for comparison and no longer maintained: the graph covers 7 structured operations against the agent's 12 tools, but it is the only path that checks the faithfulness of a description.
+Three ways of answering a question rely on the same data. The ADK agent and its web interface are the main path. The LangGraph graph and the MCP client are the project's first version, kept for comparison and no longer maintained: the graph covers fewer structured operations than the agent, but it is the only path that checks the faithfulness of a description.
 
 | Path | Principle | Guarantees |
 | --- | --- | --- |
@@ -109,15 +119,14 @@ Three ways of answering a question rely on the same data. The ADK agent and its 
 | LangGraph graph (first version) | Routes between SQL, document search or both | Constrained plan, answer faithfulness check, bounded retries, abstention, traces |
 | MCP client (first version) | Minimal hand-written agent loop | Explicit constraints of the question preserved |
 
-## Making a small model reliable
+## Technology watch and integrations
 
-An 8-billion-parameter model often gets arguments wrong: it forgets a filter, invents a bound, replaces a rare name with a more common one. Rather than trusting it, a deterministic check extracts the constraints from the question and compares them with the proposed call before it runs. The answer is checked the same way: when the model omits or denies a row of a list it received in full, the answer is replaced by the list built from the data.
+The MCP server also serves as a testbed for other tools in the field:
 
-Each fix was measured before and after on an end-to-end campaign run with Qwen3-VL 8B locally: more questions passed, the model's calls were correct as proposed far more often, and no answer was dropped any more for exceeding the context budget. The campaign then grew with ordinary words that must not become constraints, lists whose answer is checked and misspelt names; its result is recomputed from the recorded runs by `scripts/campaign_result.py`.
-
-What the check is worth was measured against a general-purpose agent with the same model and the same tools: [OpenClaw](integrations/openclaw/), given the usage rules in its prompt but no check, was clearly less reliable than the agent on the same constraint questions from the campaign, failing on the same cases from one run to the next (November 2026). Two server-side fixes, useful to any client, closed most of the gap: a superlative no longer cuts a tie, and English names are only returned on request. The remaining misses, a forgotten or invented argument and a misspelt name, can only be corrected by reading the question: that is the check's job, which the server cannot do. Offering the model the closest name for an unknown one was tried and removed: OpenClaw never called the tool again and invented the suggested Pokémon's stats.
-
-Each cause was isolated before being fixed, telling data errors, test errors and orchestration errors apart. The full account is in the [development history](DEVELOPMENT.md).
+- **OpenClaw**: MCP client compared with the ADK agent on the same questions. The comparison led to two server fixes.
+- **n8n**: a chat agent connected to the MCP server and a webhook to the HTTP API, with a guide on when to prefer n8n over code.
+- **LangGraph**: first version of the agent (routing, faithfulness check, abstention), kept for comparison.
+- **MCP access control**: documented threat model and optional secret for private deployments. The public connector stays open by choice: its tools are read-only over public data.
 
 ## Stack
 
@@ -193,6 +202,8 @@ ruff check .
 - Build steps are launched by hand, in the order above, and rebuild everything.
 - Continuous integration does not cover the tests that need the built databases or a model.
 - End-to-end measurements depend on a local model; they are rerun manually.
+- The campaigns were also used to develop the fixes and no test set is held out: their result does not measure generalisation to new questions.
+- A campaign run does not record the commit it ran on.
 
 ## Documentation
 

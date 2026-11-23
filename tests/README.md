@@ -69,7 +69,7 @@ décrivent des prérequis distincts ; `long` reste disponible pour la durée.
 | Onglet « Observabilité » | `unit/test_web_observability.py` : rendu d'une trace Web sans interface ; quatre étapes par appel, arrêt au guard ou à l'outil, texte d'exception masqué, balises échappées, rendu stable pendant une question en cours |
 | Sessions Web | `unit/test_web_request_sessions.py` : runner ADK simulé ; questions indépendantes, historique affiché conservé, suppression des sessions après succès ou erreur ; blocs d'observabilité et graphe renvoyés seulement quand ils changent, temps d'outil et tokens de l'onglet « Observabilité », démarrage anticipé du serveur d'outils |
 | Serveur MCP | `integration/test_mcp_server.py` : vrai transport stdio et outil structuré, sans Qwen |
-| API HTTP | `unit/test_api.py` : vraie application FastAPI et vraies fonctions d'outils, moteur simulé ; les onze routes structurées, 404 ou 400 sur refus du moteur, 422 hors schéma, 503 pour une base absente |
+| API HTTP | `unit/test_api.py` : vraie application FastAPI et vraies fonctions d'outils, moteur simulé ; les routes structurées, 404 ou 400 sur refus du moteur, 422 hors schéma, 503 pour une base absente |
 | Abstentions de l'agent ADK | `unit/test_adk_context_budget.py`, puis `integration/test_adk_stat_rankings.py` (vrai runner, modèle simulé) : réponse sans résultat d'outil exploitable remplacée, catalogue retiré après des passages, mesures hors de la vue du modèle |
 | Alias d'espèces du Pokédex | `integration/test_pokedex_species_aliases.py` : vraie base, appels métier/MCP directs sans parseur LLM ; formes par défaut et noms français des capacités |
 | Résolution de Tonnerre | `integration/test_structured_constraint_preservation.py` : parsing et vraie base |
@@ -92,7 +92,7 @@ Elle ne valide pas le choix d'outil par Qwen. Les tests ADK réels de function
 calling et du parcours MCP restent dans `tests/long`, marqués `llm`, `models`
 et `long`, et doivent être exécutés par l'utilisateur.
 
-`integration/test_adk_mcp_toolset.py` vérifie la découverte exacte des douze outils
+`integration/test_adk_mcp_toolset.py` vérifie la découverte exacte des outils
 via le vrai serveur stdio, sans appel d'outil ni LLM. Il contrôle aussi le
 catalogue tel que le modèle le reçoit après abrègement : premier paragraphe non
 coupé, direction annoncée, valeurs fermées exposées, outils cités par
@@ -140,7 +140,7 @@ Le sous-processus utilise le cache Hugging Face en mode hors ligne. Les tests
 limitent les appels MCP à 120 secondes et les appels LLM à 90 secondes, sans
 reprise HTTP automatique ; la configuration du client applicatif reste inchangée.
 
-Ils vérifient huit des douze outils (sans `pokemon_search`, `pokemon_moves`,
+Ils vérifient une partie des outils (sans `pokemon_search`, `pokemon_moves`,
 `pokemon_base_stats` ni `pokemon_particularities`), les filtres de jeu et de niveau, une forme régionale
 et la recherche documentaire globale ou ciblée. Le rapport JUnit conserve la question, l'outil,
 ses arguments, son résultat et la réponse pour relecture. Le succès de ces tests
@@ -159,7 +159,7 @@ conda run -n langgraph-agent python -m pytest tests/integration/test_mcp_server.
 ```
 
 Le test serveur nécessite la base locale et le SDK MCP compatible. Il découvre
-les douze outils et appelle réellement `pokemon_types` pour Pikachu et Nigirigon,
+les outils et appelle réellement `pokemon_types` pour Pikachu et Nigirigon,
 puis vérifie qu'une espèce inexistante produit une erreur MCP, sans Qwen ni recherche RAG.
 Il utilise `asyncio.run` et ne nécessite pas `pytest-asyncio`.
 
