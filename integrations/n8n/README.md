@@ -6,7 +6,7 @@ workflows à importer (menu **Import from File**) :
 
 | Workflow | Chaîne | Modèle |
 | --- | --- | --- |
-| [`chat-agent-mcp.json`](chat-agent-mcp.json) | Chat Trigger → AI Agent → serveur MCP (douze outils) | Qwen dans LM Studio |
+| [`chat-agent-mcp.json`](chat-agent-mcp.json) | Chat Trigger → AI Agent → serveur MCP | Qwen dans LM Studio |
 | [`webhook-api.json`](webhook-api.json) | Webhook → requête HTTP vers l'API (`/pokemon/{nom}/stats`) | aucun |
 
 À l'import, n8n demande de recréer les deux credentials du premier workflow : ni clé ni

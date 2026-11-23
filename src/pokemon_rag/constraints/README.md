@@ -51,9 +51,9 @@ talents, pas les objets : « cosmo » (Lettre Cosmo) désigne Cosmog, et seize m
 d'objets peuvent être lus comme un Pokémon (« galet » pour Gaulet, « limonade »
 pour Limonde). Deux fautes (« dracofeu »), un nom court
 (« Mew ») ou composé (« M. Mime ») et un mot proche de deux espèces ne sont pas
-rapprochés. Mesure du 12 octobre sur les 492 questions des traces Web, de
+rapprochés. Mesure du 12 octobre sur les questions des traces Web, de
 `scripts/batch/` et du guide : seules « mimigale » et « écoli » sont rapprochées,
-aucun mot courant ; 869 noms retrouvés sur 1 025 avec une faute simulée.
+aucun mot courant ; la plupart des noms sont retrouvés avec une faute simulée.
 `is_named_identity_question` reconnaît le motif numéro national / identité
 Pokédex ; le guard garde la responsabilité du refus d'outil incompatible.
 La correspondance interne `Tonnerre` → `thunderbolt` appartient à

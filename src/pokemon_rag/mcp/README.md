@@ -15,7 +15,7 @@ Pokémon. `pokemon_search` accepte en plus `subgroup`, `evolution_stage` et
 valeur inconnue est une erreur, pas une liste vide, qui liste les valeurs admises
 quand elles sont peu nombreuses (sous-groupes).
 
-Le serveur expose douze outils. `pokemon_search` appelle `search_pokemon` et
+Le serveur expose ses outils. `pokemon_search` appelle `search_pokemon` et
 `pokemon_moves` appelle `get_pokemon_moves`. Leurs signatures
 et contrats sont décrits dans le [guide structuré](../structured/README.md#recherche-pokémon-et-movepool-filtrable-via-mcp).
 Ils combinent les filtres en SQL, renvoient des pages avec total exact et
@@ -47,7 +47,7 @@ ADK. Dans le vrai flux, ADK encadre en plus chaque description par des marqueurs
 de contenu non fiable, soit environ 80 octets par description d'argument : une
 mesure du catalogue hors runner sous-estime donc la requête réelle.
 `type_match` est une enum `all/any/exact` ; `damage_class` reste une
-chaîne car le moteur accepte aussi les termes français. Les onze outils structurés prennent
+chaîne car le moteur accepte aussi les termes français. Les outils structurés prennent
 `english_names` (faux par défaut) : sans lui, le serveur retire les traductions anglaises appariées
 à un libellé français (`french_fields` du moteur). Avec les deux langues, OpenClaw répondait en
 anglais malgré les noms français reçus. Le guard ADK fixe cet argument d'après la question, et la
@@ -105,7 +105,7 @@ soumis à cette sélection automatique.
 ## Client local
 
 L'[agent ADK](../agent/README.md) constitue un autre client du serveur. Son
-catalogue expose les douze outils du serveur, y compris `pokemon_rag_search`.
+catalogue expose les outils du serveur, y compris `pokemon_rag_search`.
 Son callback préserve les
 contraintes reconnues de niveaux, puissance, jeux, formes, catégories/types de
 capacités, types de Pokémon, génération, classifications et classements ou refuse un outil

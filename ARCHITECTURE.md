@@ -4,13 +4,13 @@ Le code applicatif est dans `src/pokemon_rag`. Trois parcours partagent SQLite e
 la recherche documentaire, sans offrir les mêmes garanties. L'agent ADK et son
 interface Web sont le parcours principal ; le graphe LangGraph et le client MCP
 sont la première version du projet, gardée pour comparaison et non maintenue.
-L'agent utilise Qwen local et les douze outils du serveur via MCP, sans le
+L'agent utilise Qwen local et les outils du serveur via MCP, sans le
 grounding du graphe. Son guard déterministe préserve les contraintes reconnues
 (niveaux, jeux, formes, sous-groupes…) et retire les filtres que la question ne
 justifie pas, avant l'appel d'outil ; sa réponse est confrontée aux listes
 entièrement transmises. Ses limites sont décrites dans le
 [guide ADK](src/pokemon_rag/agent/README.md).
-Parmi les douze outils, `pokemon_search` compose ses filtres avec un classement
+Parmi les outils, `pokemon_search` compose ses filtres avec un classement
 SQL par statistique de base ou total, un mode de superlatif avec ex aequo et une
 catégorie de formes Méga, et `pokemon_moves` filtre un movepool. Le guard conserve
 ces arguments ; les calculs restent dans le moteur structuré.
@@ -21,7 +21,7 @@ Lire ensuite uniquement le [guide spécialisé](docs/README.md) de la tâche.
 | Entrée | Usage et effets |
 | --- | --- |
 | `python -m pokemon_rag.web.app` | Interface Gradio, navigateur automatique, historique affiché et activité progressive ; session ADK indépendante par question |
-| `adk run src/pokemon_rag/agent` | Agent ADK unique via LiteLLM et LM Studio ; douze outils MCP, guard avant appel, réponses en français, sans grounding |
+| `adk run src/pokemon_rag/agent` | Agent ADK unique via LiteLLM et LM Studio ; outils MCP, guard avant appel, réponses en français, sans grounding |
 | `python -m pokemon_rag.graph.graph` | Terminal interactif ; appelle `run_graph`, peut utiliser LM Studio et écrit une trace |
 | `graph.graph.run_graph(initial_state)` | Entrée Python du graphe ; état contenant au minimum `question` |
 | `python -m pokemon_rag.client.mcp_client` | Questions successives dans une session MCP, sélection d'un outil et réponse par Qwen |
@@ -106,7 +106,7 @@ ni par `query_structured_data` ni par `run_graph`. Voir les
 | Graphe du parcours d'une question (nœuds, liens, issues vers le rejet) | `web/graph.py` | Le serveur envoie le parcours tiré d'une trace Web, le navigateur le déroule ; ne dessiner que des modules réellement exécutés |
 | Chaîne d'une question en blocs (proposition, guard, outil, budget) | `web/observability.py` | Rendu d'une trace Web, comme le graphe ; page publique : tout texte reçu est échappé, le texte d'exception d'un outil n'est pas affiché |
 | Conversation Web et questions suggérées | `web/app.py`, `web/questions_*.txt`, `web/exemple_ouverture.json` | Présentation et état de conversation ; réutiliser root_agent et MCP, sans dupliquer la logique métier |
-| Configurer l'agent ADK et son modèle local | `agent/agent.py` | Couche indépendante, douze outils MCP structurés et documentaires ; voir le [guide ADK](src/pokemon_rag/agent/README.md) pour le contexte local et les limites |
+| Configurer l'agent ADK et son modèle local | `agent/agent.py` | Couche indépendante, outils MCP structurés et documentaires ; voir le [guide ADK](src/pokemon_rag/agent/README.md) pour le contexte local et les limites |
 | Adapter les retours d'outils au modèle, budget de contexte, abstentions | `agent/context_budget.py` | Ne jamais modifier la réponse MCP ; projeter les faits utiles, mesurer la requête, s'abstenir plutôt que répondre de mémoire |
 | Confronter la réponse finale à une liste transmise | `agent/list_fidelity.py` | Détection partagée avec la campagne ; remplacer par les données, jamais compléter de mémoire |
 | Préserver les contraintes avant un outil ADK | `agent/tool_guard.py` | Réutiliser les extracteurs communs ; restaurer les arguments compatibles ou bloquer l'appel ; aucun SQL ni calcul, catalogue/identité via le moteur existant |

@@ -1535,15 +1535,15 @@ et seulement lorsque la question cite une valeur sans le mot « talent ».
 Les trois parcours étaient présentés à égalité. L'agent ADK et son interface Web
 sont désormais décrits comme le parcours principal ; le graphe LangGraph et le
 client MCP comme la première version du projet, gardée pour comparaison et non
-maintenue, avec l'écart de capacités : sept opérations structurées pour le
-graphe, douze outils pour l'agent, mais le seul contrôle de fidélité des
+maintenue, avec l'écart de capacités : moins d'opérations structurées pour le
+graphe que pour l'agent, mais le seul contrôle de fidélité des
 descriptions dans le graphe.
 
 Une relecture de toute la documentation a corrigé des affirmations devenues
 fausses (filtre de talent annoncé comme absent, parcours Ollama « non validé »,
-dix outils au lieu de douze) et des chiffres périmés, vérifiés dans la base et
-par collecte des tests. Les chiffres de campagne viennent d'une exécution
-complète de 42 questions.
+un nombre d'outils erroné) et des chiffres périmés, vérifiés dans la base et
+par collecte des tests. Les résultats de campagne viennent d'une exécution
+complète.
 
 `pandas` et `openpyxl`, importés nulle part, quittent les dépendances ; `pytest`
 passe dans les dépendances de développement et n'est plus installé dans l'image.
@@ -1570,7 +1570,7 @@ sans image : les illustrations sont insérées en HTML, avec une largeur fixe.
 
 ## 83. [Feature] Questions suggérées selon le public
 
-Le bouton de question aléatoire tirait parmi 142 questions, dont beaucoup
+Le bouton de question aléatoire tirait parmi de nombreuses questions, dont beaucoup
 supposaient de connaître Pokémon. Il est remplacé par trois boutons : « Je
 découvre Pokémon », avec des questions en langage courant dont la réponse se
 vérifie sans rien connaître (« Combien de Pokémon existe-t-il ? », « Quel est le
@@ -1587,9 +1587,9 @@ Chaque question a été vérifiée dans la base avant d'être proposée.
 
 Les rubriques en texte libre du tableur (statistiques remarquables, obtention,
 mise en avant, movepool, ancien type) n'étaient vérifiées par aucun test. Une
-campagne dédiée de 26 questions, une par sorte de fait, distingue trois pannes :
+campagne dédiée, une question par sorte de fait, distingue trois pannes :
 la fiche n'est pas demandée, la rubrique n'arrive pas, ou la réponse la
-restitue mal. Premier passage avec Qwen : 12 sur 26.
+restitue mal. Le premier passage avec Qwen en réussit environ la moitié.
 
 Trois défauts ont été corrigés. La notation du tableur était recopiée telle
 quelle ou lue à l'envers (« PV #6 (30) » sous « Bottom 10 » devenait un bon
@@ -1609,7 +1609,7 @@ Accepter l'outil des types pour un type interrogé, essayé d'abord, remplaçait
 une abstention par une réponse fausse : l'outil ignore l'historique et le
 modèle l'inventait. Seule la fiche est donc acceptée.
 
-Second passage : 13 sur 26, écart dans le bruit ; Abo et les rangs passent,
+Second passage : écart dans le bruit ; Abo et les rangs passent,
 Rondoudou passe sur un essai dans l'interface. Restent ouverts les négations
 tirées d'une absence (« Dracaufeu n'a pas de Méga-Évolution » d'après une liste
 d'évolutions vide) et les questions que le modèle envoie à un autre outil.
@@ -1741,8 +1741,8 @@ L'agent citait la bonne rubrique de la fiche puis la contredisait : « Oui,
 Ectoplasma a toujours eu le talent Corps Maudit », suivi de « donc non » ;
 Smogogo « immunisé s'il possède Lévitation, ce qui est le cas pour lui » ; une
 liste juste de jeux suivie de jeux inventés. Relues sur dix exécutions de
-chaque question, 26 réponses sur 30 étaient fautives, et le contrôle de
-campagne en comptait 18 réussies.
+chaque question, la plupart des réponses étaient fautives, et le contrôle de
+campagne en validait une grande partie.
 
 Trois causes étaient possibles : la consigne de rédaction, un a priori du
 modèle sur les questions fermées, ou la fiche elle-même. Chaque phrase fautive
@@ -2008,9 +2008,9 @@ démarré. Un test rejoue chaque question suggérée.
 ## 98. [Bug fix] Une rédaction sans appel d'outil à imiter
 
 Sur la démo publique, près d'une question sur trois finissait par « Je n'ai pas
-pu obtenir une réponse fiable dans les limites de traitement » : 21 sur 70 en
+pu obtenir une réponse fiable dans les limites de traitement » en
 un weekend, dont des questions suggérées. Avec Qwen en local, la même
-abstention touchait 3 % des questions.
+abstention restait rare.
 
 Les traces de la démo ont montré la cause. Une fois le résultat d'un outil
 reçu, le catalogue d'outils est retiré pour que le modèle rédige. Gemini
@@ -2101,7 +2101,7 @@ réponse.
 
 ## 102. [Bug fix] Une liste vide seulement quand la demande a été comprise
 
-Un audit des onze outils structurés, appelés directement avec des entrées
+Un audit des outils structurés, appelés directement avec des entrées
 limites, a montré que plusieurs renvoyaient une liste vide pour une demande
 qu'ils n'avaient pas reconnue. Le modèle lit une liste vide comme un fait :
 « n'évolue pas », « n'apprend pas cette capacité ».
@@ -2186,7 +2186,7 @@ initiale, et le mot n'est proche que d'une seule espèce. Les mots des noms de
 capacités, de types, de talents et de jeux ne sont jamais lus comme une faute.
 Les mots d'objets ne sont pas protégés, aucun outil ne filtrant par objet :
 « cosmo », mot de l'objet Lettre Cosmo, restait sinon inconnu au lieu de désigner
-Cosmog. Sur les 492 questions des traces, des fichiers de rejeu et du guide, seuls
+Cosmog. Sur les questions des traces, des fichiers de rejeu et du guide, seuls
 « mimigale » et « écoli » sont rapprochés.
 
 Deux fautes (« dracofeu »), un nom court (« Mew ») ou composé (« M. Mime ») ne
@@ -2290,7 +2290,7 @@ URL, restait illisible pour lui. La démo reste donc sur Cloud Run.
 
 La démo en ligne ne rejoue que des réponses enregistrées : un visiteur ne peut
 pas poser sa propre question sans installer le projet. Le serveur MCP, qui expose
-les douze outils, ne parlait que stdio, donc seulement à un client lancé sur la
+les outils, ne parlait que stdio, donc seulement à un client lancé sur la
 même machine. Le public visé a souvent un compte Claude, et le plan gratuit de
 Claude.ai accepte un connecteur MCP distant.
 
@@ -2328,7 +2328,7 @@ serveur et à un compte. L'exemple et un skill de consignes sont dans
 La configuration par défaut ne tenait pas dans le contexte de Qwen. Un relais
 entre OpenClaw et LM Studio a montré environ 57 000 caractères envoyés avant
 la question : outils intégrés, fichiers de l'espace de travail, liste des skills
-et catalogue d'outils différés. Les douze outils MCP n'y figuraient même pas :
+et catalogue d'outils différés. Les outils MCP du projet n'y figuraient même pas :
 OpenClaw les cachait derrière son outil de recherche. Le profil retenu garde les
 seuls outils MCP, envoyés directement, sans skill fourni ni fichier injecté. La
 requête tombe à environ 7 100 tokens. Il retire aussi la liste des skills : le
@@ -2388,14 +2388,14 @@ Deux échecs ne demandaient pas la question pour être corrigés. Un superlatif
 traduit en `limit` 1 coupait un ex aequo que le modèle taisait malgré le
 signalement : avec `best_only`, une limite inférieure à trente est maintenant
 relevée à trente. Le modèle répondait en anglais alors que le serveur lui
-donnait aussi les noms français : les onze outils structurés prennent
+donnait aussi les noms français : les outils structurés prennent
 `english_names`, faux par défaut, et ne renvoient sinon que les libellés
 français. Le guard ADK fixe cet argument d'après la question, et la vue des
 schémas présentée au modèle ADK le masque : son ajout faisait dépasser le
 budget de contexte sur une longue liste de CT.
 
-OpenClaw passe à neuf, huit et neuf, et l'agent réussit toujours les 48 cas de
-la campagne. Les ex aequo et les noms anglais sont corrigés par mécanisme ; deux
+L'écart d'OpenClaw se réduit nettement, et l'agent réussit toujours la
+campagne. Les ex aequo et les noms anglais sont corrigés par mécanisme ; deux
 cas de filtres passent aussi, mais par des arguments différents que ces
 correctifs ne visaient pas. Le nom mal écrit reste en échec : il faut lire la
 question pour le corriger. Proposer au modèle les noms proches d'un nom inconnu
